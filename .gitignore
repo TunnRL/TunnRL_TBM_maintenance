@@ -1,0 +1,5 @@
+# folder that will contain temporary results / clouds / blocks during the epxerimentation phase
+
+checkpoints
+
+**/__pycache__
