@@ -1,5 +1,9 @@
-# folder that will contain temporary results / clouds / blocks during the epxerimentation phase
-
-checkpoints
+# folder that contains documents connected to paper writing
+documents/
+# different folders that contain agent checkpoint, intermediate results or graphics
+src/_old_codes/
+src/checkpoints/
+src/graphics/
+src/results/
 
 **/__pycache__
