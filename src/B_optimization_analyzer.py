@@ -15,21 +15,20 @@ import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
 
+
+###############################################################################
+# Constants and fixed variables
+
 name = '2022_04_21_study'
 
 ###############################################################################
-# load data
+# processing
 
+# load data from completed OPTUNA study
 STUDY = fr"results\{name}.pkl"
 DF = fr'results\{name}.csv'
-
 df_study = pd.read_csv(DF)
-
 study = joblib.load(STUDY)
-
-
-###############################################################################
-# processing
 
 df_study.dropna(inplace=True)
 
@@ -37,11 +36,10 @@ trial = study.best_trial
 print('\nhighest reward: {}'.format(trial.value))
 print("Best hyperparameters: {}".format(trial.params))
 
-
 ###############################################################################
-# visualization
+# different visualizations of OPTUNA optimization
 
-# progress plot
+# plot that shows the progress of the optimization over the individual trials
 values_max = []
 for i, value in enumerate(df_study['value']):
     if i == 0:
@@ -52,55 +50,50 @@ for i, value in enumerate(df_study['value']):
         else:
             values_max.append(values_max[int(i-1)])
 
-fig, ax = plt.subplots()
+fig, ax = plt.subplots(figsize=(3.465, 3.465))
+# only scatter complete studies -> in case there are pruned or incomplete ones
 ax.scatter(df_study[df_study['state'] == 'COMPLETE']['number'],
             df_study[df_study['state'] == 'COMPLETE']['value'],
-            s=50, color='grey', edgecolor='black', label='complete')
-ax.scatter(df_study[df_study['state'] == 'PRUNED']['number'],
-            df_study[df_study['state'] == 'PRUNED']['value'],
-            s=50, color='red', edgecolor='black', label='pruned')
+            s=30, alpha=0.5, color='grey', edgecolor='black')
 ax.plot(df_study['number'], values_max, color='black')
 ax.grid(alpha=0.5)
 ax.set_xlabel('trial number')
 ax.set_ylabel('reward')
-# ax.legend()
 plt.tight_layout()
-plt.savefig(fr'graphics\{name}_optimization_progress.pdf')
+plt.savefig(fr'graphics\{name}_optimization_progress.svg')
 plt.close()
 
-# indivdual parameter plot
+# scatterplot of indivdual hyperparameters vs. reward
 PARAMS = ['params_batch_size', 'params_discount', 
           'params_entropy_regularization', 'params_l2_regularization',
           'params_learning rate', 'params_likelihood_ratio_clipping',
           'params_subsampl. fraction', 'params_variable_noise']
 
-fig = plt.figure(figsize=(3*len(PARAMS), 4))
+fig = plt.figure(figsize=(7.126, 4))  # 3*len(PARAMS), 4
 
 for i, param in enumerate(PARAMS):
-    ax = fig.add_subplot(1, len(PARAMS), i+1)
+    ax = fig.add_subplot(2, int(len(PARAMS)/2), i+1)
+    # only scatter complete studies -> see above
     ax.scatter(df_study[df_study['state'] == 'COMPLETE'][param],
-                df_study[df_study['state'] == 'COMPLETE']['value'],
-                s=50, color='grey', edgecolor='black', label='complete',
-                alpha=0.5)
-    ax.scatter(df_study[df_study['state'] == 'PRUNED'][param],
-                df_study[df_study['state'] == 'PRUNED']['value'],
-                s=50, color='red', edgecolor='black', label='pruned',
-                alpha=0.5)
-    ax.set_xlabel(param[7:])
+               df_study[df_study['state'] == 'COMPLETE']['value'],
+               s=20, color='grey', edgecolor='black', alpha=0.5)
     ax.grid(alpha=0.5)
-    if i == 0:
+    if i < int(len(PARAMS)/2):
+        ax.set_title(param[7:], fontsize=10)
+    else:
+        ax.set_xlabel(param[7:])
+    if i == 0 or i == int(len(PARAMS)/2):
         ax.set_ylabel('reward')
-        # ax.legend()
     else:
         ax.tick_params(axis='y', which='both', length=0, labelsize=0)
     if param == 'params_learning rate':
         ax.set_xscale('log')
 
 plt.tight_layout()
-plt.savefig(fr'graphics\{name}_optimization_scatter.pdf')
+plt.savefig(fr'graphics\{name}_optimization_scatter.svg')
 plt.close()
 
-# intermediate runs plot
+# plot of the progress of individual runs
 fig, ax = plt.subplots(figsize=(10, 8))
 
 for trial in study.trials:
@@ -120,5 +113,5 @@ ax.grid(alpha=0.5)
 ax.set_xlabel('episodes')
 ax.set_ylabel('reward')
 plt.tight_layout()
-plt.savefig(fr'graphics\{name}_optimization_intermediates.pdf')
+plt.savefig(fr'graphics\{name}_optimization_intermediates.svg')
 plt.close()

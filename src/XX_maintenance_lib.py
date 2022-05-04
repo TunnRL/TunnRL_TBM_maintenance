@@ -20,7 +20,7 @@ from tensorforce.environments import Environment
 
 class plotter:
     '''class that contains function to visualzie the progress of the
-    training and / or individual samples'''
+    training and / or individual samples of it'''
 
     def __init__(self):
         pass
@@ -93,7 +93,6 @@ class plotter:
         plt.savefig(fr'checkpoints\{savename}_sample.svg')
         plt.close()
 
-
     def trainingprogress_plot(self, df, summed_actions, name, savepath):
         fig, (ax0, ax1, ax2, ax3) = plt.subplots(nrows=4, ncols=1,
                                                  figsize=(12, 9))
@@ -130,6 +129,9 @@ class plotter:
 
 
 class SimpleAgent:
+    '''agent that applies a simple / not smart policy:
+    if cutter = broken -> change it.
+    Can be used like a common tensorforce agent'''
 
     def act(self, states, internals=None, independent=None):
         return np.where(states <= 0, 1, 0)
@@ -142,6 +144,9 @@ class SimpleAgent:
 
 
 class maintenance:
+    '''class that contains functions that describe the maintenance effort of
+    changing cutters on a TBM's cutterhead. Based on this the reward is
+    computed'''
 
     def __init__(self):
         pass
@@ -186,6 +191,8 @@ class maintenance:
 
 
 class CustomEnv(Environment, maintenance, plotter):
+    '''implementation of the custom environment that simulates the cutter wear
+    and provides the agent with a state and reward signal'''
     # https://tensorforce.readthedocs.io/en/latest/basics/getting-started.html
 
     def __init__(self, n_c_tot, LIFE, t_I, t_C_max, K, t_maint_max,
@@ -207,11 +214,6 @@ class CustomEnv(Environment, maintenance, plotter):
     def states(self):
         return dict(type='float', shape=(self.n_c_tot,), min_value=0,
                     max_value=1)
-
-    # def actions(self):
-    #     #return dict(type='int', shape=(self.n_c_tot,), num_values=2)
-    #     return dict(type='float', shape=(self.n_c_tot,), min_value=0,
-    #                 max_value=1)
 
     def execute(self, actions):
         # replace cutters based on action
@@ -265,6 +267,7 @@ class CustomEnv(Environment, maintenance, plotter):
 
 
 if __name__ == "__main__":
+    # implementation of some function to get plots for the paper.
 
     t_I = 25  # time for inspection of cutterhead [min]
     t_C_max = 75  # maximum time to change one cutter [min]
@@ -287,7 +290,7 @@ if __name__ == "__main__":
     ax.set_ylabel('total maintenance time [min]')
 
     ##########################################################################
-    # 3D plot of reward function
+    # 3D plot of reward functions
 
     # compute max possible time for maintenance
     t_maint_max = m.maintenance_cost(t_I, t_C_max, n_c_tot, K)[0]
@@ -324,36 +327,37 @@ if __name__ == "__main__":
     ZS1 = np.reshape(r1_s, (n_c_tot+1, n_c_tot+1))
     ZS2 = np.reshape(r2_s, (n_c_tot+1, n_c_tot+1))
     ZS3 = np.reshape(r3_s, (n_c_tot+1, n_c_tot+1))
-    # print(min(rewards), max(rewards))
 
-    fig = plt.figure(figsize=(16, 7))
+    fig = plt.figure(figsize=(3.465, 9))  # 3.465 = 88mm -> one column in paper
 
-    ax1 = fig.add_subplot(1, 3, 1, projection='3d')
-    ax1.plot_surface(XS, YS, ZS3, shade=True)
+    ax1 = fig.add_subplot(3, 1, 1, projection='3d')
+    ax1.plot_surface(XS, YS, ZS3, color='grey')
 
-    ax2 = fig.add_subplot(1, 3, 2, projection='3d')
-    ax2.plot_surface(XS, YS, ZS2)
+    ax2 = fig.add_subplot(3, 1, 2, projection='3d')
+    ax2.plot_surface(XS, YS, ZS2, color='grey')
 
-    ax3 = fig.add_subplot(1, 3, 3, projection='3d')
-    ax3.plot_surface(XS, YS, ZS1)
+    ax3 = fig.add_subplot(3, 1, 3, projection='3d')
+    ax3.plot_surface(XS, YS, ZS1, color='grey')
 
     ax1.view_init(elev=20., azim=150)
     ax1.set_xlabel('good cutters')
     ax1.set_ylabel('cutters to change')
     ax1.set_zlabel('reward')
-    ax1.set_title('simple reward')
+    ax1.set_title('a)', loc='left')  # simple reward
 
     ax2.view_init(elev=20., azim=150)
     ax2.set_xlabel('good cutters')
     ax2.set_ylabel('cutters to change')
     ax2.set_zlabel('reward')
-    ax2.set_title('normal reward')
+    ax2.set_title('b)', loc='left')  # intermediate reward
 
     ax3.view_init(elev=20., azim=150)
     ax3.set_xlabel('good cutters')
     ax3.set_ylabel('cutters to change')
     ax3.set_zlabel('reward')
-    ax3.set_title('complex reward')
+    ax3.set_title('c)', loc='left')  # complex reward
     ax3.set_zlim(top=1)
 
-    # plt.savefig(r'graphics\reward_functions.pdf')
+    plt.tight_layout(rect=(0.05, 0, 0.85, 1))
+
+    plt.savefig(r'graphics\reward_functions.svg')
