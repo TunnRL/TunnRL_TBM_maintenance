@@ -32,8 +32,8 @@ LIFE = 400000  # theoretical durability of one cutter [m]
 STROKE_LENGTH = 1.8  # length of one stroke [m]
 MAX_STROKES = 1000  # number of strokes per episode
 
-EPISODES = 3_000  # episodes to train for
-CHECKPOINT = 100  # checkpoints every X episodes
+EPISODES = 20_000  # episodes to train for
+CHECKPOINT = 200  # checkpoints every X episodes
 REWARD_MODE = 1  # one of three different reward modes needs to be chosen
 
 t_I = 25  # time for inspection of cutterhead [min]
@@ -104,7 +104,8 @@ def objective(trial):
         agent = Agent.create(agent='ppo',
                              actions=dict(type='int', shape=(n_c_tot,),
                                           num_values=2),
-                             environment=environment, batch_size=10,
+                             environment=environment,
+                             batch_size=10,
                              learning_rate=0.011,
                              subsampling_fraction=0.19,
                              likelihood_ratio_clipping=0.29,
@@ -115,7 +116,7 @@ def objective(trial):
 
     summed_actions = []  # list to collect number of actions per episode
     # main loop that trains the agent throughout multiple episodes
-    for ep in range(ep, ep+EPISODES):
+    for ep in range(ep, ep+EPISODES+1):
         state = environment.reset()  # reset new environment
         terminal = False  # reset terminal flag
 
@@ -161,8 +162,8 @@ def objective(trial):
             if OPTIMIZATION is True:
                 trial.report(interm_rew, ep)
             else:
-                environment.save(AGENT, train_start, ep, states, actions, df,
-                                 summed_actions, agent)
+                environment.save(AGENT, train_start, ep, states, actions,
+                                 rewards, df, summed_actions, agent)
     # return final reward -> only necessary for optimization
     # final reward is computed as the average of the top 200 episodes of one
     # series of episodes

@@ -25,13 +25,14 @@ name = '2022_04_21_study'
 # processing
 
 # load data from completed OPTUNA study
-STUDY = fr"results\{name}.pkl"
-DF = fr'results\{name}.csv'
+STUDY = fr"results\{name}.pkl"  # name of the saved study file
+DF = fr'results\{name}.csv'  # name of the csv. where logs from the study are
+# load data
 df_study = pd.read_csv(DF)
 study = joblib.load(STUDY)
 
-df_study.dropna(inplace=True)
-
+df_study.dropna(inplace=True)  # drop NaN values
+# print values of best trial in study
 trial = study.best_trial
 print('\nhighest reward: {}'.format(trial.value))
 print("Best hyperparameters: {}".format(trial.params))
@@ -53,8 +54,8 @@ for i, value in enumerate(df_study['value']):
 fig, ax = plt.subplots(figsize=(3.465, 3.465))
 # only scatter complete studies -> in case there are pruned or incomplete ones
 ax.scatter(df_study[df_study['state'] == 'COMPLETE']['number'],
-            df_study[df_study['state'] == 'COMPLETE']['value'],
-            s=30, alpha=0.5, color='grey', edgecolor='black')
+           df_study[df_study['state'] == 'COMPLETE']['value'],
+           s=30, alpha=0.5, color='grey', edgecolor='black')
 ax.plot(df_study['number'], values_max, color='black')
 ax.grid(alpha=0.5)
 ax.set_xlabel('trial number')
@@ -64,12 +65,12 @@ plt.savefig(fr'graphics\{name}_optimization_progress.svg')
 plt.close()
 
 # scatterplot of indivdual hyperparameters vs. reward
-PARAMS = ['params_batch_size', 'params_discount', 
+PARAMS = ['params_batch_size', 'params_discount',
           'params_entropy_regularization', 'params_l2_regularization',
           'params_learning rate', 'params_likelihood_ratio_clipping',
           'params_subsampl. fraction', 'params_variable_noise']
 
-fig = plt.figure(figsize=(7.126, 4))  # 3*len(PARAMS), 4
+fig = plt.figure(figsize=(7.126, 4))
 
 for i, param in enumerate(PARAMS):
     ax = fig.add_subplot(2, int(len(PARAMS)/2), i+1)
@@ -99,7 +100,7 @@ fig, ax = plt.subplots(figsize=(10, 8))
 for trial in study.trials:
     eps = list(trial.intermediate_values.keys())
     vals = list(trial.intermediate_values.values())
-    
+
     if len(eps) == 1:
         ax.plot(eps, vals, alpha=0.5, color='black')
     else:
