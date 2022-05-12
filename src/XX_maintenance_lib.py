@@ -216,8 +216,7 @@ class CustomEnv(Environment, maintenance, plotter):
     # https://tensorforce.readthedocs.io/en/latest/basics/getting-started.html
 
     def __init__(self, n_c_tot, LIFE, t_I, t_C_max, K, t_maint_max,
-                 MAX_STROKES, STROKE_LENGTH, cutter_pathlenghts, REWARD_MODE,
-                 ):
+                 MAX_STROKES, STROKE_LENGTH, cutter_pathlenghts, REWARD_MODE):
         super().__init__()
 
         self.n_c_tot = n_c_tot  # total number of cutters
@@ -356,36 +355,15 @@ if __name__ == "__main__":
     ZS2 = np.reshape(r2_s, (n_c_tot+1, n_c_tot+1))
     ZS3 = np.reshape(r3_s, (n_c_tot+1, n_c_tot+1))
 
-    fig = plt.figure(figsize=(3.465, 9))  # 3.465 = 88mm -> one column in paper
+    fig = plt.figure(figsize=(3.465, 3.465))
 
-    ax1 = fig.add_subplot(3, 1, 1, projection='3d')
-    ax1.plot_surface(XS, YS, ZS3, color='grey')
+    ax = fig.add_subplot(1, 1, 1, projection='3d')
+    ax.plot_surface(XS, YS, ZS1, color='grey')
 
-    ax2 = fig.add_subplot(3, 1, 2, projection='3d')
-    ax2.plot_surface(XS, YS, ZS2, color='grey')
+    ax.view_init(elev=20., azim=150)
+    ax.set_xlabel('good cutters')
+    ax.set_ylabel('cutters to change')
+    ax.set_zlabel('reward')
+    ax.set_zlim(top=1)
 
-    ax3 = fig.add_subplot(3, 1, 3, projection='3d')
-    ax3.plot_surface(XS, YS, ZS1, color='grey')
-
-    ax1.view_init(elev=20., azim=150)
-    ax1.set_xlabel('good cutters')
-    ax1.set_ylabel('cutters to change')
-    ax1.set_zlabel('reward')
-    ax1.set_title('a)', loc='left')  # simple reward
-
-    ax2.view_init(elev=20., azim=150)
-    ax2.set_xlabel('good cutters')
-    ax2.set_ylabel('cutters to change')
-    ax2.set_zlabel('reward')
-    ax2.set_title('b)', loc='left')  # intermediate reward
-
-    ax3.view_init(elev=20., azim=150)
-    ax3.set_xlabel('good cutters')
-    ax3.set_ylabel('cutters to change')
-    ax3.set_zlabel('reward')
-    ax3.set_title('c)', loc='left')  # complex reward
-    ax3.set_zlim(top=1)
-
-    plt.tight_layout(rect=(0.05, 0, 0.85, 1))
-
-    plt.savefig(r'graphics\reward_functions.svg')
+    plt.savefig(r'graphics\reward_function.svg')
