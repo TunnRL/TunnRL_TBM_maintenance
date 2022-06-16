@@ -46,7 +46,7 @@ class plotter:
         h, l = ax.get_legend_handles_labels()
         ax.set_xlim(left=-1, right=actions_arr.shape[0]+1)
         ax.set_ylim(top=1.05, bottom=-0.05)
-        ax.set_title(f'epoch {ep}', fontsize=10)
+        ax.set_title(f'episode {ep}', fontsize=10)
         ax.set_ylabel('cutter life')
         ax.set_xticklabels([])
         ax.grid(alpha=0.5)
