@@ -15,6 +15,7 @@ import matplotlib.cm as mplcm
 import matplotlib.pyplot as plt
 import matplotlib.gridspec as gridspec
 import numpy as np
+from pathlib import Path
 from tensorforce.environments import Environment
 
 
@@ -105,8 +106,8 @@ class plotter:
         ax.grid(alpha=0.5)
 
         plt.tight_layout()
-        plt.savefig(fr'checkpoints\{savename}_sample.png', dpi=600)
-        plt.savefig(fr'checkpoints\{savename}_sample.svg')
+        plt.savefig(Path(f'checkpoints/{savename}_sample.png'), dpi=600)
+        plt.savefig(Path(f'checkpoints/{savename}_sample.svg'))
         plt.close()
 
     def trainingprogress_plot(self, df, summed_actions, name):
@@ -142,8 +143,8 @@ class plotter:
         ax3.set_xlabel('episodes')
 
         plt.tight_layout()
-        plt.savefig(fr'checkpoints\{name}_progress.png', dpi=600)
-        plt.savefig(fr'checkpoints\{name}_progress.svg')
+        plt.savefig(Path(f'checkpoints/{name}_progress.png'), dpi=600)
+        plt.savefig(Path(f'checkpoints/{name}_progress.svg'))
         plt.close()
 
 
@@ -285,7 +286,7 @@ class CustomEnv(Environment, maintenance, plotter):
         self.trainingprogress_plot(df, summed_actions, name)
 
         agent.save(directory='checkpoints', filename=name, format='hdf5')
-        df.to_csv(fr'checkpoints\{name}.csv', index=False)
+        df.to_csv(Path(f'checkpoints/{name}.csv', index=False))
 
 
 if __name__ == "__main__":
@@ -314,7 +315,7 @@ if __name__ == "__main__":
     ax.set_xlabel('cutters to change')
     ax.set_ylabel('total maintenance time [min]')
     plt.tight_layout()
-    plt.savefig(r'graphics\cutter_changing_function.svg')
+    plt.savefig(Path('graphics/cutter_changing_function.svg'))
 
     ##########################################################################
     # 3D plot of reward functions
@@ -366,4 +367,4 @@ if __name__ == "__main__":
     ax.set_zlabel('reward')
     ax.set_zlim(top=1)
 
-    plt.savefig(r'graphics\reward_function.svg')
+    plt.savefig(Path(f'graphics/reward_function.svg'))

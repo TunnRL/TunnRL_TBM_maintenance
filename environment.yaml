@@ -1,0 +1,16 @@
+name: rl_cutter
+channels:
+- conda-forge
+- defaults
+dependencies:
+- python=3.9.7
+- joblib=1.1.0
+- matplotlib=3.5.1
+- numpy
+- pandas
+- rich
+- pip
+- pip:
+  - optuna==2.10.0
+  - tensorforce
+  - keras==2.6.0
