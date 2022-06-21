@@ -16,11 +16,14 @@ import joblib
 import numpy as np
 import optuna
 import pandas as pd
+from pathlib import Path
 from tensorforce.agents import Agent
 from tensorforce.environments import Environment
+from rich.traceback import install
 
 from XX_maintenance_lib import maintenance, CustomEnv, plotter
 
+install() # for better error messages
 
 ###############################################################################
 # Constants and fixed variables
@@ -176,7 +179,7 @@ def objective(trial):
 
 if OPTIMIZATION is True:  # study
     try:  # evtl. load already existing study if one exists
-        study = joblib.load(fr'results\{STUDY}.pkl')
+        study = joblib.load(Path(f'results/{STUDY}.pkl'))
         print('prev. study loaded')
     except FileNotFoundError:  # or create a new study
         study = optuna.create_study(direction='maximize')
@@ -185,10 +188,10 @@ if OPTIMIZATION is True:  # study
     # saved and can be checked every 2 trials
     for _ in range(200):  # save every second study
         study.optimize(objective, n_trials=2)
-        joblib.dump(study, fr"results\{STUDY}.pkl")
+        joblib.dump(study, Path(f"results/{STUDY}.pkl"))
 
         df = study.trials_dataframe()
-        df.to_csv(fr'results\{STUDY}.csv')
+        df.to_csv(Path(f'results/{STUDY}.csv'))
     # print results of study
     trial = study.best_trial
     print('\nhighest reward: {}'.format(trial.value))

@@ -14,6 +14,7 @@ import joblib
 import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
+from pathlib import Path
 
 
 ###############################################################################
@@ -25,8 +26,8 @@ name = '2022_04_21_study'
 # processing
 
 # load data from completed OPTUNA study
-STUDY = fr"results\{name}.pkl"  # name of the saved study file
-DF = fr'results\{name}.csv'  # name of the csv. where logs from the study are
+STUDY = Path(f"results/{name}.pkl")  # name of the saved study file
+DF = Path(f'results\{name}.csv')  # name of the csv. where logs from the study are
 # load data
 df_study = pd.read_csv(DF)
 study = joblib.load(STUDY)
@@ -61,7 +62,7 @@ ax.grid(alpha=0.5)
 ax.set_xlabel('trial number')
 ax.set_ylabel('reward')
 plt.tight_layout()
-plt.savefig(fr'graphics\{name}_optimization_progress.svg')
+plt.savefig(Path(f'graphics/{name}_optimization_progress.svg'))
 plt.close()
 
 # scatterplot of indivdual hyperparameters vs. reward
@@ -91,7 +92,7 @@ for i, param in enumerate(PARAMS):
         ax.set_xscale('log')
 
 plt.tight_layout()
-plt.savefig(fr'graphics\{name}_optimization_scatter.svg')
+plt.savefig(Path(f'graphics/{name}_optimization_scatter.svg'))
 plt.close()
 
 # plot of the progress of individual runs
@@ -114,5 +115,5 @@ ax.grid(alpha=0.5)
 ax.set_xlabel('episodes')
 ax.set_ylabel('reward')
 plt.tight_layout()
-plt.savefig(fr'graphics\{name}_optimization_intermediates.svg')
+plt.savefig(Path(f'graphics/{name}_optimization_intermediates.svg'))
 plt.close()
