@@ -11,11 +11,15 @@ Created on Sat Oct 30 12:57:51 2021
 code contributors: Georg H. Erharter, Tom F. Hansen
 """
 
+from datetime import datetime
 import matplotlib.cm as mplcm
 import matplotlib.pyplot as plt
 import matplotlib.gridspec as gridspec
 import numpy as np
+import optuna
+import pandas as pd
 from pathlib import Path
+from tensorforce.agents import Agent
 from tensorforce.environments import Environment
 
 
@@ -287,6 +291,102 @@ class CustomEnv(Environment, maintenance, plotter):
 
         agent.save(directory='checkpoints', filename=name, format='hdf5')
         df.to_csv(Path(f'checkpoints/{name}.csv', index=False))
+
+
+class optimization:
+
+    def __init__(self, n_c_tot, environment, EPISODES, CHECKPOINT, AGENT, OPTIMIZATION):
+        self.n_c_tot = n_c_tot
+        self.environment = environment
+        self.EPISODES = EPISODES
+        self.CHECKPOINT = CHECKPOINT
+        self.AGENT = AGENT
+        self.OPTIMIZATION = OPTIMIZATION
+
+    def objective(self, trial):
+        '''objective function that runs the RL environment and agent for
+        optimization'''
+        print('\n')
+
+        # initialize new series of episodes
+        ep, train_start = 0, datetime.now().strftime("%Y%m%d-%H%M%S")
+        # dataframe to collect episode recordings for later analyses
+        df = pd.DataFrame({'episode': [], 'min_rewards': [], 'max_rewards': [],
+                           'avg_rewards': [], 'min_brokens': [],
+                           'avg_brokens': [], 'max_brokes': [],
+                           'avg_changes_per_interv': []})
+
+        # initialze an agent for a OPTUNA hyperparameter study
+        agent = Agent.create(agent='ppo',
+                             actions=dict(type='int', shape=(self.n_c_tot,),
+                                          num_values=2),
+                             environment=self.environment,
+                             batch_size=trial.suggest_int('batch_size', 5, 40, step=5),
+                             learning_rate=trial.suggest_float('learning rate', low=1e-4, high=1e-1, log=True),
+                             subsampling_fraction=trial.suggest_float('subsampl. fraction', low=0.1, high=1),
+                             likelihood_ratio_clipping=trial.suggest_float('likelihood_ratio_clipping', low=0.1, high=1),
+                             l2_regularization=trial.suggest_float('l2_regularization', low=0.0, high=.6),
+                             entropy_regularization=trial.suggest_float('entropy_regularization', low=0.0, high=0.6),
+                             discount=trial.suggest_float('discount', low=0.0, high=1),
+                             variable_noise=trial.suggest_float('variable_noise', low=0.0, high=1))
+
+        summed_actions = []  # list to collect number of actions per episode
+        # main loop that trains the agent throughout multiple episodes
+        for ep in range(ep, ep+self.EPISODES+1):
+            state = self.environment.reset()  # reset new environment
+            terminal = False  # reset terminal flag
+
+            actions = []  # collect actions per episode
+            states = [state]  # collect states per episode
+            rewards = []  # collect rewards per episode
+            broken_cutters = []  # collect number of broken cutters per episode
+            # loop that trains agent in "act-observe" style on one episode
+            while not terminal:
+                # collect number of broken cutters in curr. state
+                broken_cutters.append(len(np.where(state == 0)[0]))
+                # agent takes an action -> tells which cutters to replace
+                action = agent.act(states=state)
+                # environment gives new state signal, terminal flag and reward
+                state, terminal, reward = self.environment.execute(actions=action)
+                # agent observes "response" of environment to its action
+                agent.observe(terminal=terminal, reward=reward)
+                # collect actions, states and rewards for later analyses
+                actions.append(action)
+                states.append(state)
+                rewards.append(reward)
+            # compute and collect average statistics per episode for later analyses
+            avg_reward = np.mean(rewards)
+            avg_broken = np.mean(broken_cutters)
+            avg_changed = np.mean(np.sum(np.where(np.vstack(actions) > .5, 1, 0), 1))
+            df_temp = pd.DataFrame({'episode': [ep], 'min_rewards': [min(rewards)],
+                                    'max_rewards': [max(rewards)],
+                                    'avg_rewards': [avg_reward],
+                                    'min_brokens': [min(broken_cutters)],
+                                    'avg_brokens': [avg_broken],
+                                    'max_brokes': [max(broken_cutters)],
+                                    'avg_changes_per_interv': [avg_changed]})
+            df = pd.concat([df, df_temp])
+            summed_actions.append(np.sum(actions, axis=0))
+            # show intermediate results on checkpoints
+            if ep % self.CHECKPOINT == 0 and ep != 0:
+                # Report intermediate objective value.
+                interm_rew = df['avg_rewards'].iloc[-self.CHECKPOINT:].mean()
+                interm_broken = df['avg_brokens'].iloc[-self.CHECKPOINT:].mean()
+                interm_changed = df['avg_changes_per_interv'].iloc[-self.CHECKPOINT:].mean()
+                print(f'{ep}: rew {interm_rew} broken {interm_broken} changed {interm_changed}')
+                
+                if self.OPTIMIZATION is True:
+                    trial.report(interm_rew, ep)
+                else:
+                    self.environment.save(self.AGENT, train_start, ep, states,
+                                          actions, rewards, df, summed_actions,
+                                          agent)
+
+        # return final reward -> only necessary for optimization
+        # final reward is computed as the average of the top 200 episodes of
+        # one series of episodes
+        final_reward = np.mean(np.sort(df['avg_rewards'].values)[-200:])
+        return final_reward
 
 
 if __name__ == "__main__":
