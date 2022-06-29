@@ -93,6 +93,7 @@ class plotter:
                 color='black', va='top', ha='right', fontsize=7.5)
         ax.set_xlim(left=-1, right=actions_arr.shape[0]+1)
         ax.set_ylabel('cutter changes\nper stroke')
+        ax.set_xticklabels([])
         ax.grid(alpha=0.5)
 
         # bar plot that shows the reward per stroke
@@ -110,9 +111,62 @@ class plotter:
         ax.grid(alpha=0.5)
 
         plt.tight_layout()
-        plt.savefig(Path(f'checkpoints/{savename}_sample.png'), dpi=600)
+        # plt.savefig(Path(f'checkpoints/{savename}_sample.png'), dpi=600)
         plt.savefig(Path(f'checkpoints/{savename}_sample.svg'))
         plt.close()
+
+    def environment_parameter_plot(self, savename, ep):
+        '''plot that shows the generated TBM parameters of the episode'''
+        x = np.arange(len(self.Jv_s))  # strokes
+        # count broken cutters due to blocky conditions
+        n_brokens = np.count_nonzero(self.brokens, axis=1)
+
+        fig, (ax1, ax2, ax3, ax4, ax5, ax6) = plt.subplots(nrows=6, figsize=(12, 9))
+
+        ax1.plot(x, self.Jv_s, color='black')
+        ax1.grid(alpha=0.5)
+        ax1.set_ylabel('Volumetric Joint count\n[joints / m3]')
+        ax1.set_xlim(left=0, right=len(x))
+        ax1.set_title(f'episode {ep}', fontsize=10)
+        ax1.set_xticklabels([])
+
+        ax2.plot(x, self.UCS_s, color='black')
+        ax2.grid(alpha=0.5)
+        ax2.set_ylabel('Rock UCS\n[MPa]')
+        ax2.set_xlim(left=0, right=len(x))
+        ax2.set_xticklabels([])
+
+        ax3.plot(x, self.FPIblocky_s, color='black')
+        ax3.hlines([50, 100, 200, 300], xmin=0, xmax=len(x), color='black',
+                   alpha=0.5)
+        ax3.set_ylim(bottom=0, top=400)
+        ax3.set_ylabel('FPI blocky\n[kN/m/mm/rot]')
+        ax3.set_xlim(left=0, right=len(x))
+        ax3.set_xticklabels([])
+
+        ax4.plot(x, self.TF_s, color='black')
+        ax4.grid(alpha=0.5)
+        ax4.set_ylabel('thrust force\n[kN]')
+        ax4.set_xlim(left=0, right=len(x))
+        ax4.set_xticklabels([])
+
+        ax5.plot(x, self.penetration, color='black')
+        ax5.grid(alpha=0.5)
+        ax5.set_ylabel('penetration\n[mm/rot]')
+        ax5.set_xlim(left=0, right=len(x))
+        ax5.set_xticklabels([])
+
+        ax6.plot(x, n_brokens, color='black')
+        ax6.grid(alpha=0.5)
+        ax6.set_ylabel('broken cutters\ndue to blocks')
+        ax6.set_xlabel('strokes')
+        ax6.set_xlim(left=0, right=len(x))
+
+        plt.tight_layout()
+        # plt.savefig(Path(f'checkpoints/{savename}_episode.png'), dpi=600)
+        plt.savefig(Path(f'checkpoints/{savename}_episode.svg'))
+        plt.close()
+
 
     def trainingprogress_plot(self, df, summed_actions, name):
         '''plot of different metrices of the whole training progress so far'''
@@ -147,7 +201,7 @@ class plotter:
         ax3.set_xlabel('episodes')
 
         plt.tight_layout()
-        plt.savefig(Path(f'checkpoints/{name}_progress.png'), dpi=600)
+        # plt.savefig(Path(f'checkpoints/{name}_progress.png'), dpi=600)
         plt.savefig(Path(f'checkpoints/{name}_progress.svg'))
         plt.close()
 
@@ -221,7 +275,8 @@ class CustomEnv(Environment, maintenance, plotter):
     # https://tensorforce.readthedocs.io/en/latest/basics/getting-started.html
 
     def __init__(self, n_c_tot, LIFE, t_I, t_C_max, K, t_maint_max,
-                 MAX_STROKES, STROKE_LENGTH, cutter_pathlenghts, REWARD_MODE):
+                 MAX_STROKES, STROKE_LENGTH, cutter_pathlenghts, REWARD_MODE,
+                 R):
         super().__init__()
 
         self.n_c_tot = n_c_tot  # total number of cutters
@@ -234,6 +289,7 @@ class CustomEnv(Environment, maintenance, plotter):
         self.STROKE_LENGTH = STROKE_LENGTH  # length of one stroke [m]
         self.cutter_pathlenghts = cutter_pathlenghts  # rolling lengths [m]
         self.REWARD_MODE = REWARD_MODE  # which of 3 reward modes to use
+        self.R = R  # radius of cutterhead [m]
 
     def states(self):
         '''return dictionary with information on how the state looks like'''
@@ -257,26 +313,98 @@ class CustomEnv(Environment, maintenance, plotter):
                              mode=self.REWARD_MODE, cap_zero=True, scale=False)
 
         # update cutter life based on how much wear occurs
-        penetration = np.random.normal(loc=0.008, scale=0.003)  # [m/rot]
-        penetration = np.where(penetration < 0.0005, 0.0005, penetration)
-        rot_per_stroke = self.STROKE_LENGTH / penetration
+        p = self.penetration[self.epoch] / 1000  # [m/rot]
+        rot_per_stroke = self.STROKE_LENGTH / p
         self.state = self.state - rot_per_stroke * (self.cutter_pathlenghts / self.LIFE)
         self.state = np.where(self.state <= 0, 0, self.state)
 
-        self.stroke_intervall += 1
-        if self.stroke_intervall >= self.MAX_STROKES:
+        # set cutter lifes to 0 based on blockyness
+        self.state[np.where(self.brokens[self.epoch, :] == 1)[0]] = 0
+
+        self.epoch += 1
+        if self.epoch >= self.MAX_STROKES:
             terminal = True
         else:
             terminal = False
 
         return self.state, terminal, reward
 
+    def rand_walk_with_bounds(self, n_dp):
+        '''function generates a random walk within the boundaries 0 and 1'''
+        bounds = .05
+
+        x = [np.random.uniform(low=0, high=1, size=1)]
+
+        for move in np.random.uniform(low=-bounds, high=bounds, size=n_dp):
+            x_temp = x[-1] + move
+            if x_temp <= 1 and x_temp >= 0:
+                x.append(x_temp)
+            else:
+                x.append(x[-1] - move)
+
+        return np.array(x[1:])
+
+    def generate(self, Jv_low=0, Jv_high=22, UCS_center=80, UCS_range=30):
+        '''function generates TBM recordings for one episode. Equations and
+        models based on Delisio & Zhao (2014) - "A new model for TBM
+        performance prediction in blocky rock conditions",
+        http://dx.doi.org/10.1016/j.tust.2014.06.004'''
+
+        Jv_s = self.rand_walk_with_bounds(self.MAX_STROKES) * (Jv_high - Jv_low) + Jv_low  # [joints / m3]
+        UCS_s = UCS_center + self.rand_walk_with_bounds(self.MAX_STROKES) * UCS_range  # [MPa]
+
+        # eq 9, Delisio & Zhao (2014) - [kN/m/mm/rot]
+        FPIblocky_s = np.squeeze(np.exp(6) * Jv_s**-0.82 * UCS_s**0.17)
+
+        brokens = np.zeros(shape=(self.MAX_STROKES, self.n_c_tot))
+
+        for stroke in range(self.MAX_STROKES):
+            # based on FPI blocky cutters have different likelyhoods to break
+            if FPIblocky_s[stroke] > 200 and FPIblocky_s[stroke] <= 300:
+                if np.random.randint(0, 100) == 0:
+                    size = np.random.randint(1, 4)
+                    selection = np.random.choice(np.arange(self.n_c_tot),
+                                                 replace=False, size=size)
+                    brokens[stroke, :][selection] = 1
+            elif FPIblocky_s[stroke] > 100 and FPIblocky_s[stroke] <= 200:
+                if np.random.randint(0, 50) == 0:
+                    size = np.random.randint(1, 4)
+                    selection = np.random.choice(np.arange(self.n_c_tot),
+                                                 replace=False, size=size)
+                    brokens[stroke, :][selection] = 1
+            elif FPIblocky_s[stroke] >= 50 and FPIblocky_s[stroke] <= 100:
+                if np.random.randint(0, 10) == 0:
+                    size = np.random.randint(1, 4)
+                    selection = np.random.choice(np.arange(self.n_c_tot),
+                                                 replace=False, size=size)
+                    brokens[stroke, :][selection] = 1
+            elif FPIblocky_s[stroke] < 50:
+                if np.random.randint(0, 100) == 0:
+                    size = np.random.randint(1, 4)
+                    selection = np.random.choice(np.arange(self.n_c_tot),
+                                                 replace=False, size=size)
+                    brokens[stroke, :][selection] = 1
+
+        # eq 13, Delisio & Zhao (2014)
+        TF_s = np.squeeze((-523 * np.log(Jv_s) + 2312) * (self.R*2))  # [kN]
+        TF_s = np.where(TF_s > 20_000, 20_000, TF_s)
+
+        # eq 7, Delisio & Zhao (2014)
+        # TF_s already considers shield friction
+        penetration = (TF_s / (self.R*2)) / FPIblocky_s  # [mm/rot]
+
+        return Jv_s, UCS_s, FPIblocky_s, brokens, TF_s, penetration
+
     def reset(self):
-        '''reset an environment to its beginning state = either all cutters are
-        new, or all cutters are broken'''
+        '''reset an environment to its beginning state'''
+        # start with either new cutters, or all cutters broken
         self.state = np.full((self.n_c_tot), 1)  # start all cutters good
-        self.stroke_intervall = 0  # reset maintenance intervall
         # self.state = np.full((self.n_c_tot), 0)  # start all cutters broken
+
+        self.epoch = 0  # reset epoch counter
+        # generate new TBM data for episode
+        self.Jv_s, self.UCS_s, self.FPIblocky_s, self.brokens, self.TF_s, self.penetration = self.generate()
+
         return self.state
 
     def save(self, AGENT, train_start, ep, states, actions, rewards, df,
@@ -286,6 +414,8 @@ class CustomEnv(Environment, maintenance, plotter):
         name = f'{AGENT}_{train_start}_{ep}'
 
         self.sample_ep_plot(states, actions, rewards, ep, savename=name)
+
+        self.environment_parameter_plot(savename=name, ep=ep)
 
         self.trainingprogress_plot(df, summed_actions, name)
 
@@ -373,8 +503,10 @@ class optimization:
                 interm_rew = df['avg_rewards'].iloc[-self.CHECKPOINT:].mean()
                 interm_broken = df['avg_brokens'].iloc[-self.CHECKPOINT:].mean()
                 interm_changed = df['avg_changes_per_interv'].iloc[-self.CHECKPOINT:].mean()
-                print(f'{ep}: rew {interm_rew} broken {interm_broken} changed {interm_changed}')
-                
+                print(f'episode {ep}: rew.: {round(interm_rew, 3)} '
+                      f'broken: {round(interm_broken, 3)} '
+                      f'changed: {round(interm_changed, 3)}')
+
                 if self.OPTIMIZATION is True:
                     trial.report(interm_rew, ep)
                 else:

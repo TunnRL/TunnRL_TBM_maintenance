@@ -39,8 +39,8 @@ K = 1.25  # factor controlling change time of cutters
 
 AGENT = 'ppo'  # name of the agent
 
-OPTIMIZATION = True  # Flag that indicates whether or not to run an OPTUNA optimization or a "main run" with fixed hyperparameters
-STUDY = '2022_06_26_study'  # name of the study if OPTIMIZATION = True
+OPTIMIZATION = False  # Flag that indicates whether or not to run an OPTUNA optimization or a "main run" with fixed hyperparameters
+STUDY = '2022_04_21_study'  # name of the study if OPTIMIZATION = True
 
 
 ###############################################################################
@@ -61,7 +61,7 @@ cutter_pathlenghts = cutter_positions * 2 * np.pi  # [m]
 t_maint_max = m.maintenance_cost(t_I, t_C_max, n_c_tot, K)[0]
 
 env = CustomEnv(n_c_tot, LIFE, t_I, t_C_max, K, t_maint_max, MAX_STROKES,
-                STROKE_LENGTH, cutter_pathlenghts, REWARD_MODE)
+                STROKE_LENGTH, cutter_pathlenghts, REWARD_MODE, R)
 
 environment = Environment.create(environment=env,
                                  max_episode_timesteps=MAX_STROKES)
