@@ -12,7 +12,9 @@ code contributors: Georg H. Erharter, Tom F. Hansen
 
 import joblib
 import matplotlib.pyplot as plt
+from matplotlib.lines import Line2D
 import numpy as np
+from os import listdir
 import pandas as pd
 from pathlib import Path
 
@@ -20,19 +22,15 @@ from pathlib import Path
 ###############################################################################
 # Constants and fixed variables
 
-name = '2022_04_21_study'
+name = '2022_07_08_study'
 
 ###############################################################################
 # processing
 
 # load data from completed OPTUNA study
-STUDY = Path(f"results/{name}.pkl")  # name of the saved study file
-DF = Path(f'results\{name}.csv')  # name of the csv. where logs from the study are
-# load data
-df_study = pd.read_csv(DF)
-study = joblib.load(STUDY)
+df_study = pd.read_csv(Path(fr'results\{name}.csv'))
+study = joblib.load(Path(fr"results\{name}.pkl"))
 
-df_study.dropna(inplace=True)  # drop NaN values
 # print values of best trial in study
 trial = study.best_trial
 print('\nhighest reward: {}'.format(trial.value))
@@ -41,6 +39,7 @@ print("Best hyperparameters: {}".format(trial.params))
 ###############################################################################
 # different visualizations of OPTUNA optimization
 
+#####
 # plot that shows the progress of the optimization over the individual trials
 values_max = []
 for i, value in enumerate(df_study['value']):
@@ -55,8 +54,8 @@ for i, value in enumerate(df_study['value']):
 fig, ax = plt.subplots(figsize=(3.465, 3.465))
 # only scatter complete studies -> in case there are pruned or incomplete ones
 ax.scatter(df_study[df_study['state'] == 'COMPLETE']['number'],
-           df_study[df_study['state'] == 'COMPLETE']['value'],
-           s=30, alpha=0.5, color='grey', edgecolor='black')
+            df_study[df_study['state'] == 'COMPLETE']['value'],
+            s=30, alpha=0.5, color='grey', edgecolor='black')
 ax.plot(df_study['number'], values_max, color='black')
 ax.grid(alpha=0.5)
 ax.set_xlabel('trial number')
@@ -65,52 +64,71 @@ plt.tight_layout()
 plt.savefig(Path(f'graphics/{name}_optimization_progress.svg'))
 plt.close()
 
+#####
 # scatterplot of indivdual hyperparameters vs. reward
-PARAMS = ['params_batch_size', 'params_discount',
-          'params_entropy_regularization', 'params_l2_regularization',
-          'params_learning rate', 'params_likelihood_ratio_clipping',
-          'params_subsampl. fraction', 'params_variable_noise']
+AGENTS = ['PPO', 'A2C', 'DDPG', 'SAC', 'TD3']
+PARAMS = [p for p in df_study.columns if "params_" in p]
 
-fig = plt.figure(figsize=(7.126, 4))
+agent_params = []
+for a in AGENTS:
+    agent_params.append([p_a for p_a in PARAMS if a in p_a])
+lenghts = [len(l) for l in agent_params]
 
-for i, param in enumerate(PARAMS):
-    ax = fig.add_subplot(2, int(len(PARAMS)/2), i+1)
-    # only scatter complete studies -> see above
-    ax.scatter(df_study[df_study['state'] == 'COMPLETE'][param],
-               df_study[df_study['state'] == 'COMPLETE']['value'],
-               s=20, color='grey', edgecolor='black', alpha=0.5)
-    ax.grid(alpha=0.5)
-    if i < int(len(PARAMS)/2):
-        ax.set_title(param[7:], fontsize=10)
-    else:
-        ax.set_xlabel(param[7:])
-    if i == 0 or i == int(len(PARAMS)/2):
-        ax.set_ylabel('reward')
-    else:
-        ax.tick_params(axis='y', which='both', length=0, labelsize=0)
-    if param == 'params_learning rate':
-        ax.set_xscale('log')
+from matplotlib.gridspec import GridSpec
+
+fig = plt.figure(figsize=(max(lenghts)*3, len(AGENTS)*3))
+gs = GridSpec(len(AGENTS), max(lenghts), figure=fig)
+
+for i, a in enumerate(AGENTS):
+    for j, param in enumerate(agent_params[i]):
+        ax = fig.add_subplot(gs[i, j])
+        ax.scatter(df_study[df_study['state'] == 'COMPLETE'][param],
+                   df_study[df_study['state'] == 'COMPLETE']['value'],
+                   s=20, color='grey', edgecolor='black', alpha=0.5)
+        ax.grid(alpha=0.5)
+        ax.set_xlabel(param.split('_')[-1])
+        if j == 0:
+            ax.set_ylabel(f'{a}\nreward')
+        if 'learning rate' in param:
+            ax.set_xscale('log')
 
 plt.tight_layout()
 plt.savefig(Path(f'graphics/{name}_optimization_scatter.svg'))
 plt.close()
 
+#####
 # plot of the progress of individual runs
 fig, ax = plt.subplots(figsize=(10, 8))
 
-for trial in study.trials:
-    eps = list(trial.intermediate_values.keys())
-    vals = list(trial.intermediate_values.values())
+for trial in listdir('optimization'):
+    try:
+        records = np.load(fr'optimization\{trial}\evaluations.npz')
+        if 'PPO' in trial:
+            ax.plot(np.arange(len(records['timesteps'])),
+                    np.mean(records['results'], axis=1), alpha=0.5, color='C0')
+        elif 'A2C' in trial:
+            ax.plot(np.arange(len(records['timesteps'])),
+                    np.mean(records['results'], axis=1), alpha=0.5, color='C1')
+        elif 'DDPG' in trial:
+            ax.plot(np.arange(len(records['timesteps'])),
+                    np.mean(records['results'], axis=1), alpha=0.5, color='C2')
+        elif 'SAC' in trial:
+            ax.plot(np.arange(len(records['timesteps'])),
+                    np.mean(records['results'], axis=1), alpha=0.5, color='C3')
+        elif 'TD3' in trial:
+            ax.plot(np.arange(len(records['timesteps'])),
+                    np.mean(records['results'], axis=1), alpha=0.5, color='C4')
+    except FileNotFoundError:
+        pass
 
-    if len(eps) == 1:
-        ax.plot(eps, vals, alpha=0.5, color='black')
-    else:
-        if min(np.diff(vals)) < 0:
-            ax.plot(eps, vals, alpha=0.5, color='black')
-        else:
-            ax.plot(eps, vals, alpha=0.5, color='black')
+custom_lines = [Line2D([0], [0], color='C0', lw=4),
+                Line2D([0], [0], color='C1', lw=4),
+                Line2D([0], [0], color='C2', lw=4),
+                Line2D([0], [0], color='C3', lw=4),
+                Line2D([0], [0], color='C4', lw=4)]
 
-ax.set_ylim(top=1, bottom=0)
+ax.legend(custom_lines, ['PPO', 'A2C', 'DDPG', 'SAC', 'TD3'])
+ax.set_ylim(top=1000, bottom=0)
 ax.grid(alpha=0.5)
 ax.set_xlabel('episodes')
 ax.set_ylabel('reward')

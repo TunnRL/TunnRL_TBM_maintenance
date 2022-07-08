@@ -1,7 +1,7 @@
 # folder that contains documents connected to paper writing
 documents/
 # different folders that contain agent checkpoint, intermediate results or graphics
-src/_old_codes/
+src/optimization/
 src/checkpoints/
 src/graphics/
 src/results/

@@ -12,6 +12,8 @@ code contributors: Georg H. Erharter, Tom F. Hansen
 """
 
 from datetime import datetime
+import gym
+from gym import spaces
 import matplotlib.cm as mplcm
 import matplotlib.pyplot as plt
 import matplotlib.gridspec as gridspec
@@ -19,12 +21,14 @@ import numpy as np
 import optuna
 import pandas as pd
 from pathlib import Path
-from tensorforce.agents import Agent
-from tensorforce.environments import Environment
+from stable_baselines3.common.callbacks import CheckpointCallback, EvalCallback, StopTrainingOnNoModelImprovement
+from stable_baselines3.common.evaluation import evaluate_policy
+from stable_baselines3.common.logger import configure
+from stable_baselines3 import PPO, A2C, DDPG, SAC, TD3
 
 
 class plotter:
-    '''class that contains function to visualzie the progress of the
+    '''class that contains functions to visualzie the progress of the
     training and / or individual samples of it'''
 
     def __init__(self):
@@ -37,7 +41,7 @@ class plotter:
 
         states_arr = np.vstack(states[:-1])
         actions_arr = np.vstack(actions)
-        actions_arr = np.where(actions_arr > .5, 1, 0)  # binarize
+        actions_arr = np.where(actions_arr > 0, 1, 0)  # binarize
 
         fig = plt.figure(tight_layout=True, figsize=(10.236, 7.126))
         gs = gridspec.GridSpec(nrows=4, ncols=2, width_ratios=[5, 1])
@@ -163,10 +167,8 @@ class plotter:
         ax6.set_xlim(left=0, right=len(x))
 
         plt.tight_layout()
-        # plt.savefig(Path(f'checkpoints/{savename}_episode.png'), dpi=600)
         plt.savefig(Path(f'checkpoints/{savename}_episode.svg'))
         plt.close()
-
 
     def trainingprogress_plot(self, df, summed_actions, name):
         '''plot of different metrices of the whole training progress so far'''
@@ -204,21 +206,6 @@ class plotter:
         # plt.savefig(Path(f'checkpoints/{name}_progress.png'), dpi=600)
         plt.savefig(Path(f'checkpoints/{name}_progress.svg'))
         plt.close()
-
-
-class SimpleAgent:
-    '''agent that applies a simple / not smart policy:
-    if cutter = broken -> change it.
-    Can be used like a common tensorforce agent'''
-
-    def act(self, states, internals=None, independent=None):
-        return np.where(states <= 0, 1, 0)
-
-    def observe(self, terminal, reward):
-        pass
-
-    def save(self, directory, filename, format):
-        pass
 
 
 class maintenance:
@@ -269,15 +256,16 @@ class maintenance:
         return r
 
 
-class CustomEnv(Environment, maintenance, plotter):
+class CustomEnv(gym.Env, maintenance, plotter):
     '''implementation of the custom environment that simulates the cutter wear
     and provides the agent with a state and reward signal'''
-    # https://tensorforce.readthedocs.io/en/latest/basics/getting-started.html
 
     def __init__(self, n_c_tot, LIFE, t_I, t_C_max, K, t_maint_max,
                  MAX_STROKES, STROKE_LENGTH, cutter_pathlenghts, REWARD_MODE,
                  R):
-        super().__init__()
+        super(CustomEnv, self).__init__()
+        self.action_space = spaces.Box(low=-1, high=1, shape=(n_c_tot,))
+        self.observation_space = spaces.Box(low=0, high=1, shape=(n_c_tot,))
 
         self.n_c_tot = n_c_tot  # total number of cutters
         self.LIFE = LIFE  # theoretical durability of one cutter [m]
@@ -291,15 +279,10 @@ class CustomEnv(Environment, maintenance, plotter):
         self.REWARD_MODE = REWARD_MODE  # which of 3 reward modes to use
         self.R = R  # radius of cutterhead [m]
 
-    def states(self):
-        '''return dictionary with information on how the state looks like'''
-        return dict(type='float', shape=(self.n_c_tot,), min_value=0,
-                    max_value=1)
-
-    def execute(self, actions):
+    def step(self, actions):
         '''main function that moves the environment one step further'''
         # replace cutters based on action of agent
-        replace_ids = np.where(actions > 0.5)[0]
+        replace_ids = np.where(actions > 0)[0]
         self.state[replace_ids] = 1  # update state / cutter life
 
         # compute reward
@@ -327,10 +310,10 @@ class CustomEnv(Environment, maintenance, plotter):
         else:
             terminal = False
 
-        return self.state, terminal, reward
+        return self.state, reward, terminal, {}
 
     def rand_walk_with_bounds(self, n_dp):
-        '''function generates a random walk within the boundaries 0 and 1'''
+        '''function generates a random walk within the limits 0 and 1'''
         bounds = .05
 
         x = [np.random.uniform(low=0, high=1, size=1)]
@@ -396,7 +379,7 @@ class CustomEnv(Environment, maintenance, plotter):
         return Jv_s, UCS_s, FPIblocky_s, brokens, TF_s, penetration
 
     def reset(self):
-        '''reset an environment to its beginning state'''
+        '''reset an environment to its initial state'''
         # start with either new cutters, or all cutters broken
         self.state = np.full((self.n_c_tot), 1)  # start all cutters good
         # self.state = np.full((self.n_c_tot), 0)  # start all cutters broken
@@ -406,6 +389,12 @@ class CustomEnv(Environment, maintenance, plotter):
         self.Jv_s, self.UCS_s, self.FPIblocky_s, self.brokens, self.TF_s, self.penetration = self.generate()
 
         return self.state
+
+    def render(self):
+        pass  # TODO -> combine / merge with current "save" function
+
+    def close(self):
+        pass  # TODO
 
     def save(self, AGENT, train_start, ep, states, actions, rewards, df,
              summed_actions, agent):
@@ -417,111 +406,122 @@ class CustomEnv(Environment, maintenance, plotter):
 
         self.environment_parameter_plot(savename=name, ep=ep)
 
-        self.trainingprogress_plot(df, summed_actions, name)
+        # self.trainingprogress_plot(df, summed_actions, name)
 
-        agent.save(directory='checkpoints', filename=name, format='hdf5')
-        df.to_csv(Path(f'checkpoints/{name}.csv', index=False))
+        # agent.save(fr'agents\{name}')
+        # df.to_csv(Path(f'checkpoints/{name}.csv', index=False))
 
 
 class optimization:
 
-    def __init__(self, n_c_tot, environment, EPISODES, CHECKPOINT, AGENT, OPTIMIZATION):
+    def __init__(self, n_c_tot, environment, EPISODES, CHECKPOINT,
+                 MODE, MAX_STROKES):
         self.n_c_tot = n_c_tot
         self.environment = environment
         self.EPISODES = EPISODES
         self.CHECKPOINT = CHECKPOINT
-        self.AGENT = AGENT
-        self.OPTIMIZATION = OPTIMIZATION
+        self.MODE = MODE
+        self.MAX_STROKES = MAX_STROKES
 
     def objective(self, trial):
-        '''objective function that runs the RL environment and agent for
-        optimization'''
+        '''objective function that runs the RL environment and agent either for
+        an optimization or an optimized agent'''
         print('\n')
 
-        # initialize new series of episodes
-        ep, train_start = 0, datetime.now().strftime("%Y%m%d-%H%M%S")
-        # dataframe to collect episode recordings for later analyses
-        df = pd.DataFrame({'episode': [], 'min_rewards': [], 'max_rewards': [],
-                           'avg_rewards': [], 'min_brokens': [],
-                           'avg_brokens': [], 'max_brokes': [],
-                           'avg_changes_per_interv': []})
+        new_logger = configure('checkpoints', ["csv"])
+        # define agent
+        model = trial.suggest_categorical('model', ['PPO', 'A2C', 'DDPG',
+                                                    'SAC', 'TD3'])
+        # TODO add trial.suggestions to individual agents other than PPO
+        if model == 'PPO':
+            agent = PPO('MlpPolicy', self.environment,
+                        n_steps=self.MAX_STROKES,
+                        batch_size=50,
+                        n_epochs=10,
+                        learning_rate=trial.suggest_float('PPO_learning rate', low=1e-4, high=1e-1, log=True),
+                        gamma=trial.suggest_float('PPO_discount', low=0.0, high=1),
+                        gae_lambda=trial.suggest_float('PPO_gae lambda', low=0.0, high=1),
+                        clip_range=trial.suggest_float('PPO_clip range', low=0.0, high=1),
+                        # ent_coef -> leads to PyTorch based ValueErrors
+                        vf_coef=trial.suggest_float('PPO_vf coef', low=0.0, high=1),
+                        max_grad_norm=trial.suggest_float('PPO_max grad norm', low=0.0, high=1),
+                        use_sde=trial.suggest_categorical('PPO_use sde', [True, False]),
+                        verbose=0)
+        elif model == 'A2C':
+            agent = A2C('MlpPolicy', self.environment,
+                        learning_rate=trial.suggest_float('A2C_learning rate', low=1e-4, high=1e-1, log=True),
+                        gamma=trial.suggest_float('A2C_discount', low=0.0, high=1),
+                        verbose=0)
+        elif model == 'DDPG':
+            agent = DDPG('MlpPolicy', self.environment,
+                         learning_rate=trial.suggest_float('DDPG_learning rate', low=1e-4, high=1e-1, log=True),
+                         gamma=trial.suggest_float('DDPG_discount', low=0.0, high=1),
+                         learning_starts=trial.suggest_int('DDPG_learning starts', low=50, high=1000, step=50),
+                         verbose=0)
+        elif model == 'SAC':
+            agent = SAC('MlpPolicy', self.environment,
+                        learning_rate=trial.suggest_float('SAC_learning rate', low=1e-4, high=1e-1, log=True),
+                        gamma=trial.suggest_float('SAC_discount', low=0.0, high=1),
+                        learning_starts=trial.suggest_int('SAC_learning starts', low=50, high=1000, step=50),
+                        tau=trial.suggest_float('SAC_tau', low=1e-4, high=1e-1, log=True),
+                        verbose=0)
+        elif model == 'TD3':
+            agent = TD3('MlpPolicy', self.environment,
+                        learning_rate=trial.suggest_float('TD3_learning rate', low=1e-4, high=1e-1, log=True),
+                        gamma=trial.suggest_float('TD3_discount', low=0.0, high=1),
+                        verbose=0)
 
-        # initialze an agent for a OPTUNA hyperparameter study
-        agent = Agent.create(agent='ppo',
-                             actions=dict(type='int', shape=(self.n_c_tot,),
-                                          num_values=2),
-                             environment=self.environment,
-                             batch_size=trial.suggest_int('batch_size', 5, 40, step=5),
-                             learning_rate=trial.suggest_float('learning rate', low=1e-4, high=1e-1, log=True),
-                             subsampling_fraction=trial.suggest_float('subsampl. fraction', low=0.1, high=1),
-                             likelihood_ratio_clipping=trial.suggest_float('likelihood_ratio_clipping', low=0.1, high=1),
-                             l2_regularization=trial.suggest_float('l2_regularization', low=0.0, high=.6),
-                             entropy_regularization=trial.suggest_float('entropy_regularization', low=0.0, high=0.6),
-                             discount=trial.suggest_float('discount', low=0.0, high=1),
-                             variable_noise=trial.suggest_float('variable_noise', low=0.0, high=1))
+        # train agent
+        if self.MODE == 'Optimization':
+            name = model + datetime.now().strftime("%Y%m%d-%H%M%S")
+            print(f'agent: {model}')
+            # train agent with early stopping and save best agents only
+            stop_train_callback = StopTrainingOnNoModelImprovement(max_no_improvement_evals=10, min_evals=5, verbose=1)
+            eval_callback = EvalCallback(self.environment,
+                                         best_model_save_path=fr'optimization\{name}',
+                                         log_path=fr'optimization\{name}',
+                                         deterministic=False,
+                                         eval_freq=self.MAX_STROKES,
+                                         callback_after_eval=stop_train_callback,
+                                         verbose=1)
 
-        summed_actions = []  # list to collect number of actions per episode
-        # main loop that trains the agent throughout multiple episodes
-        for ep in range(ep, ep+self.EPISODES+1):
-            state = self.environment.reset()  # reset new environment
-            terminal = False  # reset terminal flag
+            agent.learn(total_timesteps=self.EPISODES * self.MAX_STROKES,
+                        callback=eval_callback)
+            del agent
+            # load best agent and evaluate it on 10 episodes
+            print('load agent')
+            if model == 'PPO':
+                agent = PPO.load(fr'optimization\{name}\best_model.zip')
+            elif model == 'A2C':
+                agent = A2C.load(fr'optimization\{name}\best_model.zip')
+            elif model == 'DDPG':
+                agent = DDPG.load(fr'optimization\{name}\best_model.zip')
+            elif model == 'SAC':
+                agent = SAC.load(fr'optimization\{name}\best_model.zip')
+            elif model == 'TD3':
+                agent = TD3.load(fr'optimization\{name}\best_model.zip')
 
-            actions = []  # collect actions per episode
-            states = [state]  # collect states per episode
-            rewards = []  # collect rewards per episode
-            broken_cutters = []  # collect number of broken cutters per episode
-            # loop that trains agent in "act-observe" style on one episode
-            while not terminal:
-                # collect number of broken cutters in curr. state
-                broken_cutters.append(len(np.where(state == 0)[0]))
-                # agent takes an action -> tells which cutters to replace
-                action = agent.act(states=state)
-                # environment gives new state signal, terminal flag and reward
-                state, terminal, reward = self.environment.execute(actions=action)
-                # agent observes "response" of environment to its action
-                agent.observe(terminal=terminal, reward=reward)
-                # collect actions, states and rewards for later analyses
-                actions.append(action)
-                states.append(state)
-                rewards.append(reward)
-            # compute and collect average statistics per episode for later analyses
-            avg_reward = np.mean(rewards)
-            avg_broken = np.mean(broken_cutters)
-            avg_changed = np.mean(np.sum(np.where(np.vstack(actions) > .5, 1, 0), 1))
-            df_temp = pd.DataFrame({'episode': [ep], 'min_rewards': [min(rewards)],
-                                    'max_rewards': [max(rewards)],
-                                    'avg_rewards': [avg_reward],
-                                    'min_brokens': [min(broken_cutters)],
-                                    'avg_brokens': [avg_broken],
-                                    'max_brokes': [max(broken_cutters)],
-                                    'avg_changes_per_interv': [avg_changed]})
-            df = pd.concat([df, df_temp])
-            summed_actions.append(np.sum(actions, axis=0))
-            # show intermediate results on checkpoints
-            if ep % self.CHECKPOINT == 0 and ep != 0:
-                # Report intermediate objective value.
-                interm_rew = df['avg_rewards'].iloc[-self.CHECKPOINT:].mean()
-                interm_broken = df['avg_brokens'].iloc[-self.CHECKPOINT:].mean()
-                interm_changed = df['avg_changes_per_interv'].iloc[-self.CHECKPOINT:].mean()
-                print(f'episode {ep}: rew.: {round(interm_rew, 3)} '
-                      f'broken: {round(interm_broken, 3)} '
-                      f'changed: {round(interm_changed, 3)}')
+            mean_ep_reward = evaluate_policy(agent, self.environment,
+                                             n_eval_episodes=10,
+                                             deterministic=False)[0]
+            final_reward = mean_ep_reward  # objective's reward
 
-                if self.OPTIMIZATION is True:
-                    trial.report(interm_rew, ep)
-                else:
-                    self.environment.save(self.AGENT, train_start, ep, states,
-                                          actions, rewards, df, summed_actions,
-                                          agent)
-
-        # return final reward -> only necessary for optimization
-        # final reward is computed as the average of the top 200 episodes of
-        # one series of episodes
-        final_reward = np.mean(np.sort(df['avg_rewards'].values)[-200:])
-        return final_reward
+            return final_reward
+        elif self.MODE == 'Training':
+            # mode that trains an agent based on previous OPTUNA study
+            freq = self.MAX_STROKES * self.CHECKPOINT
+            checkpoint_callback = CheckpointCallback(save_freq=freq,
+                                                     save_path='checkpoints',
+                                                     name_prefix=f'{model}_')
+            # TODO implement callback that logs also environmental training
+            # TODO parameters (broken cutters, n changes per ep etc.)
+            agent.set_logger(new_logger)
+            agent.learn(total_timesteps=self.EPISODES * self.MAX_STROKES,
+                        callback=checkpoint_callback)
 
 
 if __name__ == "__main__":
+
     # direct implementation of some functions to get plots for the paper.
 
     t_I = 25  # time for inspection of cutterhead [min]
