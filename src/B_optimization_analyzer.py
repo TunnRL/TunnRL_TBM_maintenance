@@ -11,8 +11,8 @@ code contributors: Georg H. Erharter, Tom F. Hansen
 """
 
 import joblib
-import matplotlib.pyplot as plt
 from matplotlib.lines import Line2D
+import matplotlib.pyplot as plt
 import numpy as np
 from os import listdir
 import pandas as pd
@@ -22,7 +22,7 @@ from pathlib import Path
 ###############################################################################
 # Constants and fixed variables
 
-name = '2022_07_08_study'
+name = 'SAC_2022_07_17_study'
 
 ###############################################################################
 # processing
@@ -66,31 +66,23 @@ plt.close()
 
 #####
 # scatterplot of indivdual hyperparameters vs. reward
-AGENTS = ['PPO', 'A2C', 'DDPG', 'SAC', 'TD3']
 PARAMS = [p for p in df_study.columns if "params_" in p]
 
-agent_params = []
-for a in AGENTS:
-    agent_params.append([p_a for p_a in PARAMS if a in p_a])
-lenghts = [len(l) for l in agent_params]
+fig = plt.figure(figsize=(len(PARAMS)*3, 4))
 
-from matplotlib.gridspec import GridSpec
+for i, param in enumerate(PARAMS):
+    ax = fig.add_subplot(1, len(PARAMS), i+1)
+    ax.scatter(df_study[df_study['state'] == 'COMPLETE'][param],
+               df_study[df_study['state'] == 'COMPLETE']['value'],
+               s=20, color='grey', edgecolor='black', alpha=0.5)
+    ax.grid(alpha=0.5)
+    ax.set_xlabel(param.split('_')[-1])
+    if i == 0:
+        ax.set_ylabel('reward')
+    if 'learning rate' in param:
+        ax.set_xscale('log')
 
-fig = plt.figure(figsize=(max(lenghts)*3, len(AGENTS)*3))
-gs = GridSpec(len(AGENTS), max(lenghts), figure=fig)
-
-for i, a in enumerate(AGENTS):
-    for j, param in enumerate(agent_params[i]):
-        ax = fig.add_subplot(gs[i, j])
-        ax.scatter(df_study[df_study['state'] == 'COMPLETE'][param],
-                   df_study[df_study['state'] == 'COMPLETE']['value'],
-                   s=20, color='grey', edgecolor='black', alpha=0.5)
-        ax.grid(alpha=0.5)
-        ax.set_xlabel(param.split('_')[-1])
-        if j == 0:
-            ax.set_ylabel(f'{a}\nreward')
-        if 'learning rate' in param:
-            ax.set_xscale('log')
+fig.suptitle(name.split('_')[0])
 
 plt.tight_layout()
 plt.savefig(Path(f'graphics/{name}_optimization_scatter.svg'))

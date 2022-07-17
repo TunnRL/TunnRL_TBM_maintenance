@@ -44,8 +44,11 @@ K = 1.25  # factor controlling change time of cutters
 # MODE determines if either an optimization should run = "Optimization", or a
 # new agent is trained with prev. optimized parameters = "Training", or an
 # already trained agent is executed = "Execution"
-MODE = 'Execution'  # 'Optimization', 'Training', 'Execution'
-STUDY = '2022_07_08_study'  # name of the study if MODE == 'Optimization'
+MODE = 'Optimization'  # 'Optimization', 'Training', 'Execution'
+# name of the study if MODE == 'Optimization' or 'Training'
+# the Study name must start with the name of the agent that needs to be one of
+# 'PPO', 'A2C', 'DDPG', 'SAC', 'TD3'
+STUDY = 'SAC_2022_07_17_study'
 
 ###############################################################################
 # computed variables and instantiations
@@ -68,8 +71,11 @@ env = CustomEnv(n_c_tot, LIFE, t_I, t_C_max, K, t_maint_max, MAX_STROKES,
                 STROKE_LENGTH, cutter_pathlenghts, REWARD_MODE, R)
 # check_env(env)  # check if env is a suitable gym environment
 
+agent = STUDY.split('_')[0]
+
 # Instantiate optimization function
-optim = optimization(n_c_tot, env, EPISODES, CHECKPOINT, MODE, MAX_STROKES)
+optim = optimization(n_c_tot, env, EPISODES, CHECKPOINT, MODE, MAX_STROKES,
+                     agent)
 
 ###############################################################################
 # run one of the three modes: Optimization, Training, Execution
@@ -79,7 +85,7 @@ if MODE == 'Optimization':  # study
         study = joblib.load(Path(f'results/{STUDY}.pkl'))
         print('prev. optimization study loaded')
     except FileNotFoundError:  # or create a new study
-        study = optuna.create_study(direction='maximize')
+        study = optuna.create_study(direction='maximize', study_name=STUDY)
         print('new optimization study created')
     # the OPTUNA study is then run in a loop so that intermediate results are
     # saved and can be checked every 2 trials
@@ -115,7 +121,7 @@ elif MODE == 'Execution':
                        'avg_brokens': [], 'max_brokes': [],
                        'avg_changes_per_interv': []})
 
-    agent = PPO.load(r'checkpoints\PPO__100000_steps')
+    agent = PPO.load(r'checkpoints\PPO__200000_steps')
 
     summed_actions = []  # list to collect number of actions per episode
 

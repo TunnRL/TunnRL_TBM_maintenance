@@ -415,13 +415,14 @@ class CustomEnv(gym.Env, maintenance, plotter):
 class optimization:
 
     def __init__(self, n_c_tot, environment, EPISODES, CHECKPOINT,
-                 MODE, MAX_STROKES):
+                 MODE, MAX_STROKES, AGENT):
         self.n_c_tot = n_c_tot
         self.environment = environment
         self.EPISODES = EPISODES
         self.CHECKPOINT = CHECKPOINT
         self.MODE = MODE
         self.MAX_STROKES = MAX_STROKES
+        self.AGENT = AGENT
 
     def objective(self, trial):
         '''objective function that runs the RL environment and agent either for
@@ -430,8 +431,8 @@ class optimization:
 
         new_logger = configure('checkpoints', ["csv"])
         # define agent
-        model = trial.suggest_categorical('model', ['PPO', 'A2C', 'DDPG',
-                                                    'SAC', 'TD3'])
+        model = self.AGENT
+
         # TODO add trial.suggestions to individual agents other than PPO
         if model == 'PPO':
             agent = PPO('MlpPolicy', self.environment,
