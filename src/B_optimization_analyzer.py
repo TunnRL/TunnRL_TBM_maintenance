@@ -21,8 +21,8 @@ from pathlib import Path
 
 ###############################################################################
 # Constants and fixed variables
-
-name = 'PPO_2022_07_20_study'
+name = 'PPO_2022_07_25_study'
+agent = name.split('_')[0]
 
 ###############################################################################
 # processing
@@ -54,10 +54,11 @@ for i, value in enumerate(df_study['value']):
 fig, ax = plt.subplots(figsize=(5, 5))
 # only scatter complete studies -> in case there are pruned or incomplete ones
 ax.scatter(df_study[df_study['state'] == 'COMPLETE']['number'],
-            df_study[df_study['state'] == 'COMPLETE']['value'],
-            s=30, alpha=0.7, color='grey', edgecolor='black', label='COMPLETE')
+           df_study[df_study['state'] == 'COMPLETE']['value'],
+           s=30, alpha=0.7, color='grey', edgecolor='black', label='COMPLETE')
 ax.scatter(df_study[df_study['state'] == 'FAIL']['number'],
-           np.zeros(len(df_study[df_study['state'] == 'FAIL'])),
+           np.full(len(df_study[df_study['state'] == 'FAIL']),
+                   df_study['value'].min()),
            s=30, alpha=0.7, color='red', edgecolor='black', label='FAIL')
 ax.plot(df_study['number'], values_max, color='black')
 ax.grid(alpha=0.5)
@@ -72,20 +73,27 @@ plt.close()
 # scatterplot of indivdual hyperparameters vs. reward
 PARAMS = [p for p in df_study.columns if "params_" in p]
 
-fig = plt.figure(figsize=(len(PARAMS)*3, 4))
+# replance NaN with "None"
+if agent == 'SAC':
+    df_study['params_SAC_action_noise'].fillna(value='None', inplace=True)
+
+fig = plt.figure(figsize=(18, 9))
 
 for i, param in enumerate(PARAMS):
-    ax = fig.add_subplot(1, len(PARAMS), i+1)
+    ax = fig.add_subplot(2, 7, i+1)
     ax.scatter(df_study[df_study['state'] == 'COMPLETE'][param],
                df_study[df_study['state'] == 'COMPLETE']['value'],
-               s=20, color='grey', edgecolor='black', alpha=0.5, label='COMPLETE')
+               s=20, color='grey', edgecolor='black', alpha=0.5,
+               label='COMPLETE')
     ax.scatter(df_study[df_study['state'] == 'FAIL'][param],
-               np.zeros(len(df_study[df_study['state'] == 'FAIL'])),
+               np.full(len(df_study[df_study['state'] == 'FAIL']),
+                       df_study['value'].min()),
                s=20, color='red', edgecolor='black', alpha=0.5, label='FAIL')
     ax.grid(alpha=0.5)
     ax.set_xlabel(param.split('_')[-1])
     if i == 0:
         ax.set_ylabel('reward')
+
     if 'learning rate' in param:
         ax.set_xscale('log')
 ax.legend()
@@ -100,25 +108,25 @@ plt.close()
 fig, ax = plt.subplots(figsize=(10, 8))
 
 for trial in listdir('optimization'):
-    try:
-        records = np.load(fr'optimization\{trial}\evaluations.npz')
+    if agent in trial:
+        df_log = pd.read_csv(fr'optimization\{trial}\progress.csv')
+        df_log['episodes'] = df_log[r'time/total_timesteps'] / df_log[r'rollout/ep_len_mean']
+        df_log.dropna(axis=0, subset=[r'time/iterations'], inplace=True)
         if 'PPO' in trial:
-            ax.plot(np.arange(len(records['timesteps'])),
-                    np.mean(records['results'], axis=1), alpha=0.5, color='C0')
+            ax.plot(df_log['episodes'], df_log[r'rollout/ep_rew_mean'],
+                    alpha=0.5, color='C0')
         elif 'A2C' in trial:
-            ax.plot(np.arange(len(records['timesteps'])),
-                    np.mean(records['results'], axis=1), alpha=0.5, color='C1')
+            ax.plot(df_log['episodes'], df_log[r'rollout/ep_rew_mean'],
+                    alpha=0.5, color='C0')
         elif 'DDPG' in trial:
-            ax.plot(np.arange(len(records['timesteps'])),
-                    np.mean(records['results'], axis=1), alpha=0.5, color='C2')
+            ax.plot(df_log['episodes'], df_log[r'rollout/ep_rew_mean'],
+                    alpha=0.5, color='C0')
         elif 'SAC' in trial:
-            ax.plot(np.arange(len(records['timesteps'])),
-                    np.mean(records['results'], axis=1), alpha=0.5, color='C3')
+            ax.plot(df_log['episodes'], df_log[r'rollout/ep_rew_mean'],
+                    alpha=0.5, color='C0')
         elif 'TD3' in trial:
-            ax.plot(np.arange(len(records['timesteps'])),
-                    np.mean(records['results'], axis=1), alpha=0.5, color='C4')
-    except FileNotFoundError:
-        pass
+            ax.plot(df_log['episodes'], df_log[r'rollout/ep_rew_mean'],
+                    alpha=0.5, color='C0')
 
 custom_lines = [Line2D([0], [0], color='C0', lw=4),
                 Line2D([0], [0], color='C1', lw=4),
@@ -127,7 +135,7 @@ custom_lines = [Line2D([0], [0], color='C0', lw=4),
                 Line2D([0], [0], color='C4', lw=4)]
 
 ax.legend(custom_lines, ['PPO', 'A2C', 'DDPG', 'SAC', 'TD3'])
-ax.set_ylim(top=1000, bottom=0)
+# ax.set_ylim(top=1000, bottom=0)
 ax.grid(alpha=0.5)
 ax.set_xlabel('episodes')
 ax.set_ylabel('reward')
