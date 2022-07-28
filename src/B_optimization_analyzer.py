@@ -11,17 +11,16 @@ code contributors: Georg H. Erharter, Tom F. Hansen
 """
 
 import joblib
-from matplotlib.lines import Line2D
 import matplotlib.pyplot as plt
 import numpy as np
-from os import listdir
 import pandas as pd
 from pathlib import Path
 
+from D_training_path_analyzer import training_path
 
 ###############################################################################
 # Constants and fixed variables
-name = 'PPO_2022_07_25_study'
+name = 'TD3_2022_07_27_study'  # DDPG_2022_07_27_study TD3_2022_07_27_study
 agent = name.split('_')[0]
 
 ###############################################################################
@@ -74,8 +73,8 @@ plt.close()
 PARAMS = [p for p in df_study.columns if "params_" in p]
 
 # replance NaN with "None"
-if agent == 'SAC':
-    df_study['params_SAC_action_noise'].fillna(value='None', inplace=True)
+if agent == 'SAC' or agent == 'DDPG' or agent == 'TD3':
+    df_study[f'params_{agent}_action_noise'].fillna(value='None', inplace=True)
 
 fig = plt.figure(figsize=(18, 9))
 
@@ -104,41 +103,6 @@ plt.savefig(Path(f'graphics/{name}_optimization_scatter.svg'))
 plt.close()
 
 #####
-# plot of the progress of individual runs
-fig, ax = plt.subplots(figsize=(10, 8))
-
-for trial in listdir('optimization'):
-    if agent in trial:
-        df_log = pd.read_csv(fr'optimization\{trial}\progress.csv')
-        df_log['episodes'] = df_log[r'time/total_timesteps'] / df_log[r'rollout/ep_len_mean']
-        df_log.dropna(axis=0, subset=[r'time/iterations'], inplace=True)
-        if 'PPO' in trial:
-            ax.plot(df_log['episodes'], df_log[r'rollout/ep_rew_mean'],
-                    alpha=0.5, color='C0')
-        elif 'A2C' in trial:
-            ax.plot(df_log['episodes'], df_log[r'rollout/ep_rew_mean'],
-                    alpha=0.5, color='C0')
-        elif 'DDPG' in trial:
-            ax.plot(df_log['episodes'], df_log[r'rollout/ep_rew_mean'],
-                    alpha=0.5, color='C0')
-        elif 'SAC' in trial:
-            ax.plot(df_log['episodes'], df_log[r'rollout/ep_rew_mean'],
-                    alpha=0.5, color='C0')
-        elif 'TD3' in trial:
-            ax.plot(df_log['episodes'], df_log[r'rollout/ep_rew_mean'],
-                    alpha=0.5, color='C0')
-
-custom_lines = [Line2D([0], [0], color='C0', lw=4),
-                Line2D([0], [0], color='C1', lw=4),
-                Line2D([0], [0], color='C2', lw=4),
-                Line2D([0], [0], color='C3', lw=4),
-                Line2D([0], [0], color='C4', lw=4)]
-
-ax.legend(custom_lines, ['PPO', 'A2C', 'DDPG', 'SAC', 'TD3'])
-# ax.set_ylim(top=1000, bottom=0)
-ax.grid(alpha=0.5)
-ax.set_xlabel('episodes')
-ax.set_ylabel('reward')
-plt.tight_layout()
-plt.savefig(Path(f'graphics/{name}_optimization_intermediates.svg'))
-plt.close()
+# plot intermediate steps of the training paths
+training_path(agent, folder='optimization',
+              savepath=Path(f'graphics/{name}_optimization_interms.svg'))
