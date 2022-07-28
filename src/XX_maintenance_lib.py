@@ -106,7 +106,7 @@ class plotter:
         ax.text(x=950, y=np.mean(rewards)-0.05,
                 s=f'avg. reward / stroke: {round(np.mean(rewards), 2)}',
                 color='black', va='top', ha='right', fontsize=7.5)
-        ax.set_ylim(bottom=-2, top=1)
+        ax.set_ylim(bottom=0, top=1)
         ax.set_xlim(left=-1, right=actions_arr.shape[0]+1)
         ax.set_ylabel('reward / stroke')
         ax.set_xlabel('strokes')
@@ -262,7 +262,8 @@ class plotter:
         plt.savefig(Path(f'checkpoints/{name}_progress.svg'))
         plt.close()
 
-    def action_visualization(self, action, n_c_tot, savepath, binary=False):
+    def action_visualization(self, action, n_c_tot, savepath=None,
+                             binary=False):
         '''plot that visualizes a single action'''
         if binary is True:
             action = np.where(action > 0.9, 1, -1)
@@ -279,8 +280,9 @@ class plotter:
         ax1.set_ylabel('cutters to acton on')
         fig.colorbar(im, cax=cax, orientation='vertical')
         plt.tight_layout()
-        plt.savefig(savepath)
-        plt.close()
+        if savepath is not None:
+            plt.savefig(savepath)
+            plt.close()
 
 
 class maintenance:
@@ -463,32 +465,62 @@ class CustomCallback(BaseCallback):
     '''custom callback to log and visualize parameters of the training
     progress'''
 
-    def __init__(self, check_freq, save_path, name_prefix, verbose=0):
+    def __init__(self, check_freq, save_path, name_prefix, MAX_STROKES, AGENT,
+                 verbose=0):
         super(CustomCallback, self).__init__(verbose)
 
         self.check_freq = check_freq  # checking frequency in [steps]
         self.save_path = save_path  # folder to save the plot to
         self.name_prefix = name_prefix  # name prefix for the plot
+        self.MAX_STROKES = MAX_STROKES
+        self.AGENT = AGENT
 
     def _on_step(self):
         if self.n_calls % self.check_freq == 0:
 
             df_log = pd.read_csv(fr'{self.save_path}\progress.csv')
-            df_log['episodes'] = df_log[r'time/total_timesteps'] / df_log[r'rollout/ep_len_mean']
-            df_log.dropna(axis=0, subset=[r'time/iterations'], inplace=True)
+            df_log['episodes'] = df_log[r'time/total_timesteps'] / self.MAX_STROKES
+            # df_log.dropna(axis=0, subset=[r'time/time_elapsed'], inplace=True)
 
+            # works for all models
             ep = df_log['episodes'].iloc[-1]
             reward = df_log[r'rollout/ep_rew_mean'].iloc[-1]
             print(f'episode: {ep}, reward: {reward}\n')
 
-            fig, ax = plt.subplots(figsize=(8, 6))
-            ax.plot(df_log['episodes'], df_log[r'rollout/ep_rew_mean'])
-            ax.grid(alpha=0.5)
-            ax.set_xlabel('episodes')
-            ax.set_ylabel('reward')
+            fig, (ax1, ax2) = plt.subplots(nrows=2, ncols=1, figsize=(10, 8))
+            ax1.plot(df_log['episodes'], df_log[r'rollout/ep_rew_mean'],
+                     label=r'rollout/ep_rew_mean')
+            try:
+                ax1.scatter(df_log['episodes'], df_log['eval/mean_reward'],
+                            label=r'eval/mean_reward')
+            except KeyError:
+                pass
+            ax1.legend()
+            ax1.grid(alpha=0.5)
+            ax1.set_ylabel('reward')
+
+            # model psecific visualization of loss
+            if self.AGENT == 'TD3' or self.AGENT == 'DDPG':
+                ax2.plot(df_log['episodes'], df_log[r'train/critic_loss'],
+                         label=r'train/critic_loss')
+                ax2.plot(df_log['episodes'], df_log[r'train/actor_loss'],
+                         label=r'train/actor_loss')
+            elif self.AGENT == 'PPO':
+                ax2.plot(df_log['episodes'], df_log[r'train/value_loss'],
+                         label=r'train/value_loss')
+                ax2.plot(df_log['episodes'], df_log[r'train/loss'],
+                         label=r'train/loss')
+                ax2.plot(df_log['episodes'], df_log[r'train/policy_gradient_loss'],
+                         label=r'train/policy_gradient_loss')
+                ax2.plot(df_log['episodes'], df_log[r'train/entropy_loss'],
+                         label=r'train/entropy_loss')
+            ax2.legend()
+            ax2.grid(alpha=0.5)
+            ax2.set_xlabel('episodes')
+            ax2.set_ylabel('loss')
 
             plt.tight_layout()
-            plt.savefig(fr'{self.save_path}\{self.name_prefix}_training.jpg')
+            plt.savefig(fr'{self.save_path}\{self.name_prefix}_training.svg')
             plt.close()
 
         return True
@@ -513,7 +545,6 @@ class optimization:
         an optimization or an optimized agent'''
         print('\n')
 
-        # TODO add trial.suggestions to individual agents other than PPO
         if self.AGENT == 'PPO':
             agent = PPO('MlpPolicy', self.environment,
                         n_steps=self.MAX_STROKES,
@@ -532,25 +563,35 @@ class optimization:
 
         elif self.AGENT == 'A2C':
             agent = A2C('MlpPolicy', self.environment,
-                        learning_rate=trial.suggest_float('A2C_learning rate', low=1e-4, high=1e-1, log=True),
+                        learning_rate=trial.suggest_float('A2C_learning rate', low=1e-5, high=1e-1, log=True),
+                        n_steps=trial.suggest_int('A2C_n steps', low=1, high=20, step=1),
                         gamma=trial.suggest_float('A2C_discount', low=0.0, high=1),
+                        gae_lambda=trial.suggest_float('A2C_gae lambda', low=0.0, high=1),
+                        ent_coef=trial.suggest_float('A2C_ent_coef', low=0.0, high=1),
+                        vf_coef=trial.suggest_float('A2C_vf coef', low=0.0, high=1),
+                        max_grad_norm=trial.suggest_float('A2C_max grad norm', low=0, high=1),
+                        rms_prop_eps=trial.suggest_float('A2C_rms_prop_eps', low=1e-6, high=1e-3, log=True),
                         verbose=0)
+
         elif self.AGENT == 'DDPG':
+            action_noise = trial.suggest_categorical('DDPG_action_noise',
+                                                     [None, 'NormalActionNoise'])
+            action_noise = self.yield_action_noise(action_noise)
+
             agent = DDPG('MlpPolicy', self.environment,
-                         learning_rate=trial.suggest_float('DDPG_learning rate', low=1e-4, high=1e-1, log=True),
+                         learning_rate=trial.suggest_float('DDPG_learning rate', low=1e-5, high=1e-2, log=True),
                          batch_size=trial.suggest_int('DDPG_batch_size', low=50, high=300, step=50),
+                         learning_starts=trial.suggest_int('DDPG_learning starts', low=50, high=1000, step=50),
                          tau=trial.suggest_float('DDPG_tau', low=1e-4, high=1e-1, log=True),
                          gamma=trial.suggest_float('DDPG_discount', low=0.0, high=1),
-                         learning_starts=trial.suggest_int('DDPG_learning starts', low=50, high=1000, step=50),
+                         # train_freq=trial.suggest_int('DDPG_train_freq', low=1, high=5, step=1),
+                         gradient_steps=trial.suggest_int('DDPG_gradient_steps', low=1, high=10, step=1),
                          verbose=0)
 
         elif self.AGENT == 'SAC':
-            n_action = self.n_c_tot*self.n_c_tot  # number of actions
             action_noise = trial.suggest_categorical('SAC_action_noise',
                                                      [None, 'NormalActionNoise'])
-            if action_noise is not None:
-                action_noise = NormalActionNoise(mean=np.zeros(n_action),
-                                                 sigma=0.1 * np.ones(n_action))
+            action_noise = self.yield_action_noise(action_noise)
 
             agent = SAC('MlpPolicy', self.environment,
                         learning_rate=trial.suggest_float('SAC_learning rate', low=1e-5, high=1e-2, log=True),
@@ -559,7 +600,7 @@ class optimization:
                         gamma=trial.suggest_float('SAC_discount', low=0.0, high=1),
                         tau=trial.suggest_float('SAC_tau', low=1e-4, high=1, log=True),
                         train_freq=trial.suggest_int('SAC_train_freq', low=1, high=10, step=1),
-                        gradient_steps =trial.suggest_int('SAC_gradient_steps', low=1, high=10, step=1),
+                        gradient_steps=trial.suggest_int('SAC_gradient_steps', low=1, high=10, step=1),
                         action_noise=action_noise,
                         ent_coef=trial.suggest_float('SAC_ent_coef', low=0.0, high=1),
                         target_update_interval=trial.suggest_int('SAC_target_update_interval', low=1, high=10),
@@ -568,12 +609,22 @@ class optimization:
                         verbose=0)
 
         elif self.AGENT == 'TD3':
+            action_noise = trial.suggest_categorical('TD3_action_noise',
+                                                     [None, 'NormalActionNoise'])
+            action_noise = self.yield_action_noise(action_noise)
+
             agent = TD3('MlpPolicy', self.environment,
                         learning_rate=trial.suggest_float('TD3_learning rate', low=1e-4, high=1e-1, log=True),
+                        learning_starts=trial.suggest_int('TD3_learning starts', low=50, high=1000, step=50),
                         batch_size=trial.suggest_int('TD3_batch_size', low=50, high=300, step=50),
                         tau=trial.suggest_float('TD3_tau', low=1e-4, high=1e-1, log=True),
-                        learning_starts=trial.suggest_int('TD3_learning starts', low=50, high=1000, step=50),
                         gamma=trial.suggest_float('TD3_discount', low=0.0, high=1),
+                        # train_freq=trial.suggest_int('TD3_train_freq', low=1, high=10, step=1),
+                        gradient_steps=trial.suggest_int('TD3_gradient_steps', low=1, high=10, step=1),
+                        action_noise=action_noise,
+                        policy_delay=trial.suggest_int('TD3_policy_delay', low=1, high=10, step=1),
+                        target_policy_noise=trial.suggest_float('TD3_target_policy_noise', low=0.05, high=1),
+                        target_noise_clip=trial.suggest_float('TD3_target_noise_clip', low=0.0, high=1),
                         verbose=0)
 
         # train agent
@@ -583,19 +634,22 @@ class optimization:
 
             print(f'agent: {self.AGENT}')
             # train agent with early stopping and save best agents only
-            stop_train_cb = StopTrainingOnNoModelImprovement(max_no_improvement_evals=1,
+            stop_train_cb = StopTrainingOnNoModelImprovement(max_no_improvement_evals=3,
                                                              min_evals=2,
                                                              verbose=1)
             eval_cb = EvalCallback(self.environment,
                                    best_model_save_path=fr'optimization\{name}',
                                    log_path=fr'optimization\{name}',
                                    deterministic=False,
+                                   n_eval_episodes=3,
                                    eval_freq=self.freq,
                                    callback_after_eval=stop_train_cb,
                                    verbose=0, warn=False)
             custom_callback = CustomCallback(check_freq=self.freq,
                                              save_path=fr'optimization\{name}',
-                                             name_prefix=f'{self.AGENT}')
+                                             name_prefix=f'{self.AGENT}',
+                                             MAX_STROKES=self.MAX_STROKES,
+                                             AGENT=self.AGENT)
             callback = CallbackList([eval_cb, custom_callback])
 
             agent.set_logger(new_logger)
@@ -623,30 +677,42 @@ class optimization:
 
             return final_reward
         elif self.MODE == 'Training':
-            new_logger = configure('checkpoints', ["csv"])
+            name = self.AGENT + datetime.now().strftime("%Y%m%d-%H%M%S")
+            new_logger = configure(fr'checkpoints\{name}', ["csv"])
             # mode that trains an agent based on previous OPTUNA study
             checkpoint_callback = CheckpointCallback(save_freq=self.freq,
-                                                     save_path='checkpoints',
+                                                     save_path=fr'checkpoints\{name}',
                                                      name_prefix=f'{self.AGENT}',
                                                      verbose=1)
             custom_callback = CustomCallback(check_freq=self.freq,
-                                             save_path='checkpoints',
-                                             name_prefix=f'{self.AGENT}')
+                                             save_path=fr'checkpoints\{name}',
+                                             name_prefix=f'{self.AGENT}',
+                                             MAX_STROKES=self.MAX_STROKES,
+                                             AGENT=self.AGENT)
             eval_cb = EvalCallback(self.environment,
-                                   best_model_save_path='checkpoints',
+                                   best_model_save_path=fr'checkpoints\{name}',
                                    log_path='checkpoints',
                                    deterministic=False,
+                                   n_eval_episodes=10,
                                    eval_freq=self.freq,
                                    verbose=1, warn=False)
 
             # Create the callback list
-            callback = CallbackList([checkpoint_callback, custom_callback,
-                                     eval_cb])
+            callback = CallbackList([checkpoint_callback, eval_cb,
+                                     custom_callback])
             # TODO implement callback that logs also environmental training
             # TODO parameters (broken cutters, n changes per ep etc.)
             agent.set_logger(new_logger)
             agent.learn(total_timesteps=self.EPISODES * self.MAX_STROKES,
                         callback=callback)
+
+    def yield_action_noise(self, action_noise):
+        if action_noise is not None:
+            n_action = self.n_c_tot*self.n_c_tot  # number of actions
+            return NormalActionNoise(mean=np.zeros(n_action),
+                                     sigma=0.1 * np.ones(n_action))
+        else:
+            return None
 
     def enqueue_defaults(self, study, agent, n_trials):
         '''insert manually a study with default parameters'''
@@ -656,6 +722,14 @@ class optimization:
                 study.enqueue_trial(p.SAC_defaults)
             elif agent == 'PPO':
                 study.enqueue_trial(p.PPO_defaults)
+            elif agent == 'A2C':
+                study.enqueue_trial(p.A2C_defaults)
+            elif agent == 'DDPG':
+                study.enqueue_trial(p.DDPG_defaults)
+            elif agent == 'TD3':
+                study.enqueue_trial(p.TD3_defaults)
+            else:
+                print('ENQUEUE DEFAULT NOT IMPLEMENTED!!')
         print(f'{n_trials} studies with {agent} default parameters inserted')
 
         return study
