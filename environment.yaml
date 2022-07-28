@@ -9,6 +9,7 @@ dependencies:
 - numpy
 - pandas
 - pip
+- scikit-learn
 - spyder-kernels=2.1
 - pip:
   - optuna==2.10.0
