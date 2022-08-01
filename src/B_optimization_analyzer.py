@@ -11,18 +11,17 @@ code contributors: Georg H. Erharter, Tom F. Hansen
 """
 
 import joblib
-from matplotlib.lines import Line2D
 import matplotlib.pyplot as plt
 import numpy as np
-from os import listdir
 import pandas as pd
 from pathlib import Path
 
+from D_training_path_analyzer import training_path
 
 ###############################################################################
 # Constants and fixed variables
-
-name = 'SAC_2022_07_17_study'
+name = 'TD3_2022_07_27_study'  # DDPG_2022_07_27_study TD3_2022_07_27_study
+agent = name.split('_')[0]
 
 ###############################################################################
 # processing
@@ -51,15 +50,20 @@ for i, value in enumerate(df_study['value']):
         else:
             values_max.append(values_max[int(i-1)])
 
-fig, ax = plt.subplots(figsize=(3.465, 3.465))
+fig, ax = plt.subplots(figsize=(5, 5))
 # only scatter complete studies -> in case there are pruned or incomplete ones
 ax.scatter(df_study[df_study['state'] == 'COMPLETE']['number'],
-            df_study[df_study['state'] == 'COMPLETE']['value'],
-            s=30, alpha=0.5, color='grey', edgecolor='black')
+           df_study[df_study['state'] == 'COMPLETE']['value'],
+           s=30, alpha=0.7, color='grey', edgecolor='black', label='COMPLETE')
+ax.scatter(df_study[df_study['state'] == 'FAIL']['number'],
+           np.full(len(df_study[df_study['state'] == 'FAIL']),
+                   df_study['value'].min()),
+           s=30, alpha=0.7, color='red', edgecolor='black', label='FAIL')
 ax.plot(df_study['number'], values_max, color='black')
 ax.grid(alpha=0.5)
 ax.set_xlabel('trial number')
 ax.set_ylabel('reward')
+ax.legend()
 plt.tight_layout()
 plt.savefig(Path(f'graphics/{name}_optimization_progress.svg'))
 plt.close()
@@ -68,20 +72,30 @@ plt.close()
 # scatterplot of indivdual hyperparameters vs. reward
 PARAMS = [p for p in df_study.columns if "params_" in p]
 
-fig = plt.figure(figsize=(len(PARAMS)*3, 4))
+# replance NaN with "None"
+if agent == 'SAC' or agent == 'DDPG' or agent == 'TD3':
+    df_study[f'params_{agent}_action_noise'].fillna(value='None', inplace=True)
+
+fig = plt.figure(figsize=(18, 9))
 
 for i, param in enumerate(PARAMS):
-    ax = fig.add_subplot(1, len(PARAMS), i+1)
+    ax = fig.add_subplot(2, 7, i+1)
     ax.scatter(df_study[df_study['state'] == 'COMPLETE'][param],
                df_study[df_study['state'] == 'COMPLETE']['value'],
-               s=20, color='grey', edgecolor='black', alpha=0.5)
+               s=20, color='grey', edgecolor='black', alpha=0.5,
+               label='COMPLETE')
+    ax.scatter(df_study[df_study['state'] == 'FAIL'][param],
+               np.full(len(df_study[df_study['state'] == 'FAIL']),
+                       df_study['value'].min()),
+               s=20, color='red', edgecolor='black', alpha=0.5, label='FAIL')
     ax.grid(alpha=0.5)
     ax.set_xlabel(param.split('_')[-1])
     if i == 0:
         ax.set_ylabel('reward')
+
     if 'learning rate' in param:
         ax.set_xscale('log')
-
+ax.legend()
 fig.suptitle(name.split('_')[0])
 
 plt.tight_layout()
@@ -89,41 +103,6 @@ plt.savefig(Path(f'graphics/{name}_optimization_scatter.svg'))
 plt.close()
 
 #####
-# plot of the progress of individual runs
-fig, ax = plt.subplots(figsize=(10, 8))
-
-for trial in listdir('optimization'):
-    try:
-        records = np.load(fr'optimization\{trial}\evaluations.npz')
-        if 'PPO' in trial:
-            ax.plot(np.arange(len(records['timesteps'])),
-                    np.mean(records['results'], axis=1), alpha=0.5, color='C0')
-        elif 'A2C' in trial:
-            ax.plot(np.arange(len(records['timesteps'])),
-                    np.mean(records['results'], axis=1), alpha=0.5, color='C1')
-        elif 'DDPG' in trial:
-            ax.plot(np.arange(len(records['timesteps'])),
-                    np.mean(records['results'], axis=1), alpha=0.5, color='C2')
-        elif 'SAC' in trial:
-            ax.plot(np.arange(len(records['timesteps'])),
-                    np.mean(records['results'], axis=1), alpha=0.5, color='C3')
-        elif 'TD3' in trial:
-            ax.plot(np.arange(len(records['timesteps'])),
-                    np.mean(records['results'], axis=1), alpha=0.5, color='C4')
-    except FileNotFoundError:
-        pass
-
-custom_lines = [Line2D([0], [0], color='C0', lw=4),
-                Line2D([0], [0], color='C1', lw=4),
-                Line2D([0], [0], color='C2', lw=4),
-                Line2D([0], [0], color='C3', lw=4),
-                Line2D([0], [0], color='C4', lw=4)]
-
-ax.legend(custom_lines, ['PPO', 'A2C', 'DDPG', 'SAC', 'TD3'])
-ax.set_ylim(top=1000, bottom=0)
-ax.grid(alpha=0.5)
-ax.set_xlabel('episodes')
-ax.set_ylabel('reward')
-plt.tight_layout()
-plt.savefig(Path(f'graphics/{name}_optimization_intermediates.svg'))
-plt.close()
+# plot intermediate steps of the training paths
+training_path(agent, folder='optimization',
+              savepath=Path(f'graphics/{name}_optimization_interms.svg'))
