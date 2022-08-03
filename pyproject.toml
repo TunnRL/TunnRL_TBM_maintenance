@@ -1,0 +1,38 @@
+[tool.poetry]
+name = "tunnrl_tbm_maintenance"
+version = "0.1.0"
+description = "Functionality to train, optimize and execute reinforcement learning models controlling the maintenance of cutter discs for a Tunnel Boring Machine (TBM). A simulated TBM environment is defined."
+authors = ["geograz <->", "tfha <tom.frode.hansen@gmail.com>"]
+license = "MIT"
+
+[tool.poetry.dependencies]
+python = "^3.10"
+stable-baselines3 = "^1.6.0"
+numpy = "^1.23.1"
+optuna = "^2.10.1"
+joblib = "^1.1.0"
+scikit-learn = "^1.1.1"
+# python = ">=3.10,<3.11"
+
+[tool.poetry.dev-dependencies]
+setuptools = "<60"
+isort = "^5.10.1"
+flake8 = "^5.0.3"
+flake8-annotations = "^2.9.1"
+ipdb = "^0.13.9"
+
+[build-system]
+requires = ["poetry-core>=1.0.0"]
+build-backend = "poetry.core.masonry.api"
+
+[tool.ipdb]
+context = 5
+
+[tool.isort]
+profile = "black"
+known_first_party = "src"
+force_single_line = false
+lines_after_imports = 2
+
+[tool.black]
+line-length = 88
