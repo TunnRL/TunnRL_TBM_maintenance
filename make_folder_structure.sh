@@ -1,1 +1,0 @@
-mkdir results checkpoints graphics
