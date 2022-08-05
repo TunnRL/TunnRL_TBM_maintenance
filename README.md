@@ -17,13 +17,21 @@ DOI: XXXXXXXXXXXXXXXXXXXXXXXX
 The code framework depends on a certain folder structure. The python files should be placed in the main directory. The set up should be done in the following way:
 ```
 TunnRL_TBM_maintenance
+├── checkpoints
+├── graphics
+├── optimization
+├── results
 ├── src
-│   ├── checkpoints
-│   ├── graphics
-│   ├── results
 │   ├── A_main.py
 │   ├── B_optimization_analyzer.py
+│   ├── C_action_analyzer.py
+│   ├── D_training_path_analyzer.py
+│   ├── XX_hyperparams.py
 │   ├── XX_maintenance_lib.py
+├── .gitignore
+├── poetry.lock
+├── pyproject.toml
+├── README.md
 ```
 
 To clone the repository and have everything set up for you, run:
@@ -67,7 +75,7 @@ We have organized 2 ways of setting up the environment, downloading and installi
    ```
 
 **NOTE**: To use hyperparameter functionality you need to have the database engine
-SQlite installed. This is by default installed in Linux, but not in Windows.
+`SQlite` installed. This is by default installed in Linux, but not in Windows.
 
 ## Principles for training an RL-agent
 
