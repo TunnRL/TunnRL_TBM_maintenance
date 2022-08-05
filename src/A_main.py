@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 Towards optimized TBM cutter changing policies with reinforcement learning
 G.H. Erharter, T.F. Hansen
@@ -11,18 +10,20 @@ Created on Sat Oct 30 12:46:42 2021
 code contributors: Georg H. Erharter, Tom F. Hansen
 """
 
+import warnings
+
 import joblib
 import numpy as np
 import optuna
-from pathlib import Path
-from stable_baselines3 import PPO, DDPG, TD3
+from stable_baselines3 import DDPG, PPO, TD3
 from stable_baselines3.common.env_checker import check_env
-import warnings
 
-from XX_maintenance_lib import CustomEnv, optimization
+from XX_maintenance_lib import CustomEnv, Optimization
+
 
 warnings.filterwarnings("ignore",
                         category=optuna.exceptions.ExperimentalWarning)
+
 
 ###############################################################################
 # Constants and fixed variables
@@ -36,19 +37,21 @@ MAX_STROKES = 1000  # number of strokes per episode
 
 EPISODES = 10_000  # max episodes to train for
 # evaluations in optimization and checkpoints in training every X episodes
-CHECKPOINT = 100
+CHECKPOINT_INTERVAL = 100
 
 t_C_max = 75  # maximum time to change one cutter [min]
 
 # MODE determines if either an optimization should run = "Optimization", or a
 # new agent is trained with prev. optimized parameters = "Training", or an
 # already trained agent is executed = "Execution"
-MODE = 'Execution'  # 'Optimization', 'Training', 'Execution'
-N_DEFAULT_TRIALS = 0  # n trials with default parameters to insert in study
+MODE = 'Optimization'  # 'Optimization', 'Training', 'Execution'
+N_DEFAULT_TRIALS = 1  # n trials with default parameters to insert in study
+NUM_OPTUNA_TRIALS = 2
 # name of the study if MODE == 'Optimization' or 'Training'
 # the Study name must start with the name of the agent that needs to be one of
 # 'PPO', 'A2C', 'DDPG', 'SAC', 'TD3'
-STUDY = 'DDPG_2022_07_27_study'  # DDPG_2022_07_27_study
+STUDY = 'PPO_2022_08_05_study'  # DDPG_2022_07_27_study 'PPO_2022_08_03_study'
+BEST_PARAMS_STUDY_FILETYPE = "db"  # "pkl"
 
 ###############################################################################
 # computed variables and instantiations
@@ -68,44 +71,42 @@ env = CustomEnv(n_c_tot, LIFE, MAX_STROKES, STROKE_LENGTH, cutter_pathlenghts,
 agent = STUDY.split('_')[0]
 
 # Instantiate optimization function
-optim = optimization(n_c_tot, env, EPISODES, CHECKPOINT, MODE, MAX_STROKES,
+optim = Optimization(n_c_tot, env, EPISODES, CHECKPOINT_INTERVAL, MODE, MAX_STROKES,
                      agent)
 
 ###############################################################################
 # run one of the three modes: Optimization, Training, Execution
+#TODO: find a way to run num-cores processes automatically
 
 if MODE == 'Optimization':  # study
-    try:  # evtl. load already existing study if one exists
-        study = joblib.load(Path(f'results/{STUDY}.pkl'))
-        print('prev. optimization study loaded')
-    except FileNotFoundError:  # or create a new study
-        study = optuna.create_study(direction='maximize', study_name=STUDY)
-        print('new optimization study created')
-    # the OPTUNA study is then run in a loop so that intermediate results are
-    # saved and can be checked every trials
+    db_path = f"results/{STUDY}.db"
+    db_file = f"sqlite:///{db_path}"
+    study = optuna.create_study(
+        direction='maximize', study_name=STUDY, storage=db_file, load_if_exists=True)
     study = optim.enqueue_defaults(study, agent, n_trials=N_DEFAULT_TRIALS)
-    for _ in range(200):  # save every second study
-        study.optimize(optim.objective, n_trials=1, catch=(ValueError,))
-        joblib.dump(study, Path(f'results/{STUDY}.pkl'))
-        df = study.trials_dataframe()
-        df.to_csv(Path(f'results/{STUDY}.csv'))
-
+    study.optimize(optim.objective, n_trials=1, catch=(ValueError,))
+    
 elif MODE == 'Training':
     print('new main training run with optimized parameters started')
-    study = joblib.load(Path(fr'results\{STUDY}.pkl'))
+    if BEST_PARAMS_STUDY_FILETYPE == "db":
+        db_path = f"results/{STUDY}.db"
+        db_file = f"sqlite:///{db_path}"
+        study = optuna.load_study(study_name=STUDY, storage=db_file)
+    elif BEST_PARAMS_STUDY_FILETYPE == "pkl":
+        study = joblib.load(f"results/{STUDY}.pkl")
+    else:
+        raise ValueError(f"{BEST_PARAMS_STUDY_FILETYPE} is not a valid filetype. Valid filetypes are: db, pkl")
 
-    # print results of study
     trial = study.best_trial
     print('\nhighest reward: {}'.format(trial.value))
     print("Best hyperparameters: {}".format(trial.params))
-
-    optim.objective(study.best_trial)
+    optim.train_agent(agent_name=agent, best_parameters=trial.params)
 
 elif MODE == 'Execution':
     model = 'DDPG20220728-092315'  # name of the model to load
     tests = 3  # number of test episodes
 
-    agent = DDPG.load(Path(fr'checkpoints\{model}\best_model'))
+    agent = DDPG.load(fr'checkpoints/{model}/best_model')
 
     # test agent throughout multiple episodes
     for test in range(tests):
@@ -135,10 +136,10 @@ elif MODE == 'Execution':
             moved_cutters.append(env.moved_cutters)
 
         env.state_action_plot(states, actions, n_strokes=200,
-                              savepath=fr'checkpoints\sample\{model}{test}_state_action.svg')
-        env.environment_parameter_plot(fr'checkpoints\sample\{model}{test}_episode.svg', test)
+                              savepath=fr'checkpoints/sample/{model}{test}_state_action.svg')
+        env.environment_parameter_plot(fr'checkpoints/sample/{model}{test}_episode.svg'), test
         env.sample_ep_plot(states, actions, rewards, ep=test,
-                           savepath=fr'checkpoints\sample\{model}{test}_sample.svg',
+                           savepath=fr'checkpoints/sample/{model}{test}_sample.svg',
                            replaced_cutters=replaced_cutters,
                            moved_cutters=moved_cutters)
 
