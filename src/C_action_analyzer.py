@@ -38,7 +38,7 @@ pltr = plotter()
 env = CustomEnv(n_c_tot, LIFE, MAX_STROKES, STROKE_LENGTH,
                 cutter_pathlenghts, R, t_C_max)
 
-agent = PPO.load(Path(r'checkpoints\PPO_4400000_steps'))
+agent = PPO.load('checkpoints/PPO_4400000_steps')
 choices = [0, 0.25, 0.5, 0.75, 1]
 
 states = [np.zeros(n_c_tot), np.ones(n_c_tot)]

@@ -12,7 +12,7 @@ from pathlib import Path
 
 
 agent = 'PPO'  # 'PPO' 'A2C' 'DDPG'
-folder = 'checkpoints'  # 'checkpoints' 'optimization'
+folder = 'optimization'  # 'checkpoints' 'optimization'
 
 
 def training_path(agent, folder, savepath=None):
@@ -23,7 +23,7 @@ def training_path(agent, folder, savepath=None):
 
     for trial in listdir(folder):
         if agent in trial:
-            df_log = pd.read_csv(Path(fr'{folder}\{trial}\progress.csv'))
+            df_log = pd.read_csv(Path(fr'{folder}/{trial}/progress.csv'))
             df_log['episodes'] = df_log[r'time/total_timesteps'] / df_log[r'rollout/ep_len_mean']
             df_log.dropna(axis=0, subset=[r'time/time_elapsed'], inplace=True)
             ax.plot(df_log['episodes'], df_log[r'rollout/ep_rew_mean'],
@@ -46,4 +46,4 @@ def training_path(agent, folder, savepath=None):
 
 if __name__ == "__main__":
     training_path(agent, folder,
-                  savepath=Path(r'graphics\PPO_trainings_default.svg'))
+                  savepath=Path(r'graphics/PPO_trainings_default.svg'))
