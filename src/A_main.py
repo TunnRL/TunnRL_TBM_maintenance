@@ -19,6 +19,7 @@ from stable_baselines3 import DDPG, PPO, TD3
 from stable_baselines3.common.env_checker import check_env
 
 from XX_maintenance_lib import CustomEnv, Optimization
+from XX_utility import load_best_model
 
 
 warnings.filterwarnings("ignore",
@@ -28,8 +29,8 @@ warnings.filterwarnings("ignore",
 ###############################################################################
 # Constants and fixed variables
 
-R = 3  # cutterhead radius [m]
-D = 0.11  # cutter track spacing [m]
+CUTTERHEAD_RADIUS = 3  # cutterhead radius [m]
+TRACK_SPACING = 0.11  # cutter track spacing [m]
 LIFE = 400000  # theoretical durability of one cutter [m]
 
 STROKE_LENGTH = 1.8  # length of one stroke [m]
@@ -39,7 +40,7 @@ EPISODES = 10_000  # max episodes to train for
 # evaluations in optimization and checkpoints in training every X episodes
 CHECKPOINT_INTERVAL = 100
 
-t_C_max = 75  # maximum time to change one cutter [min]
+T_C_MAX = 75  # maximum time to change one cutter [min]
 
 # MODE determines if either an optimization should run = "Optimization", or a
 # new agent is trained with prev. optimized parameters = "Training", or an
@@ -53,19 +54,22 @@ NUM_OPTUNA_TRIALS = 2
 STUDY = 'PPO_2022_08_05_study'  # DDPG_2022_07_27_study 'PPO_2022_08_03_study'
 BEST_PARAMS_STUDY_FILETYPE = "db"  # "pkl"
 
+EXECUTION_MODEL = "PPO20220805-122226"
+NUM_TEST_EPISODES = 3
+
 ###############################################################################
 # computed variables and instantiations
 
 # total number of cutters
-n_c_tot = int(round((R-D/2) / D, 0)) + 1
+n_c_tot = int(round((CUTTERHEAD_RADIUS - TRACK_SPACING / 2) / TRACK_SPACING, 0)) + 1
 print(f'total number of cutters: {n_c_tot}\n')
 
-cutter_positions = np.cumsum(np.full((n_c_tot), D)) - D/2
+cutter_positions = np.cumsum(np.full((n_c_tot), TRACK_SPACING)) - TRACK_SPACING / 2
 
 cutter_pathlenghts = cutter_positions * 2 * np.pi  # [m]
 
 env = CustomEnv(n_c_tot, LIFE, MAX_STROKES, STROKE_LENGTH, cutter_pathlenghts,
-                R, t_C_max)
+                CUTTERHEAD_RADIUS, T_C_MAX)
 # check_env(env)  # check if env is a suitable gym environment
 
 agent = STUDY.split('_')[0]
@@ -103,13 +107,11 @@ elif MODE == 'Training':
     optim.train_agent(agent_name=agent, best_parameters=trial.params)
 
 elif MODE == 'Execution':
-    model = 'DDPG20220728-092315'  # name of the model to load
-    tests = 3  # number of test episodes
-
-    agent = DDPG.load(fr'checkpoints/{model}/best_model')
+    agent_name = EXECUTION_MODEL[0:3]
+    agent = load_best_model(agent_name, main_dir="checkpoints", agent_dir=EXECUTION_MODEL)
 
     # test agent throughout multiple episodes
-    for test in range(tests):
+    for test in range(NUM_TEST_EPISODES):
         state = env.reset()  # reset new environment
         terminal = False  # reset terminal flag
 
@@ -136,10 +138,10 @@ elif MODE == 'Execution':
             moved_cutters.append(env.moved_cutters)
 
         env.state_action_plot(states, actions, n_strokes=200,
-                              savepath=fr'checkpoints/sample/{model}{test}_state_action.svg')
-        env.environment_parameter_plot(fr'checkpoints/sample/{model}{test}_episode.svg'), test
+                              savepath=f'checkpoints/sample/{EXECUTION_MODEL}{test}_state_action.svg')
+        env.environment_parameter_plot(f'checkpoints/sample/{EXECUTION_MODEL}{test}_episode.svg'), test
         env.sample_ep_plot(states, actions, rewards, ep=test,
-                           savepath=fr'checkpoints/sample/{model}{test}_sample.svg',
+                           savepath=f'checkpoints/sample/{EXECUTION_MODEL}{test}_sample.svg',
                            replaced_cutters=replaced_cutters,
                            moved_cutters=moved_cutters)
 

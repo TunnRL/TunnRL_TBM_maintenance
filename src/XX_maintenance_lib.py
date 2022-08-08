@@ -23,6 +23,7 @@ import optuna
 import pandas as pd
 from gym import spaces
 from mpl_toolkits.axes_grid1 import make_axes_locatable
+from numpy.typing import NDArray
 from stable_baselines3 import A2C, DDPG, PPO, SAC, TD3
 from stable_baselines3.common import logger
 from stable_baselines3.common.base_class import BaseAlgorithm
@@ -36,9 +37,10 @@ from stable_baselines3.common.callbacks import (
 from stable_baselines3.common.evaluation import evaluate_policy
 
 from XX_hyperparams import DefaultParameters, Hyperparameters
+from XX_utility import load_best_model
 
 
-class plotter:
+class Plotter:
     '''class that contains functions to visualzie the progress of the
     training and / or individual samples of it'''
 
@@ -292,17 +294,28 @@ class plotter:
             plt.close()
 
 
-class maintenance:
+class Maintenance:
     '''class that contains functions that describe the maintenance effort of
     changing cutters on a TBM's cutterhead. Based on this the reward is
     computed'''
 
-    def __init__(self, t_C_max, n_c_tot):
-        self.t_C_max = t_C_max  # maximum time to change one cutter [min]
-        self.n_c_tot = n_c_tot  # total number of cutters
+    def __init__(self, t_C_max: int, n_c_tot: int):
+        """Setup
 
-    def reward(self, replaced_cutters, moved_cutters, good_cutters):
-        '''reward function that also takes moving of cutters into account'''
+        Args:
+            t_C_max (int): maximum time to change one cutter  [min]
+            n_c_tot (int): total number of cutters
+        """
+        self.t_C_max = t_C_max
+        self.n_c_tot = n_c_tot
+
+    def reward(self, replaced_cutters: int, moved_cutters: int, good_cutters: int) -> float:
+        """Reward function. Drives the agent learning process.
+
+        Handles replacing and moving cutters.
+        
+        TODO: move hardcoded values into a common place for definition or config.
+        """
         if good_cutters < self.n_c_tot * 0.5:
             r = 0
         elif good_cutters == self.n_c_tot and replaced_cutters + moved_cutters == 0:
@@ -312,31 +325,51 @@ class maintenance:
             ratio2 = (moved_cutters / self.n_c_tot) * 1.05
             ratio3 = (replaced_cutters / self.n_c_tot) * 0.9
             r = ratio1 - ratio2 - ratio3
-        r = 0 if r < 0 else r
+            
+        r = max(0, r)
+        
         return r
 
 
-class CustomEnv(gym.Env, plotter):
-    '''implementation of the custom environment that simulates the cutter wear
-    and provides the agent with a state and reward signal'''
+class CustomEnv(gym.Env, Plotter):
+    '''Implementation of the custom environment that simulates the cutter wear
+    and provides the agent with a state and reward signal.
+    
+    TODO: move Plotter outside of the environment. Easier to understand.
+    '''
+    def __init__(self, 
+                 n_c_tot: int, 
+                 LIFE: int, 
+                 MAX_STROKES: int, 
+                 STROKE_LENGTH: float,
+                 cutter_pathlenghts: float, 
+                 CUTTERHEAD_RADIUS: float, 
+                 T_C_MAX: int) -> None:
+        """Initializing custom environment for a TBM cutter operation.
 
-    def __init__(self, n_c_tot, LIFE, MAX_STROKES, STROKE_LENGTH,
-                 cutter_pathlenghts, R, t_C_max):
+        Args:
+            n_c_tot (int): total number of cutters
+            LIFE (int): theoretical durability of one cutter [m]
+            MAX_STROKES (int): numer of strokes to simulate
+            STROKE_LENGTH (float): length of one stroke [m]
+            cutter_pathlenghts (float): rolling lengths [m]
+            CUTTERHEAD_RADIUS (float): radius of cutterhead
+            T_C_MAX (int): max time for changing one cutter [min]
+        """
         super(CustomEnv, self).__init__()
-        self.action_space = spaces.Box(low=-1, high=1,
-                                       shape=(n_c_tot*n_c_tot,))
+        self.action_space = spaces.Box(low=-1, high=1, shape=(n_c_tot * n_c_tot,))
         self.observation_space = spaces.Box(low=0, high=1, shape=(n_c_tot,))
 
-        self.n_c_tot = n_c_tot  # total number of cutters
-        self.LIFE = LIFE  # theoretical durability of one cutter [m]
-        self.MAX_STROKES = MAX_STROKES  # number of strokes to simulate
-        self.STROKE_LENGTH = STROKE_LENGTH  # length of one stroke [m]
-        self.cutter_pathlenghts = cutter_pathlenghts  # rolling lengths [m]
-        self.R = R  # radius of cutterhead [m]
+        self.n_c_tot = n_c_tot
+        self.LIFE = LIFE
+        self.MAX_STROKES = MAX_STROKES
+        self.STROKE_LENGTH = STROKE_LENGTH
+        self.cutter_pathlenghts = cutter_pathlenghts
+        self.R = CUTTERHEAD_RADIUS
 
-        self.m = maintenance(t_C_max, n_c_tot)
+        self.m = Maintenance(T_C_MAX, n_c_tot)
 
-    def step(self, actions):
+    def step(self, actions: NDArray) -> tuple[NDArray, float, bool, dict]:
         '''main function that moves the environment one step further'''
         # replace cutters based on action of agent
         self.state = self.implement_action(actions, self.state)
@@ -609,7 +642,7 @@ class Optimization:
         del agent
 
         print('load agent and evaluate on 10 last episodes')
-        agent = self.load_best_model(self.AGENT_NAME, agent_dir)
+        agent = load_best_model(self.AGENT_NAME, "optimization",agent_dir)
 
         mean_ep_reward = evaluate_policy(agent, self.environment,
                                             n_eval_episodes=10,
@@ -706,7 +739,7 @@ if __name__ == "__main__":
     good_cutters = combined[:, 2]
 
     # compute rewards for all states
-    m = maintenance(t_C_max, n_c_tot)
+    m = Maintenance(t_C_max, n_c_tot)
     rewards = []
     for i in range(len(combined)):
         rewards.append(m.reward(replaced_cutters=replaced_cutters[i],
