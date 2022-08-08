@@ -20,9 +20,9 @@ from D_training_path_analyzer import training_path
 
 ###############################################################################
 # Constants and fixed variables
-STUDY = 'DDPG_2022_07_27_study'  # DDPG_2022_07_27_study TD3_2022_07_27_study
+STUDY = 'PPO_2022_08_08_study'  # DDPG_2022_07_27_study TD3_2022_07_27_study
 agent = STUDY.split('_')[0]
-FILETYPE_TO_LOAD = "pkl"  # "pkl"
+FILETYPE_TO_LOAD = "db"  # "pkl" "db"
 
 ###############################################################################
 # processing
@@ -35,7 +35,8 @@ if FILETYPE_TO_LOAD == "db":
 elif FILETYPE_TO_LOAD == "pkl":
     study = joblib.load(f"results/{STUDY}.pkl")
 else:
-    raise ValueError(f"{FILETYPE_TO_LOAD} is not a valid filetype. Valid filetypes are: db, pkl")
+    raise ValueError(f"{FILETYPE_TO_LOAD} is not a valid filetype. "
+                     "Valid filetypes are: db, pkl")
 
 df_study = study.trials_dataframe()
 

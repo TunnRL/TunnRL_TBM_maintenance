@@ -20,8 +20,8 @@ from stable_baselines3.common.noise import (
 
 
 class DefaultParameters:
-    """Functionality to return a dictionary of default parameter values for a certain
-    RL-architecture."""
+    """Functionality to return a dictionary of default parameter values for a
+    certain RL-architecture."""
 
     def __init__(self):
         self.PPO_defaults = {'gae_lambda': 0.95,
@@ -75,11 +75,11 @@ class DefaultParameters:
                              'policy_delay': 2,
                              'target_policy_noise': 0.2,
                              'target_noise_clip': 0.5}
-        
+
         self.agent_dict = dict(
-            PPO=self.PPO_defaults, DDPG=self.DDPG_defaults, A2C=self.A2C_defaults, TD3=self.TD3_defaults
-            )
-        
+            PPO=self.PPO_defaults, DDPG=self.DDPG_defaults,
+            A2C=self.A2C_defaults, TD3=self.TD3_defaults)
+
     def get_agent_default_params(self, agent_name: str) -> dict:
         """Return default parameters for a certain agent architecture."""
         params = self.agent_dict[agent_name]
@@ -88,35 +88,40 @@ class DefaultParameters:
 
 
 class Hyperparameters:
-    """Class that bundle functionality to return a dictionary of suggested 
+    """Class that bundle functionality to return a dictionary of suggested
     hyperparameters in Optuna trials."""
 
     def suggest_hyperparameters(self, 
-                                trial: optuna.trial.Trial, 
-                                algorithm: str, 
-                                environment: gym.Env, 
+                                trial: optuna.trial.Trial,
+                                algorithm: str,
+                                environment: gym.Env,
                                 steps_episode: int,
                                 num_actions: int) -> dict:
-        """Hyperparameter suggestions for optuna optimization of a chosen RL-architecture.
-        Each lookup of algorithm returns a dictionary of parameters for that algorithm."""
-        
+        """Hyperparameter suggestions for optuna optimization of a chosen
+        RL-architecture.
+        Each lookup of algorithm returns a dictionary of parameters for that
+        algorithm."""
+
         # suggesting different network architectures
         num_layers = trial.suggest_int("num_layers", low=1, high=5, step=1)
         num_nodes_layer = trial.suggest_int("num_nodes_layer", low=10, high=400, step=10)
         num_shared_layers = trial.suggest_int("num_shared_layers", low=0, high=3, step=1)
         num_nodes_shared_layer = trial.suggest_int("num_nodes_shared_layer", low=10, high=400, step=10)
 
-        network_architecture = self._define_policy_network(algorithm, num_layers, num_nodes_layer, num_shared_layers, num_nodes_shared_layer)
-        
+        network_architecture = self._define_policy_network(algorithm,
+                                                           num_layers,
+                                                           num_nodes_layer,
+                                                           num_shared_layers,
+                                                           num_nodes_shared_layer)
+
         # suggesting different activation functions
         activation_fn = trial.suggest_categorical("activation_fn", ["tanh", "relu", "leaky_relu"])
         activation_fn = {"tanh": nn.Tanh, "relu": nn.ReLU, "leaky_relu": nn.LeakyReLU}[activation_fn]
-        
+
         # computing action noise
-        action_noise = trial.suggest_categorical(
-                    'action_noise',[None, 'NormalActionNoise', "OrnsteinUhlenbeckActionNoise"])
+        action_noise = trial.suggest_categorical('action_noise', [None, 'NormalActionNoise', "OrnsteinUhlenbeckActionNoise"])
         action_noise = self._yield_action_noise(action_noise, num_actions)
-                
+
         match algorithm:
             case "PPO":
                 # adjusting the learning rate scheduler
@@ -145,7 +150,7 @@ class Hyperparameters:
                 )
             case "A2C":
                 params = dict(
-                    policy='MlpPolicy', 
+                    policy='MlpPolicy',
                     env=environment,
                     learning_rate=trial.suggest_float('learning rate', low=1e-5, high=1e-1, log=True),
                     n_steps=trial.suggest_int('n steps', low=1, high=20, step=1),
@@ -176,7 +181,7 @@ class Hyperparameters:
                 )
             case "SAC":
                 params = dict(
-                    policy='MlpPolicy', 
+                    policy='MlpPolicy',
                     env=environment,
                     learning_rate=trial.suggest_float('learning rate', low=1e-5, high=1e-2, log=True),
                     learning_starts=trial.suggest_int('learning starts', low=50, high=1000, step=50),
@@ -195,7 +200,7 @@ class Hyperparameters:
                 )
             case "TD3":
                 params = dict(
-                    policy='MlpPolicy', 
+                    policy='MlpPolicy',
                     env=environment,
                     learning_rate=trial.suggest_float('learning rate', low=1e-4, high=1e-1, log=True),
                     learning_starts=trial.suggest_int('learning starts', low=50, high=1000, step=50),
@@ -213,49 +218,51 @@ class Hyperparameters:
                 )
             case _:
                 raise ValueError(f"{algorithm} is not implemented. These algorithms are implemented: PPO, DDPG, TD3, A2C, SAC")
-            
+
         print(f"Training agent with these parameters:\n {params}")
-            
+
         return params
-    
-    def _define_policy_network(self,
-                            algorithm: str = "PPO", 
-                            num_layers: int = 2,
-                            num_nodes_layer: int = 64,
-                            num_shared_layers: int = 0,
-                            num_nodes_shared_layer: int = 0) -> list:
+
+    def _define_policy_network(self, algorithm: str = "PPO",
+                               num_layers: int = 2, num_nodes_layer: int = 64,
+                               num_shared_layers: int = 0,
+                               num_nodes_shared_layer: int = 0) -> list:
         """Setting up a policy network.
-        
-        Concretely as an input to policy_kwargs{net_arch:<dict>} in RL-agent method.
-        Shared layers are only an option for on-policy networks, eg. PPO, A2C.
-        
-        Number of hidden layers with number of nodes in policy-network (pi) and value network (vf). 
+
+        Concretely as an input to policy_kwargs{net_arch:<dict>} in RL-agent
+        method. Shared layers are only an option for on-policy networks, eg.
+        PPO, A2C.
+
+        Number of hidden layers with number of nodes in policy-network (pi) and
+        value network (vf).
         More info: https://stable-baselines3.readthedocs.io/en/master/guide/custom_policy.html
-        
-        Default network is like the "small" network defined below, ie. no shared layers, both nets with 2 hidden layers of 64 nodes.
-        Default network is very basic, just combined blocks of linear layers and activation functions.
-        ie. no dropout, no batch normalization etc.
+
+        Default network is like the "small" network defined below, ie. no
+        shared layers, both nets with 2 hidden layers of 64 nodes. Default
+        network is very basic, just combined blocks of linear layers and
+        activation functions.ie. no dropout, no batch normalization etc.
         More info about architecure here: https://github.com/DLR-RM/stable-baselines3/blob/646d6d38b6ba9aac612d4431176493a465ac4758/stable_baselines3/common/policies.py#L379
         And here: https://github.com/DLR-RM/stable-baselines3/blob/646d6d38b6ba9aac612d4431176493a465ac4758/stable_baselines3/common/torch_layers.py#L136
         """
         assert algorithm in ["PPO", "A2C", "DDPG", "TD3", "SAC"], f"{algorithm} is not a valid algorithm"
-        
+
         network_description = []
-        
+
         if algorithm in ["PPO", "A2C"]:
             for _ in range(num_shared_layers):
                 network_description.append(num_nodes_shared_layer)
-            
+
         policy_network = []
         value_network = []
         for _ in range(num_layers):
             policy_network.append(num_nodes_layer)
             value_network.append(num_nodes_layer)
-            
+
         network_description.append(dict(pi=policy_network, vf=value_network))
         return network_description
-    
-    def _yield_action_noise(self, action_noise: str, n_actions: int) -> NDArray:
+
+    def _yield_action_noise(self, action_noise: str,
+                            n_actions: int) -> NDArray:
         """Computes noise to used in action decisions.
 
         Args:
@@ -282,7 +289,7 @@ class Hyperparameters:
     def linear_schedule(self, initial_value: float | str) -> Callable[[float], float]:
         """
         TODO: do this in the callback instead
-        
+
         Linear learning rate scheduler.
         :param initial_value: (float or str)
         :return: (function)
