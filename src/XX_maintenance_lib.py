@@ -472,8 +472,8 @@ class CustomCallback(BaseCallback):
     '''custom callback to log and visualize parameters of the training
     progress'''
 
-    def __init__(self, check_freq, save_path, name_prefix, MAX_STROKES, AGENT_NAME,
-                 verbose=0):
+    def __init__(self, check_freq, save_path, name_prefix, MAX_STROKES,
+                 AGENT_NAME, verbose=0):
         super(CustomCallback, self).__init__(verbose)
 
         self.check_freq = check_freq  # checking frequency in [steps]
@@ -487,12 +487,10 @@ class CustomCallback(BaseCallback):
 
             df_log = pd.read_csv(Path(f'{self.save_path}/progress.csv'))
             df_log['episodes'] = df_log[r'time/total_timesteps'] / self.MAX_STROKES
-            # df_log.dropna(axis=0, subset=[r'time/time_elapsed'], inplace=True)
 
             # works for all models
             ep = df_log['episodes'].iloc[-1]
             reward = df_log[r'rollout/ep_rew_mean'].iloc[-1]
-            # print(f'episode: {ep}, reward: {reward}\n')
 
             fig, (ax1, ax2) = plt.subplots(nrows=2, ncols=1, figsize=(10, 8))
             ax1.plot(df_log['episodes'], df_log[r'rollout/ep_rew_mean'],
@@ -534,17 +532,13 @@ class CustomCallback(BaseCallback):
 
 
 class Optimization:
-    """Functionality to train (optimize an agent) and hyperparameter tuning with optuna."""
+    """Functionality to train (optimize an agent) and hyperparameter tuning
+    with optuna."""
 
-    def __init__(self, 
-                 n_c_tot: int, 
-                 environment: gym.Env, 
-                 EPISODES: int, 
-                 CHECKPOINT_INTERVAL: int,
-                 MODE: str, 
-                 MAX_STROKES: int, 
+    def __init__(self, n_c_tot: int, environment: gym.Env, EPISODES: int,
+                 CHECKPOINT_INTERVAL: int, MODE: str, MAX_STROKES: int,
                  AGENT_NAME: str) -> None:
-        
+
         self.n_c_tot = n_c_tot
         self.environment = environment
         self.EPISODES = EPISODES
@@ -560,11 +554,11 @@ class Optimization:
         '''objective function that runs the RL environment and agent either for
         an optimization or an optimized agent'''
         print('\n')
-        
+
         hparams = Hyperparameters()
         parameter_suggestions = hparams.suggest_hyperparameters(
-            trial, self.AGENT_NAME, self.environment, steps_episode=self.MAX_STROKES,
-            num_actions=self.n_actions)
+            trial, self.AGENT_NAME, self.environment,
+            steps_episode=self.MAX_STROKES, num_actions=self.n_actions)
 
         match self.AGENT_NAME:
             case "PPO":
@@ -578,7 +572,7 @@ class Optimization:
             case "TD3":
                 agent = TD3(**parameter_suggestions)
             case _:
-                raise NotImplementedError(f"{self.AGENT_NAME} is not implemented")
+                raise NotImplementedError(f"{self.AGENT_NAME} not implemented")
 
         agent_dir = self.AGENT_NAME + datetime.now().strftime("%Y%m%d-%H%M%S")
         new_logger = logger.configure(f'optimization/{agent_dir}', ["csv"])
@@ -586,21 +580,21 @@ class Optimization:
         print(f'agent: {self.AGENT_NAME}')
         # train agent with early stopping and save best agents only
         stop_train_cb = StopTrainingOnNoModelImprovement(max_no_improvement_evals=3,
-                                                            min_evals=2,
-                                                            verbose=1)
+                                                         min_evals=2,
+                                                         verbose=1)
         eval_cb = EvalCallback(self.environment,
-                                best_model_save_path=f'optimization/{agent_dir}',
-                                log_path=f'optimization/{agent_dir}',
-                                deterministic=False,
-                                n_eval_episodes=3,
-                                eval_freq=self.freq,
-                                callback_after_eval=stop_train_cb,
-                                verbose=1, warn=False)
+                               best_model_save_path=f'optimization/{agent_dir}',
+                               log_path=f'optimization/{agent_dir}',
+                               deterministic=False,
+                               n_eval_episodes=3,
+                               eval_freq=self.freq,
+                               callback_after_eval=stop_train_cb,
+                               verbose=1, warn=False)
         custom_callback = CustomCallback(check_freq=self.freq,
-                                            save_path=f'optimization/{agent_dir}',
-                                            name_prefix=f'{self.AGENT_NAME}',
-                                            MAX_STROKES=self.MAX_STROKES,
-                                            AGENT_NAME=self.AGENT_NAME)
+                                         save_path=f'optimization/{agent_dir}',
+                                         name_prefix=f'{self.AGENT_NAME}',
+                                         MAX_STROKES=self.MAX_STROKES,
+                                         AGENT_NAME=self.AGENT_NAME)
         callback = CallbackList([eval_cb, custom_callback])
 
         agent.set_logger(new_logger)
@@ -612,12 +606,12 @@ class Optimization:
         agent = self.load_best_model(self.AGENT_NAME, agent_dir)
 
         mean_ep_reward = evaluate_policy(agent, self.environment,
-                                            n_eval_episodes=10,
-                                            deterministic=False,
-                                            warn=False)[0]
+                                         n_eval_episodes=10,
+                                         deterministic=False,
+                                         warn=False)[0]
         final_reward = mean_ep_reward  # objective's reward
         return final_reward
-            
+
     def train_agent(self, agent_name: str, best_parameters: dict) -> None:
         """Train agent with best parameters from an optimization study."""
         match agent_name:
@@ -633,37 +627,39 @@ class Optimization:
                 agent = TD3(**best_parameters)
             case _:
                 raise NotImplementedError()
-                
+
         agent_dir = self.AGENT_NAME + datetime.now().strftime("%Y%m%d-%H%M%S")
-        new_logger = logger.configure(Path(f'checkpoints/{agent_dir}'), ["csv"])
+        new_logger = logger.configure(Path(f'checkpoints/{agent_dir}'),
+                                      ["csv"])
         # mode that trains an agent based on previous OPTUNA study
         checkpoint_callback = CheckpointCallback(save_freq=self.freq,
-                                                    save_path=Path(f'checkpoints/{agent_dir}'),
-                                                    name_prefix=f'{self.AGENT_NAME}',
-                                                    verbose=1)
+                                                 save_path=Path(f'checkpoints/{agent_dir}'),
+                                                 name_prefix=f'{self.AGENT_NAME}',
+                                                 verbose=1)
         custom_callback = CustomCallback(check_freq=self.freq,
-                                            save_path=Path(f'checkpoints/{agent_dir}'),
-                                            name_prefix=f'{self.AGENT_NAME}',
-                                            MAX_STROKES=self.MAX_STROKES,
-                                            AGENT_NAME=self.AGENT_NAME)
+                                         save_path=Path(f'checkpoints/{agent_dir}'),
+                                         name_prefix=f'{self.AGENT_NAME}',
+                                         MAX_STROKES=self.MAX_STROKES,
+                                         AGENT_NAME=self.AGENT_NAME)
         eval_cb = EvalCallback(self.environment,
-                                best_model_save_path=Path(f'checkpoints/{agent_dir}'),
-                                log_path='checkpoints',
-                                deterministic=False,
-                                n_eval_episodes=10,
-                                eval_freq=self.freq,
-                                verbose=1, warn=False)
+                               best_model_save_path=Path(f'checkpoints/{agent_dir}'),
+                               log_path='checkpoints',
+                               deterministic=False,
+                               n_eval_episodes=10,
+                               eval_freq=self.freq,
+                               verbose=1, warn=False)
 
         # Create the callback list
         callback = CallbackList([checkpoint_callback, eval_cb,
-                                    custom_callback])
+                                 custom_callback])
         # TODO implement callback that logs also environmental training
         # TODO parameters (broken cutters, n changes per ep etc.)
         agent.set_logger(new_logger)
         agent.learn(total_timesteps=self.EPISODES * self.MAX_STROKES,
                     callback=callback)
 
-    def load_best_model(self, agent_name: str, agent_dir: str) -> BaseAlgorithm:
+    def load_best_model(self, agent_name: str,
+                        agent_dir: str) -> BaseAlgorithm:
         """Load best model so far in optuna study.
 
         Args:
@@ -672,14 +668,15 @@ class Optimization:
         agents = dict(PPO=PPO(), A2C=A2C(), DDPG=DDPG(), SAC=SAC(), TD3=TD3())
         trained_agent = agents[agent_name].load(f'optimization/{agent_dir}/best_model.zip')
         return trained_agent
-        
 
-    def enqueue_defaults(self, study: optuna.study.Study, agent_name: str, n_trials: int):
-        '''Insert manually a study with default parameters in n_trials experiments.'''
+    def enqueue_defaults(self, study: optuna.study.Study, agent_name: str,
+                         n_trials: int):
+        '''Insert manually a study with default parameters in n_trials
+        experiments.'''
         defaults = DefaultParameters()
         for i in range(n_trials):
             study.enqueue_trial(defaults.get_agent_default_params(agent_name))
-            
+
         print(f'{n_trials} studies with {agent_name} default parameters inserted')
 
         return study

@@ -45,12 +45,12 @@ t_C_max = 75  # maximum time to change one cutter [min]
 # new agent is trained with prev. optimized parameters = "Training", or an
 # already trained agent is executed = "Execution"
 MODE = 'Optimization'  # 'Optimization', 'Training', 'Execution'
-N_DEFAULT_TRIALS = 1  # n trials with default parameters to insert in study
-NUM_OPTUNA_TRIALS = 2
+N_DEFAULT_TRIALS = 0  # n trials with default parameters to insert in study
+N_OPTUNA_TRIALS = 2  # n optuna trials to run in total
 # name of the study if MODE == 'Optimization' or 'Training'
 # the Study name must start with the name of the agent that needs to be one of
 # 'PPO', 'A2C', 'DDPG', 'SAC', 'TD3'
-STUDY = 'PPO_2022_08_05_study'  # DDPG_2022_07_27_study 'PPO_2022_08_03_study'
+STUDY = 'PPO_2022_08_08_study'  # DDPG_2022_07_27_study 'PPO_2022_08_03_study'
 BEST_PARAMS_STUDY_FILETYPE = "db"  # "pkl"
 
 ###############################################################################
@@ -71,21 +71,22 @@ env = CustomEnv(n_c_tot, LIFE, MAX_STROKES, STROKE_LENGTH, cutter_pathlenghts,
 agent = STUDY.split('_')[0]
 
 # Instantiate optimization function
-optim = Optimization(n_c_tot, env, EPISODES, CHECKPOINT_INTERVAL, MODE, MAX_STROKES,
-                     agent)
+optim = Optimization(n_c_tot, env, EPISODES, CHECKPOINT_INTERVAL, MODE,
+                     MAX_STROKES, agent)
 
 ###############################################################################
 # run one of the three modes: Optimization, Training, Execution
-#TODO: find a way to run num-cores processes automatically
 
 if MODE == 'Optimization':  # study
     db_path = f"results/{STUDY}.db"
     db_file = f"sqlite:///{db_path}"
     study = optuna.create_study(
-        direction='maximize', study_name=STUDY, storage=db_file, load_if_exists=True)
+        direction='maximize', study_name=STUDY, storage=db_file,
+        load_if_exists=True)
     study = optim.enqueue_defaults(study, agent, n_trials=N_DEFAULT_TRIALS)
-    study.optimize(optim.objective, n_trials=1, catch=(ValueError,))
-    
+    study.optimize(optim.objective, n_trials=N_OPTUNA_TRIALS,
+                   catch=(ValueError,))
+
 elif MODE == 'Training':
     print('new main training run with optimized parameters started')
     if BEST_PARAMS_STUDY_FILETYPE == "db":
