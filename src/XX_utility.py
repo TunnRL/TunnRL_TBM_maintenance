@@ -13,9 +13,17 @@ def load_best_model(agent_name: str, main_dir: str, agent_dir: str) -> BaseAlgor
     if agent_name == "DDP":
         agent_name = "DDPG"
 
-    agents = dict(PPO=PPO(), A2C=A2C(), DDPG=DDPG(), SAC=SAC(), TD3=TD3())
+    path = f'{main_dir}/{agent_dir}/best_model.zip'
     
-    assert agent_name in agents.keys(), f"{agent_name} is not implemented."
-    
-    trained_agent = agents[agent_name].load(f'{main_dir}/{agent_dir}/best_model.zip')
-    return trained_agent
+    if agent_name == 'PPO':
+        agent = PPO.load(path)
+    elif agent_name == 'A2C':
+        agent = A2C.load(path)
+    elif agent_name == 'DDPG':
+        agent = DDPG.load(path)
+    elif agent_name == 'SAC':
+        agent = SAC.load(path)
+    elif agent_name == 'TD3':
+        agent = TD3.load(path)
+
+    return agent

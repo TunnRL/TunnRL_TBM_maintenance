@@ -13,6 +13,7 @@ code contributors: Georg H. Erharter, Tom F. Hansen
 
 from datetime import datetime
 from pathlib import Path
+import ipdb
 
 import gym
 import matplotlib.cm as mplcm
@@ -36,7 +37,7 @@ from stable_baselines3.common.callbacks import (
 )
 from stable_baselines3.common.evaluation import evaluate_policy
 
-from XX_hyperparams import DefaultParameters, Hyperparameters
+from XX_hyperparams import Hyperparameters
 from XX_utility import load_best_model
 
 
@@ -330,7 +331,6 @@ class Maintenance:
         
         return r
 
-
 class CustomEnv(gym.Env, Plotter):
     '''Implementation of the custom environment that simulates the cutter wear
     and provides the agent with a state and reward signal.
@@ -565,12 +565,12 @@ class CustomCallback(BaseCallback):
 
 
 class Optimization:
-    """Functionality to train (optimize an agent) and hyperparameter tuning
-    with optuna."""
+    """Functionality to train (optimize the reward of an agent) 
+    and hyperparameter tuning of agent parameters using Optuna."""
 
     def __init__(self, n_c_tot: int, environment: gym.Env, EPISODES: int,
                  CHECKPOINT_INTERVAL: int, MODE: str, MAX_STROKES: int,
-                 AGENT_NAME: str) -> None:
+                 AGENT_NAME: str, DEFAULT_TRIAL: bool) -> None:
 
         self.n_c_tot = n_c_tot
         self.environment = environment
@@ -579,41 +579,45 @@ class Optimization:
         self.MODE = MODE
         self.MAX_STROKES = MAX_STROKES
         self.AGENT_NAME = AGENT_NAME
+        self.DEFAULT_TRIAL = DEFAULT_TRIAL
 
         self.n_actions = n_c_tot * n_c_tot
         self.freq = self.MAX_STROKES * self.CHECKPOINT_INTERVAL  # checkpoint frequency
 
     def objective(self, trial: optuna.trial.Trial) -> float | list[float]:
-        '''objective function that runs the RL environment and agent either for
-        an optimization or an optimized agent'''
-        print('\n')
+        '''Objective function that drives the optimization of parameter values for the 
+        RL-agent.'''
 
-        hparams = Hyperparameters()
-        parameter_suggestions = hparams.suggest_hyperparameters(
-            trial, self.AGENT_NAME, self.environment,
-            steps_episode=self.MAX_STROKES, num_actions=self.n_actions)
+        if self.DEFAULT_TRIAL:
+            parameters = {"policy": "MlpPolicy", "env": self.environment}
+            self.DEFAULT_TRIAL = False
+        else:
+            hparams = Hyperparameters()
+            parameters = hparams.suggest_hyperparameters(
+                trial, self.AGENT_NAME, self.environment,
+                steps_episode=self.MAX_STROKES, num_actions=self.n_actions)
 
         match self.AGENT_NAME:
             case "PPO":
-                agent = PPO(**parameter_suggestions)
+                agent = PPO(**parameters)
             case "SAC":
-                agent = SAC(**parameter_suggestions)
+                agent = SAC(**parameters)
             case "A2C":
-                agent = A2C(**parameter_suggestions)
+                agent = A2C(**parameters)
             case "DDPG":
-                agent = DDPG(**parameter_suggestions)
+                agent = DDPG(**parameters)
             case "TD3":
-                agent = TD3(**parameter_suggestions)
+                agent = TD3(**parameters)
             case _:
                 raise NotImplementedError(f"{self.AGENT_NAME} not implemented")
-
+        
         agent_dir = self.AGENT_NAME + datetime.now().strftime("%Y%m%d-%H%M%S")
         new_logger = logger.configure(f'optimization/{agent_dir}', ["csv"])
 
         print(f'agent: {self.AGENT_NAME}')
         # train agent with early stopping and save best agents only
-        stop_train_cb = StopTrainingOnNoModelImprovement(max_no_improvement_evals=3,
-                                                         min_evals=2,
+        stop_train_cb = StopTrainingOnNoModelImprovement(max_no_improvement_evals=1,
+                                                         min_evals=1,
                                                          verbose=1)
         eval_cb = EvalCallback(self.environment,
                                best_model_save_path=f'optimization/{agent_dir}',
@@ -636,7 +640,8 @@ class Optimization:
         del agent
 
         print('load agent and evaluate on 10 last episodes')
-        agent = load_best_model(self.AGENT_NAME, "optimization",agent_dir)
+        agent = load_best_model(
+            self.AGENT_NAME, main_dir="optimization", agent_dir=agent_dir)
 
         mean_ep_reward = evaluate_policy(agent, self.environment,
                                          n_eval_episodes=10,
@@ -690,29 +695,6 @@ class Optimization:
         agent.set_logger(new_logger)
         agent.learn(total_timesteps=self.EPISODES * self.MAX_STROKES,
                     callback=callback)
-
-    def load_best_model(self, agent_name: str,
-                        agent_dir: str) -> BaseAlgorithm:
-        """Load best model so far in optuna study.
-
-        Args:
-            agent_name (str): name of RL-architecture (PPO, DDPG ...)
-        """
-        agents = dict(PPO=PPO(), A2C=A2C(), DDPG=DDPG(), SAC=SAC(), TD3=TD3())
-        trained_agent = agents[agent_name].load(f'optimization/{agent_dir}/best_model.zip')
-        return trained_agent
-
-    def enqueue_defaults(self, study: optuna.study.Study, agent_name: str,
-                         n_trials: int):
-        '''Insert manually a study with default parameters in n_trials
-        experiments.'''
-        defaults = DefaultParameters()
-        for i in range(n_trials):
-            study.enqueue_trial(defaults.get_agent_default_params(agent_name))
-
-        print(f'{n_trials} studies with {agent_name} default parameters inserted')
-
-        return study
 
 
 if __name__ == "__main__":

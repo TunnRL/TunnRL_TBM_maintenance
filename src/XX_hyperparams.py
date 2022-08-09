@@ -19,74 +19,6 @@ from stable_baselines3.common.noise import (
 )
 
 
-class DefaultParameters:
-    """Functionality to return a dictionary of default parameter values for a
-    certain RL-architecture."""
-
-    def __init__(self):
-        self.PPO_defaults = {'gae_lambda': 0.95,
-                             'learning_rate': 0.0003,
-                             'clip_range': 0.2,
-                             'normalize_advantage': True,
-                             'discount': 0.99,
-                             'ent_coef': 0.0,
-                             'vf_coef': 0.5,
-                             'max_grad_norm': 0.5,
-                             'use_sde': False}
-
-        self.SAC_defaults = {'action_noise': None,
-                             'learning_rate': 0.0003,
-                             'learning_starts': 100,
-                             'batch_size': 256,
-                             'discount': 0.99,
-                             'tau': 0.005,
-                             'train_freq': 1,
-                             'gradient_steps': 1,
-                             'ent_coef': 0.1,
-                             'target_update_interval': 1,
-                             'use_sde': False,
-                             'use_sde_at_warmup': False}
-
-        self.A2C_defaults = {'learning_rate': 0.0007,
-                             'n_steps': 5,
-                             'discount': 0.99,
-                             'gae_lambda': 1.0,
-                             'ent_coef': 0.0,
-                             'vf_coef': 0.5,
-                             'max_grad_norm': 0.5,
-                             'rms_prop_eps': 1e-05}
-
-        self.DDPG_defaults = {'learning_rate': 0.001,
-                              'batch_size': 100,
-                              'learning_starts': 100,
-                              'tau': 0.005,
-                              'discount': 0.99,
-                              # 'train_freq': (1, 'episode'),
-                              'gradient_steps': -1}
-
-        self.TD3_defaults = {'learning_rate': 0.001,
-                             'learning_starts': 100,
-                             'batch_size': 100,
-                             'tau': 0.005,
-                             'discount': 0.99,
-                             # 'train_freq': (1, 'episode'),
-                             'gradient_steps': -1,
-                             'action_noise': None,
-                             'policy_delay': 2,
-                             'target_policy_noise': 0.2,
-                             'target_noise_clip': 0.5}
-
-        self.agent_dict = dict(
-            PPO=self.PPO_defaults, DDPG=self.DDPG_defaults,
-            A2C=self.A2C_defaults, TD3=self.TD3_defaults)
-
-    def get_agent_default_params(self, agent_name: str) -> dict:
-        """Return default parameters for a certain agent architecture."""
-        params = self.agent_dict[agent_name]
-        print(f"Training agent with these default parameters:\n {params}")
-        return params
-
-
 class Hyperparameters:
     """Class that bundle functionality to return a dictionary of suggested
     hyperparameters in Optuna trials."""
@@ -229,7 +161,7 @@ class Hyperparameters:
                                num_nodes_shared_layer: int = 0) -> list:
         """Setting up a policy network.
 
-        Concretely as an input to policy_kwargs{net_arch:<dict>} in RL-agent
+        Concretely as an input to policy_kwargs{net_arch:<dict>} in the RL-agent
         method. Shared layers are only an option for on-policy networks, eg.
         PPO, A2C.
 
@@ -237,12 +169,15 @@ class Hyperparameters:
         value network (vf).
         More info: https://stable-baselines3.readthedocs.io/en/master/guide/custom_policy.html
 
-        Default network is like the "small" network defined below, ie. no
-        shared layers, both nets with 2 hidden layers of 64 nodes. Default
+        Default network is no shared layers, both nets with 2 hidden layers of 64 nodes. Default
         network is very basic, just combined blocks of linear layers and
         activation functions.ie. no dropout, no batch normalization etc.
+        
         More info about architecure here: https://github.com/DLR-RM/stable-baselines3/blob/646d6d38b6ba9aac612d4431176493a465ac4758/stable_baselines3/common/policies.py#L379
         And here: https://github.com/DLR-RM/stable-baselines3/blob/646d6d38b6ba9aac612d4431176493a465ac4758/stable_baselines3/common/torch_layers.py#L136
+        
+        Returns:
+            List: network description
         """
         assert algorithm in ["PPO", "A2C", "DDPG", "TD3", "SAC"], f"{algorithm} is not a valid algorithm"
 
@@ -288,7 +223,7 @@ class Hyperparameters:
 
     def linear_schedule(self, initial_value: float | str) -> Callable[[float], float]:
         """
-        TODO: do this in the callback instead
+        TODO: Not in use. Do this in the callback instead
 
         Linear learning rate scheduler.
         :param initial_value: (float or str)

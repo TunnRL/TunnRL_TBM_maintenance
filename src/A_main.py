@@ -15,7 +15,6 @@ import warnings
 import joblib
 import numpy as np
 import optuna
-from stable_baselines3 import DDPG, PPO, TD3
 from stable_baselines3.common.env_checker import check_env
 
 from XX_maintenance_lib import CustomEnv, Optimization
@@ -36,9 +35,9 @@ LIFE = 400000  # theoretical durability of one cutter [m]
 STROKE_LENGTH = 1.8  # length of one stroke [m]
 MAX_STROKES = 1000  # number of strokes per episode
 
-EPISODES = 10_000  # max episodes to train for
+EPISODES = 20  # max episodes to train for 10_000
 # evaluations in optimization and checkpoints in training every X episodes
-CHECKPOINT_INTERVAL = 100
+CHECKPOINT_INTERVAL = 3  # 100
 
 T_C_MAX = 75  # maximum time to change one cutter [min]
 
@@ -46,13 +45,12 @@ T_C_MAX = 75  # maximum time to change one cutter [min]
 # new agent is trained with prev. optimized parameters = "Training", or an
 # already trained agent is executed = "Execution"
 MODE = 'Optimization'  # 'Optimization', 'Training', 'Execution'
-N_DEFAULT_TRIALS = 0  # n trials with default parameters to insert in study
-N_OPTUNA_TRIALS = 2  # n optuna trials to run in total
+DEFAULT_TRIAL = False  # first run a trial with default parameters.
+N_OPTUNA_TRIALS = 3  # n optuna trials to run in total
 # name of the study if MODE == 'Optimization' or 'Training'
 # the Study name must start with the name of the agent that needs to be one of
 # 'PPO', 'A2C', 'DDPG', 'SAC', 'TD3'
 STUDY = 'PPO_2022_08_08_study'  # DDPG_2022_07_27_study 'PPO_2022_08_03_study'
-BEST_PARAMS_STUDY_FILETYPE = "db"  # "pkl"
 
 EXECUTION_MODEL = "PPO20220805-122226"
 NUM_TEST_EPISODES = 3
@@ -76,7 +74,7 @@ agent = STUDY.split('_')[0]
 
 # Instantiate optimization function
 optim = Optimization(n_c_tot, env, EPISODES, CHECKPOINT_INTERVAL, MODE,
-                     MAX_STROKES, agent)
+                     MAX_STROKES, agent, DEFAULT_TRIAL)
 
 ###############################################################################
 # run one of the three modes: Optimization, Training, Execution
@@ -87,24 +85,18 @@ if MODE == 'Optimization':  # study
     study = optuna.create_study(
         direction='maximize', study_name=STUDY, storage=db_file,
         load_if_exists=True)
-    study = optim.enqueue_defaults(study, agent, n_trials=N_DEFAULT_TRIALS)
     study.optimize(optim.objective, n_trials=N_OPTUNA_TRIALS,
                    catch=(ValueError,))
 
 elif MODE == 'Training':
     print('new main training run with optimized parameters started')
-    if BEST_PARAMS_STUDY_FILETYPE == "db":
-        db_path = f"results/{STUDY}.db"
-        db_file = f"sqlite:///{db_path}"
-        study = optuna.load_study(study_name=STUDY, storage=db_file)
-    elif BEST_PARAMS_STUDY_FILETYPE == "pkl":
-        study = joblib.load(f"results/{STUDY}.pkl")
-    else:
-        raise ValueError(f"{BEST_PARAMS_STUDY_FILETYPE} is not a valid filetype. Valid filetypes are: db, pkl")
+    db_path = f"results/{STUDY}.db"
+    db_file = f"sqlite:///{db_path}"
+    study = optuna.load_study(study_name=STUDY, storage=db_file)
 
     trial = study.best_trial
-    print('\nhighest reward: {}'.format(trial.value))
-    print("Best hyperparameters: {}".format(trial.params))
+    print(f"Highest reward: {trial.value}")
+    print(f"Best hyperparameters: {trial.params}")
     optim.train_agent(agent_name=agent, best_parameters=trial.params)
 
 elif MODE == 'Execution':
