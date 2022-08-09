@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 Towards optimized TBM cutter changing policies with reinforcement learning
 G.H. Erharter, T.F. Hansen
@@ -11,104 +10,101 @@ Created on Sat Oct 30 12:46:42 2021
 code contributors: Georg H. Erharter, Tom F. Hansen
 """
 
+import warnings
+
 import joblib
 import numpy as np
 import optuna
-from pathlib import Path
-from stable_baselines3 import PPO, DDPG, TD3
 from stable_baselines3.common.env_checker import check_env
-import warnings
 
-from XX_maintenance_lib import CustomEnv, optimization
+from XX_maintenance_lib import CustomEnv, Optimization
+from XX_utility import load_best_model
+
 
 warnings.filterwarnings("ignore",
                         category=optuna.exceptions.ExperimentalWarning)
 
+
 ###############################################################################
 # Constants and fixed variables
 
-R = 3  # cutterhead radius [m]
-D = 0.11  # cutter track spacing [m]
+CUTTERHEAD_RADIUS = 3  # cutterhead radius [m]
+TRACK_SPACING = 0.11  # cutter track spacing [m]
 LIFE = 400000  # theoretical durability of one cutter [m]
 
 STROKE_LENGTH = 1.8  # length of one stroke [m]
 MAX_STROKES = 1000  # number of strokes per episode
 
-EPISODES = 10_000  # max episodes to train for
+EPISODES = 20  # max episodes to train for 10_000
 # evaluations in optimization and checkpoints in training every X episodes
-CHECKPOINT = 100
+CHECKPOINT_INTERVAL = 3  # 100
 
-t_C_max = 75  # maximum time to change one cutter [min]
+T_C_MAX = 75  # maximum time to change one cutter [min]
 
 # MODE determines if either an optimization should run = "Optimization", or a
 # new agent is trained with prev. optimized parameters = "Training", or an
 # already trained agent is executed = "Execution"
-MODE = 'Execution'  # 'Optimization', 'Training', 'Execution'
-N_DEFAULT_TRIALS = 0  # n trials with default parameters to insert in study
+MODE = 'Optimization'  # 'Optimization', 'Training', 'Execution'
+DEFAULT_TRIAL = False  # first run a trial with default parameters.
+N_OPTUNA_TRIALS = 3  # n optuna trials to run in total
 # name of the study if MODE == 'Optimization' or 'Training'
 # the Study name must start with the name of the agent that needs to be one of
 # 'PPO', 'A2C', 'DDPG', 'SAC', 'TD3'
-STUDY = 'DDPG_2022_07_27_study'  # DDPG_2022_07_27_study
+STUDY = 'PPO_2022_08_08_study'  # DDPG_2022_07_27_study 'PPO_2022_08_03_study'
+
+EXECUTION_MODEL = "PPO20220805-122226"
+NUM_TEST_EPISODES = 3
 
 ###############################################################################
 # computed variables and instantiations
 
 # total number of cutters
-n_c_tot = int(round((R-D/2) / D, 0)) + 1
+n_c_tot = int(round((CUTTERHEAD_RADIUS - TRACK_SPACING / 2) / TRACK_SPACING, 0)) + 1
 print(f'total number of cutters: {n_c_tot}\n')
 
-cutter_positions = np.cumsum(np.full((n_c_tot), D)) - D/2
+cutter_positions = np.cumsum(np.full((n_c_tot), TRACK_SPACING)) - TRACK_SPACING / 2
 
 cutter_pathlenghts = cutter_positions * 2 * np.pi  # [m]
 
 env = CustomEnv(n_c_tot, LIFE, MAX_STROKES, STROKE_LENGTH, cutter_pathlenghts,
-                R, t_C_max)
+                CUTTERHEAD_RADIUS, T_C_MAX)
 # check_env(env)  # check if env is a suitable gym environment
 
 agent = STUDY.split('_')[0]
 
 # Instantiate optimization function
-optim = optimization(n_c_tot, env, EPISODES, CHECKPOINT, MODE, MAX_STROKES,
-                     agent)
+optim = Optimization(n_c_tot, env, EPISODES, CHECKPOINT_INTERVAL, MODE,
+                     MAX_STROKES, agent, DEFAULT_TRIAL)
 
 ###############################################################################
 # run one of the three modes: Optimization, Training, Execution
 
 if MODE == 'Optimization':  # study
-    try:  # evtl. load already existing study if one exists
-        study = joblib.load(Path(f'results/{STUDY}.pkl'))
-        print('prev. optimization study loaded')
-    except FileNotFoundError:  # or create a new study
-        study = optuna.create_study(direction='maximize', study_name=STUDY)
-        print('new optimization study created')
-    # the OPTUNA study is then run in a loop so that intermediate results are
-    # saved and can be checked every trials
-    study = optim.enqueue_defaults(study, agent, n_trials=N_DEFAULT_TRIALS)
-    for _ in range(200):  # save every second study
-        study.optimize(optim.objective, n_trials=1, catch=(ValueError,))
-        joblib.dump(study, Path(f'results/{STUDY}.pkl'))
-        df = study.trials_dataframe()
-        df.to_csv(Path(f'results/{STUDY}.csv'))
+    db_path = f"results/{STUDY}.db"
+    db_file = f"sqlite:///{db_path}"
+    study = optuna.create_study(
+        direction='maximize', study_name=STUDY, storage=db_file,
+        load_if_exists=True)
+    study.optimize(optim.objective, n_trials=N_OPTUNA_TRIALS,
+                   catch=(ValueError,))
 
 elif MODE == 'Training':
     print('new main training run with optimized parameters started')
-    study = joblib.load(Path(fr'results\{STUDY}.pkl'))
+    db_path = f"results/{STUDY}.db"
+    db_file = f"sqlite:///{db_path}"
+    study = optuna.load_study(study_name=STUDY, storage=db_file)
 
-    # print results of study
     trial = study.best_trial
-    print('\nhighest reward: {}'.format(trial.value))
-    print("Best hyperparameters: {}".format(trial.params))
-
-    optim.objective(study.best_trial)
+    print(f"Highest reward: {trial.value}")
+    print(f"Best hyperparameters: {trial.params}")
+    optim.train_agent(agent_name=agent, best_parameters=trial.params)
 
 elif MODE == 'Execution':
-    model = 'DDPG20220728-092315'  # name of the model to load
-    tests = 3  # number of test episodes
-
-    agent = DDPG.load(Path(fr'checkpoints\{model}\best_model'))
+    agent_name = EXECUTION_MODEL[0:3]
+    agent = load_best_model(agent_name, main_dir="checkpoints", agent_dir=EXECUTION_MODEL)
 
     # test agent throughout multiple episodes
-    for test in range(tests):
+    for test in range(NUM_TEST_EPISODES):
         state = env.reset()  # reset new environment
         terminal = False  # reset terminal flag
 
@@ -135,10 +131,10 @@ elif MODE == 'Execution':
             moved_cutters.append(env.moved_cutters)
 
         env.state_action_plot(states, actions, n_strokes=200,
-                              savepath=fr'checkpoints\sample\{model}{test}_state_action.svg')
-        env.environment_parameter_plot(fr'checkpoints\sample\{model}{test}_episode.svg', test)
+                              savepath=f'checkpoints/sample/{EXECUTION_MODEL}{test}_state_action.svg')
+        env.environment_parameter_plot(f'checkpoints/sample/{EXECUTION_MODEL}{test}_episode.svg'), test
         env.sample_ep_plot(states, actions, rewards, ep=test,
-                           savepath=fr'checkpoints\sample\{model}{test}_sample.svg',
+                           savepath=f'checkpoints/sample/{EXECUTION_MODEL}{test}_sample.svg',
                            replaced_cutters=replaced_cutters,
                            moved_cutters=moved_cutters)
 

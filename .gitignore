@@ -1,9 +1,21 @@
 # folder that contains documents connected to paper writing
 documents/
+
 # different folders that contain agent checkpoint, intermediate results or graphics
 src/optimization/
 src/checkpoints/
 src/graphics/
 src/results/
 
+checkpoints/*
+graphics/*
+optimization/*
+results/*
+tmp/
+
+# other stuff
 **/__pycache__
+settings.json
+
+# some dev tools
+.flake8
