@@ -6,7 +6,7 @@ authors = ["geograz <->", "tfha <tom.frode.hansen@gmail.com>"]
 license = "MIT"
 
 [tool.poetry.dependencies]
-python = "^3.10"
+python = ">=3.10,<3.12"
 stable-baselines3 = "^1.6.0"
 numpy = "^1.23.1"
 optuna = "^2.10.1"

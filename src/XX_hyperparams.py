@@ -23,7 +23,7 @@ class Hyperparameters:
     """Class that bundle functionality to return a dictionary of suggested
     hyperparameters in Optuna trials."""
 
-    def suggest_hyperparameters(self, 
+    def suggest_hyperparameters(self,
                                 trial: optuna.trial.Trial,
                                 algorithm: str,
                                 environment: gym.Env,
@@ -35,10 +35,11 @@ class Hyperparameters:
         algorithm."""
 
         # suggesting different network architectures
+        # TODO: num nodes should increase by log
         num_layers = trial.suggest_int("num_layers", low=1, high=5, step=1)
-        num_nodes_layer = trial.suggest_int("num_nodes_layer", low=10, high=400, step=10)
+        num_nodes_layer = trial.suggest_categorical("n_nodes_layer", [8, 16, 32, 64, 128, 256, 512])
         num_shared_layers = trial.suggest_int("num_shared_layers", low=0, high=3, step=1)
-        num_nodes_shared_layer = trial.suggest_int("num_nodes_shared_layer", low=10, high=400, step=10)
+        num_nodes_shared_layer = trial.suggest_categorical("n_nodes_shared_layer", [8, 16, 32, 64, 128, 256, 512])
 
         network_architecture = self._define_policy_network(algorithm,
                                                            num_layers,
@@ -151,7 +152,7 @@ class Hyperparameters:
             case _:
                 raise ValueError(f"{algorithm} is not implemented. These algorithms are implemented: PPO, DDPG, TD3, A2C, SAC")
 
-        print(f"Training agent with these parameters:\n {params}")
+        # print(f"Training agent with these parameters:\n {params}")
 
         return params
 
@@ -172,10 +173,10 @@ class Hyperparameters:
         Default network is no shared layers, both nets with 2 hidden layers of 64 nodes. Default
         network is very basic, just combined blocks of linear layers and
         activation functions.ie. no dropout, no batch normalization etc.
-        
+
         More info about architecure here: https://github.com/DLR-RM/stable-baselines3/blob/646d6d38b6ba9aac612d4431176493a465ac4758/stable_baselines3/common/policies.py#L379
         And here: https://github.com/DLR-RM/stable-baselines3/blob/646d6d38b6ba9aac612d4431176493a465ac4758/stable_baselines3/common/torch_layers.py#L136
-        
+
         Returns:
             List: network description
         """

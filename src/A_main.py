@@ -12,12 +12,13 @@ code contributors: Georg H. Erharter, Tom F. Hansen
 
 import warnings
 
-import joblib
 import numpy as np
 import optuna
 from stable_baselines3.common.env_checker import check_env
+from joblib import Parallel, delayed
 
 from XX_maintenance_lib import CustomEnv, Optimization
+from XX_plotting import Plotter
 from XX_utility import load_best_model
 
 
@@ -45,12 +46,16 @@ T_C_MAX = 75  # maximum time to change one cutter [min]
 # new agent is trained with prev. optimized parameters = "Training", or an
 # already trained agent is executed = "Execution"
 MODE = 'Optimization'  # 'Optimization', 'Training', 'Execution'
-DEFAULT_TRIAL = False  # first run a trial with default parameters.
-N_OPTUNA_TRIALS = 3  # n optuna trials to run in total
+DEFAULT_TRIAL = True  # first run a trial with default parameters.
+N_OPTUNA_TRIALS = 6  # n optuna trials to run in total (including eventual default trial)
+# NOTE: memory can be an issue for many parallell processes. Size of neural network and 
+# available memory will be limiting factors
+N_PARALLELL_PROCESSES = 2
+assert N_PARALLELL_PROCESSES <= N_OPTUNA_TRIALS, "Num. parallell processes cannot be higher than number of trials"
 # name of the study if MODE == 'Optimization' or 'Training'
 # the Study name must start with the name of the agent that needs to be one of
 # 'PPO', 'A2C', 'DDPG', 'SAC', 'TD3'
-STUDY = 'PPO_2022_08_08_study'  # DDPG_2022_07_27_study 'PPO_2022_08_03_study'
+STUDY = 'PPO_2022_08_10_study'  # DDPG_2022_07_27_study 'PPO_2022_08_03_study'
 
 EXECUTION_MODEL = "PPO20220805-122226"
 NUM_TEST_EPISODES = 3
@@ -58,7 +63,6 @@ NUM_TEST_EPISODES = 3
 ###############################################################################
 # computed variables and instantiations
 
-# total number of cutters
 n_c_tot = int(round((CUTTERHEAD_RADIUS - TRACK_SPACING / 2) / TRACK_SPACING, 0)) + 1
 print(f'total number of cutters: {n_c_tot}\n')
 
@@ -71,22 +75,50 @@ env = CustomEnv(n_c_tot, LIFE, MAX_STROKES, STROKE_LENGTH, cutter_pathlenghts,
 # check_env(env)  # check if env is a suitable gym environment
 
 agent = STUDY.split('_')[0]
+assert agent in ["PPO", "A2C", "DDPG", "SAC", "TD3"], f"{agent} is not a valid agent."
 
-# Instantiate optimization function
 optim = Optimization(n_c_tot, env, EPISODES, CHECKPOINT_INTERVAL, MODE,
                      MAX_STROKES, agent, DEFAULT_TRIAL)
+
+plotter = Plotter()
 
 ###############################################################################
 # run one of the three modes: Optimization, Training, Execution
 
+
+def optimize(n_trials: int):
+    """Optimize-function to be called in parallell process.
+
+    Args:
+        n_trials (int): Number of trials in each parallell process.
+    """
+    db_path = f"results/{STUDY}.db"
+    db_file = f"sqlite:///{db_path}"
+    study = optuna.load_study(study_name=STUDY, storage=db_file)
+    study.optimize(optim.objective, n_trials=n_trials,
+                   catch=(ValueError,))
+
+
 if MODE == 'Optimization':  # study
     db_path = f"results/{STUDY}.db"
     db_file = f"sqlite:///{db_path}"
+    sampler = optuna.samplers.TPESampler()
     study = optuna.create_study(
         direction='maximize', study_name=STUDY, storage=db_file,
-        load_if_exists=True)
-    study.optimize(optim.objective, n_trials=N_OPTUNA_TRIALS,
-                   catch=(ValueError,))
+        load_if_exists=True, sampler=sampler)
+    
+    Parallel(n_jobs=-1, verbose=0, backend="loky")(
+        delayed(optimize)(N_OPTUNA_TRIALS) for _ in range(N_PARALLELL_PROCESSES))
+    
+    study = optuna.load_study(study_name=STUDY, storage=db_file)
+    print('Number of finished trials: ', len(study.trials))
+    print('Best trial:')
+    trial = study.best_trial
+    print('  Value: ', trial.value)
+    print('  Params: ')
+    for key, value in trial.params.items():
+        print('    {}: {}'.format(key, value))
+
 
 elif MODE == 'Training':
     print('new main training run with optimized parameters started')
@@ -130,11 +162,10 @@ elif MODE == 'Execution':
             replaced_cutters.append(env.replaced_cutters)
             moved_cutters.append(env.moved_cutters)
 
-        env.state_action_plot(states, actions, n_strokes=200,
-                              savepath=f'checkpoints/sample/{EXECUTION_MODEL}{test}_state_action.svg')
-        env.environment_parameter_plot(f'checkpoints/sample/{EXECUTION_MODEL}{test}_episode.svg'), test
-        env.sample_ep_plot(states, actions, rewards, ep=test,
-                           savepath=f'checkpoints/sample/{EXECUTION_MODEL}{test}_sample.svg',
-                           replaced_cutters=replaced_cutters,
-                           moved_cutters=moved_cutters)
-
+        plotter.state_action_plot(states, actions, n_strokes=200,
+                                  savepath=f'checkpoints/sample/{EXECUTION_MODEL}{test}_state_action.svg')
+        plotter.environment_parameter_plot(f'checkpoints/sample/{EXECUTION_MODEL}{test}_episode.svg'), test
+        plotter.sample_ep_plot(states, actions, rewards, ep=test,
+                               savepath=f'checkpoints/sample/{EXECUTION_MODEL}{test}_sample.svg',
+                               replaced_cutters=replaced_cutters,
+                               moved_cutters=moved_cutters)

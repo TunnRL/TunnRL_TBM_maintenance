@@ -20,7 +20,7 @@ from D_training_path_analyzer import training_path
 
 ###############################################################################
 # Constants and fixed variables
-STUDY = 'PPO_2022_08_08_study'  # DDPG_2022_07_27_study TD3_2022_07_27_study
+STUDY = 'PPO_2022_08_10_study'  # DDPG_2022_07_27_study TD3_2022_07_27_study
 agent = STUDY.split('_')[0]
 FILETYPE_TO_LOAD = "db"  # "pkl" "db"
 
@@ -83,8 +83,8 @@ plt.close()
 PARAMS = [p for p in df_study.columns if "params_" in p]
 
 # replance NaN with "None"
-if agent == 'SAC' or agent == 'DDPG' or agent == 'TD3':
-    df_study[f'params_{agent}_action_noise'].fillna(value='None', inplace=True)
+if agent == 'SAC' or agent == 'DDPG' or agent == 'TD3' or agent == "PPO":
+    df_study['params_action_noise'].fillna(value='None', inplace=True)
 
 fig = plt.figure(figsize=(18, 9))
 
@@ -114,5 +114,6 @@ plt.close()
 
 #####
 # plot intermediate steps of the training paths
-training_path(agent, folder='optimization',
-              savepath=f'graphics/{STUDY}_optimization_interms.svg')
+#TODO: code below need a fix
+# training_path(agent, folder='optimization',
+#               savepath=f'graphics/{STUDY}_optimization_interms.svg')
