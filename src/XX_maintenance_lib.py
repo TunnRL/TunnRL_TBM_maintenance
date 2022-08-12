@@ -334,10 +334,13 @@ class Optimization:
 
         self.n_actions = n_c_tot * n_c_tot
         self.freq = self.MAX_STROKES * self.CHECKPOINT_INTERVAL  # checkpoint frequency
+        self.parallell_process_counter: int = 0
 
     def objective(self, trial: optuna.trial.Trial) -> float | list[float]:
         '''Objective function that drives the optimization of parameter values for the 
         RL-agent.'''
+        
+        self.parallell_process_counter += 1  # TODO: this is not working properly
 
         if self.DEFAULT_TRIAL:
             parameters = {"policy": "MlpPolicy", "env": self.environment}
@@ -365,7 +368,7 @@ class Optimization:
         agent_dir = self.AGENT_NAME + datetime.now().strftime("%Y%m%d-%H%M%S")
         new_logger = logger.configure(f'optimization/{agent_dir}', ["csv"])
 
-        print(f'Optimizing. Agent: {self.AGENT_NAME} | Num episodes: {self.EPISODES}')
+        print(f'Optimizing parallell process {self.parallell_process_counter}. Agent: {self.AGENT_NAME} | Num episodes: {self.EPISODES}')
         # train agent with early stopping and save best agents only
         stop_train_cb = StopTrainingOnNoModelImprovement(max_no_improvement_evals=1,
                                                          min_evals=1,
