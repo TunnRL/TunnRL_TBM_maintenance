@@ -50,7 +50,8 @@ DEFAULT_TRIAL = True  # first run a trial with default parameters.
 N_OPTUNA_TRIALS = 6  # n optuna trials to run in total (including eventual default trial)
 # NOTE: memory can be an issue for many parallell processes. Size of neural network and 
 # available memory will be limiting factors
-N_PARALLELL_PROCESSES = 2
+N_CORES_PARALLELL = -1
+N_PARALLELL_PROCESSES = 1
 assert N_PARALLELL_PROCESSES <= N_OPTUNA_TRIALS, "Num. parallell processes cannot be higher than number of trials"
 # name of the study if MODE == 'Optimization' or 'Training'
 # the Study name must start with the name of the agent that needs to be one of
@@ -107,7 +108,7 @@ if MODE == 'Optimization':  # study
         direction='maximize', study_name=STUDY, storage=db_file,
         load_if_exists=True, sampler=sampler)
     
-    Parallel(n_jobs=-1, verbose=0, backend="loky")(
+    Parallel(n_jobs=N_CORES_PARALLELL, verbose=0, backend="loky")(
         delayed(optimize)(N_OPTUNA_TRIALS) for _ in range(N_PARALLELL_PROCESSES))
     
     study = optuna.load_study(study_name=STUDY, storage=db_file)
