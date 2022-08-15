@@ -23,7 +23,7 @@ class Hyperparameters:
     """Class that bundle functionality to return a dictionary of suggested
     hyperparameters in Optuna trials."""
 
-    def suggest_hyperparameters(self, 
+    def suggest_hyperparameters(self,
                                 trial: optuna.trial.Trial,
                                 algorithm: str,
                                 environment: gym.Env,
@@ -45,14 +45,14 @@ class Hyperparameters:
                                                            num_nodes_layer,
                                                            num_shared_layers,
                                                            num_nodes_shared_layer)
-
-        # suggesting different activation functions
-        activation_fn = trial.suggest_categorical("activation_fn", ["tanh", "relu", "leaky_relu"])
-        activation_fn = {"tanh": nn.Tanh, "relu": nn.ReLU, "leaky_relu": nn.LeakyReLU}[activation_fn]
-
-        # computing action noise
-        action_noise = trial.suggest_categorical('action_noise', [None, 'NormalActionNoise', "OrnsteinUhlenbeckActionNoise"])
-        action_noise = self._yield_action_noise(action_noise, num_actions)
+        if algorithm == 'PPO' or algorithm == 'A2C':
+            # suggesting different activation functions
+            activation_fn = trial.suggest_categorical("activation_fn", ["tanh", "relu", "leaky_relu"])
+            activation_fn = {"tanh": nn.Tanh, "relu": nn.ReLU, "leaky_relu": nn.LeakyReLU}[activation_fn]
+        if algorithm == 'DDPG' or algorithm == 'SAC' or algorithm == 'TD3':
+            # computing action noise
+            action_noise = trial.suggest_categorical('action_noise', [None, 'NormalActionNoise', "OrnsteinUhlenbeckActionNoise"])
+            action_noise = self._yield_action_noise(action_noise, num_actions)
 
         match algorithm:
             case "PPO":
