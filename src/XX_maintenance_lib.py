@@ -13,7 +13,7 @@ code contributors: Georg H. Erharter, Tom F. Hansen
 
 from datetime import datetime
 from pathlib import Path
-import ipdb
+# import ipdb
 
 import gym
 import matplotlib.cm as mplcm
@@ -300,51 +300,83 @@ class Maintenance:
     changing cutters on a TBM's cutterhead. Based on this the reward is
     computed'''
 
-    def __init__(self, t_C_max: int, n_c_tot: int):
+    def __init__(self, n_c_tot: int, broken_cutters_thresh: float):
         """Setup
 
         Args:
-            t_C_max (int): maximum time to change one cutter  [min]
             n_c_tot (int): total number of cutters
+            broken_cutters_thresh (float): minimum required percentage of
+                functional cutters
         """
-        self.t_C_max = t_C_max
         self.n_c_tot = n_c_tot
+        self.broken_cutters_thresh = broken_cutters_thresh
+        self.t_i = 1  # cost of entering the cutterhead for maintenance
+        self.alpha = 0.2  # weighting factor for replacing cutters
+        self.beta = 0.3  # weighting factor for moving cutters
+        self.gamma = 0.25  # weighting factor for cutter distance
+        self.delta = 0.25  # weighting factor for entering cutterhead
 
-    def reward(self, replaced_cutters: int, moved_cutters: int, good_cutters: int) -> float:
+        if self.alpha + self.beta + self.gamma + self.delta != 1:
+            raise ValueError('reward weighting factors do not sum up to 1!')
+
+    def reward(self, replaced_cutters: list, moved_cutters: list,
+               good_cutters: int) -> float:
         """Reward function. Drives the agent learning process.
 
         Handles replacing and moving cutters.
-        
-        TODO: move hardcoded values into a common place for definition or config.
         """
-        if good_cutters < self.n_c_tot * 0.5:
-            r = 0
-        elif good_cutters == self.n_c_tot and replaced_cutters + moved_cutters == 0:
-            r = 1
+        # if good_cutters < self.n_c_tot * 0.5:
+        #     r = 0
+        # elif good_cutters == self.n_c_tot and replaced_cutters + moved_cutters == 0:
+        #     r = 1
+        # else:
+        #     ratio1 = good_cutters / self.n_c_tot
+        #     ratio2 = (moved_cutters / self.n_c_tot) * 1.05
+        #     ratio3 = (replaced_cutters / self.n_c_tot) * 0.9
+        #     r = ratio1 - ratio2 - ratio3
+
+        # r = max(0, r)
+
+        # compute distance between acted on cutters -> encourage series change
+        acted_on_cutters = sorted(replaced_cutters+moved_cutters)
+        dist_cutters = np.sum(np.diff(acted_on_cutters))
+
+        if good_cutters < self.n_c_tot * self.broken_cutters_thresh:
+            # if more than threshhold number of cutters are broken
+            r = -1
+        elif len(acted_on_cutters) == 0:
+            # if no cutters are acted on
+            r = good_cutters / self.n_c_tot
         else:
+            # weighted representation of cutters to penalize changing of outer
+            # cutters more than inner cutters
+            weighted_cutters = np.linspace(1, 2, num=self.n_c_tot)
+
             ratio1 = good_cutters / self.n_c_tot
-            ratio2 = (moved_cutters / self.n_c_tot) * 1.05
-            ratio3 = (replaced_cutters / self.n_c_tot) * 0.9
-            r = ratio1 - ratio2 - ratio3
-            
-        r = max(0, r)
-        
+            ratio2 = (np.sum(np.take(weighted_cutters, replaced_cutters)) / np.sum(weighted_cutters)) * self.alpha
+            ratio3 = (np.sum(np.take(weighted_cutters, moved_cutters)) / np.sum(weighted_cutters)) * self.beta
+            ratio4 = ((dist_cutters+1) / self.n_c_tot) * self.gamma
+            change_penalty = self.t_i * self.delta
+            r = ratio1 - ratio2 - ratio3 - ratio4 - change_penalty
+
         return r
+
 
 class CustomEnv(gym.Env, Plotter):
     '''Implementation of the custom environment that simulates the cutter wear
     and provides the agent with a state and reward signal.
-    
+
     TODO: move Plotter outside of the environment. Easier to understand.
     '''
-    def __init__(self, 
-                 n_c_tot: int, 
-                 LIFE: int, 
-                 MAX_STROKES: int, 
+
+    def __init__(self,
+                 n_c_tot: int,
+                 LIFE: int,
+                 MAX_STROKES: int,
                  STROKE_LENGTH: float,
-                 cutter_pathlenghts: float, 
-                 CUTTERHEAD_RADIUS: float, 
-                 T_C_MAX: int) -> None:
+                 cutter_pathlenghts: float,
+                 CUTTERHEAD_RADIUS: float,
+                 broken_cutters_thresh: float) -> None:
         """Initializing custom environment for a TBM cutter operation.
 
         Args:
@@ -354,10 +386,12 @@ class CustomEnv(gym.Env, Plotter):
             STROKE_LENGTH (float): length of one stroke [m]
             cutter_pathlenghts (float): rolling lengths [m]
             CUTTERHEAD_RADIUS (float): radius of cutterhead
-            T_C_MAX (int): max time for changing one cutter [min]
+            broken_cutters_thresh (float): minimum required percentage of
+                functional cutters
         """
         super(CustomEnv, self).__init__()
-        self.action_space = spaces.Box(low=-1, high=1, shape=(n_c_tot * n_c_tot,))
+        self.action_space = spaces.Box(low=-1, high=1,
+                                       shape=(n_c_tot * n_c_tot,))
         self.observation_space = spaces.Box(low=0, high=1, shape=(n_c_tot,))
 
         self.n_c_tot = n_c_tot
@@ -367,7 +401,7 @@ class CustomEnv(gym.Env, Plotter):
         self.cutter_pathlenghts = cutter_pathlenghts
         self.R = CUTTERHEAD_RADIUS
 
-        self.m = Maintenance(T_C_MAX, n_c_tot)
+        self.m = Maintenance(n_c_tot, broken_cutters_thresh)
 
     def step(self, actions: NDArray) -> tuple[NDArray, float, bool, dict]:
         '''main function that moves the environment one step further'''
@@ -376,7 +410,7 @@ class CustomEnv(gym.Env, Plotter):
 
         # compute reward
         good_cutters = len(np.where(self.state > 0)[0])
-        # n_c_to_change = self.replaced_cutters + self.moved_cutters
+
         reward = self.m.reward(self.replaced_cutters, self.moved_cutters,
                                good_cutters)
 
@@ -400,8 +434,8 @@ class CustomEnv(gym.Env, Plotter):
     def implement_action(self, action, state_before):
         '''function that interprets the "raw action" and modifies the state'''
         state_new = state_before
-        self.replaced_cutters = 0
-        self.moved_cutters = 0
+        self.replaced_cutters = []
+        self.moved_cutters = []
 
         for i in range(self.n_c_tot):
             cutter = action[i*self.n_c_tot: i*self.n_c_tot+self.n_c_tot]
@@ -411,12 +445,12 @@ class CustomEnv(gym.Env, Plotter):
             elif np.argmax(cutter) == i:
                 # cutter is replaced
                 state_new[i] = 1
-                self.replaced_cutters += 1
+                self.replaced_cutters.append(i)
             else:
                 # cutter is moved from original position to somewhere else
                 state_new[np.argmax(cutter)] = state_new[i]
                 state_new[i] = 1
-                self.moved_cutters += 1
+                self.moved_cutters.append(i)
 
         return state_new
 
@@ -610,7 +644,7 @@ class Optimization:
                 agent = TD3(**parameters)
             case _:
                 raise NotImplementedError(f"{self.AGENT_NAME} not implemented")
-        
+
         agent_dir = self.AGENT_NAME + datetime.now().strftime("%Y%m%d-%H%M%S")
         new_logger = logger.configure(f'optimization/{agent_dir}', ["csv"])
 
@@ -652,6 +686,9 @@ class Optimization:
 
     def train_agent(self, agent_name: str, best_parameters: dict) -> None:
         """Train agent with best parameters from an optimization study."""
+
+        # TODO convert best parameters to actual parameters for agent incl. net arch
+
         match agent_name:
             case "PPO":
                 agent = PPO(**best_parameters)
@@ -700,56 +737,73 @@ class Optimization:
 if __name__ == "__main__":
 
     # visualization of all possible reward states
-    t_C_max = 75  # maximum time to change one cutter [min]
     n_c_tot = 28  # total number of cutters
+    broken_cutters_thresh = 0.5
 
-    replaced_cutters = np.arange(n_c_tot+1)
-    moved_cutters = np.arange(n_c_tot+1)
-    good_cutters = np.arange(n_c_tot+1)
+    m = Maintenance(n_c_tot, broken_cutters_thresh)
 
-    # get all combinations
-    combined = np.array(np.meshgrid(replaced_cutters, moved_cutters, good_cutters)).T.reshape(-1,3)
-    # delete combinations where replaced_cutters + moved_cutters > n_c_tot
-    del_ids = np.where(combined[:, 0] + combined[:, 1] > n_c_tot)[0]
-    combined = np.delete(combined, del_ids, axis=0)
+    cutters = np.arange(n_c_tot)
 
-    replaced_cutters = combined[:, 0]
-    moved_cutters = combined[:, 1]
-    good_cutters = combined[:, 2]
+    n_repls = []
+    n_moves = []
+    n_good_cutters = []
+    r_s = []
 
-    # compute rewards for all states
-    m = Maintenance(t_C_max, n_c_tot)
-    rewards = []
-    for i in range(len(combined)):
-        rewards.append(m.reward(replaced_cutters=replaced_cutters[i],
-                                moved_cutters=moved_cutters[i],
-                                good_cutters=good_cutters[i]))
-    rewards = np.array(rewards)
+    for _ in range(10_000):
+        n_repl = np.random.randint(0, n_c_tot)
+        replaced_cutters = np.sort(np.random.choice(cutters, n_repl, replace=False))
+        n_move = np.random.randint(0, n_c_tot - n_repl)
+        moved_cutters = np.sort(np.random.choice(np.delete(cutters, replaced_cutters),
+                                                 n_move, replace=False))
 
-    low_r_id = np.argmin(rewards)
-    high_r_id = np.argmax(rewards)
-    len_low_r = len(np.where(rewards == rewards.min())[0])
-    len_high_r = len(np.where(rewards == rewards.max())[0])
+        good_cutters = np.random.randint(n_repl+n_move, n_c_tot)
+        # print(n_repl, n_move, good_cutters)
 
-    print(f'there are {len_low_r} combinations with {rewards.min()} reward')
-    print(f'lowest reward of {rewards.min()} with combination:')
-    print(f'\t{replaced_cutters[low_r_id]} replaced cutters')
-    print(f'\t{moved_cutters[low_r_id]} moved cutters')
-    print(f'\t{good_cutters[low_r_id]} good cutters\n')
+        r = m.reward(list(replaced_cutters), list(moved_cutters), good_cutters)
+        n_repls.append(n_repl)
+        n_moves.append(n_move)
+        n_good_cutters.append(good_cutters)
+        r_s.append(r)
+        # print(r)
 
-    print(f'there are {len_high_r} combinations with {rewards.max()} reward')
-    print(f'highest reward of {rewards.max()} with combination:')
-    print(f'\t{replaced_cutters[high_r_id]} replaced cutters')
-    print(f'\t{moved_cutters[high_r_id]} moved cutters')
-    print(f'\t{good_cutters[high_r_id]} good cutters')
-
-    fig = plt.figure(figsize=(10, 7))
-    ax = fig.add_subplot(projection='3d')
-    scatter_plot= ax.scatter(replaced_cutters, moved_cutters, good_cutters,
-                             c=rewards, edgecolor='black', s=40)
-    ax.set_xlabel('n replaced cutters')
-    ax.set_ylabel('n moved cutters')
-    ax.set_zlabel('n good cutters')
-
-    plt.colorbar(scatter_plot, label='reward')
+    fig, (ax1, ax2, ax3) = plt.subplots(nrows=1, ncols=3, figsize=(10, 4))
+    ax1.scatter(n_repls, r_s)
+    ax2.scatter(n_moves, r_s)
+    ax3.scatter(n_good_cutters, r_s)
     plt.tight_layout()
+
+    # rewards = []
+    # for i in range(len(combined)):
+    #     rewards.append(m.reward(replaced_cutters=replaced_cutters[i],
+    #                             moved_cutters=moved_cutters[i],
+    #                             good_cutters=good_cutters[i],
+    #                             dist_cutters=dist_cutters[i]))
+    # rewards = np.array(rewards)
+
+    # low_r_id = np.argmin(rewards)
+    # high_r_id = np.argmax(rewards)
+    # len_low_r = len(np.where(rewards == rewards.min())[0])
+    # len_high_r = len(np.where(rewards == rewards.max())[0])
+
+    # print(f'there are {len_low_r} combinations with {rewards.min()} reward')
+    # print(f'lowest reward of {rewards.min()} with combination:')
+    # print(f'\t{replaced_cutters[low_r_id]} replaced cutters')
+    # print(f'\t{moved_cutters[low_r_id]} moved cutters')
+    # print(f'\t{good_cutters[low_r_id]} good cutters\n')
+
+    # print(f'there are {len_high_r} combinations with {rewards.max()} reward')
+    # print(f'highest reward of {rewards.max()} with combination:')
+    # print(f'\t{replaced_cutters[high_r_id]} replaced cutters')
+    # print(f'\t{moved_cutters[high_r_id]} moved cutters')
+    # print(f'\t{good_cutters[high_r_id]} good cutters')
+
+    # fig = plt.figure(figsize=(10, 7))
+    # ax = fig.add_subplot(projection='3d')
+    # scatter_plot= ax.scatter(replaced_cutters, moved_cutters, good_cutters,
+    #                          c=rewards, edgecolor='black', s=40)
+    # ax.set_xlabel('n replaced cutters')
+    # ax.set_ylabel('n moved cutters')
+    # ax.set_zlabel('n good cutters')
+
+    # plt.colorbar(scatter_plot, label='reward')
+    # plt.tight_layout()
