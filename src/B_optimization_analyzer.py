@@ -15,13 +15,16 @@ import matplotlib
 import numpy as np
 import optuna
 import joblib
+import ipdb
+from sklearn.preprocessing import LabelEncoder
 
 
 from D_training_path_analyzer import training_path
 
 ###############################################################################
 # Constants and fixed variables
-STUDY = 'PPO_2022_08_10_study'  # DDPG_2022_07_27_study TD3_2022_07_27_study
+
+STUDY = 'PPO_2022_08_15_study'  # DDPG_2022_07_27_study TD3_2022_07_27_study
 agent = STUDY.split('_')[0]
 FILETYPE_TO_LOAD = "db"  # "pkl" "db"
 
@@ -40,7 +43,15 @@ else:
                      "Valid filetypes are: db, pkl")
 
 df_study = study.trials_dataframe()
+
 print(df_study.tail(n=20))
+
+# some cleaning
+le_noise = LabelEncoder()
+df_study["params_action_noise"] = le_noise.fit_transform(df_study["params_action_noise"])
+le_activation = LabelEncoder()
+df_study["params_activation_fn"] = le_activation.fit_transform(df_study["params_activation_fn"])
+
 # print values of best trial in study
 trial = study.best_trial
 print('\nHighest reward: {}'.format(trial.value))
@@ -136,7 +147,11 @@ plt.tight_layout()
 # scatterplot of indivdual hyperparameters vs. reward
 
 # replance NaN with "None"
-df_study[f'params_action_noise'].fillna(value='None', inplace=True)
+
+if agent == 'SAC' or agent == 'DDPG' or agent == 'TD3':
+    df_study['params_action_noise'].fillna(value='None', inplace=True)
+
+# ipdb.set_trace()
 
 fig = plt.figure(figsize=(18, 9))
 
@@ -157,10 +172,16 @@ for i, param in enumerate(params):
 
     if 'learning rate' in param:
         ax.set_xscale('log')
+    if "noise" in param:
+        plt.xticks(range(len(le_noise.classes_)), le_noise.classes_)
+    if "activation" in param:
+        plt.xticks(range(len(le_activation.classes_)), le_activation.classes_)
+
 ax.legend()
 fig.suptitle(STUDY.split('_')[0])
 
 plt.tight_layout()
+
 # plt.savefig(f'graphics/{STUDY}_optimization_scatter.svg')
 # plt.close()
 
@@ -168,3 +189,4 @@ plt.tight_layout()
 # plot intermediate steps of the training paths
 training_path(agent, folder='optimization')#,
               # savepath=f'graphics/{STUDY}_optimization_interms.svg')
+
