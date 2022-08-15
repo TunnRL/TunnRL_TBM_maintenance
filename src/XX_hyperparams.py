@@ -71,7 +71,7 @@ class Hyperparameters:
                     gamma=trial.suggest_float('discount', low=0.6, high=1),
                     gae_lambda=trial.suggest_float('gae lambda', low=0.75, high=1),
                     clip_range=trial.suggest_float('clip range', low=0.1, high=0.45),
-                    learning_rate=trial.suggest_float('learning rate', low=1e-4, high=1e-3, log=True),
+                    learning_rate=trial.suggest_float('learning rate', low=1e-5, high=1e-3, log=True),
                     normalize_advantage=True,
                     ent_coef=trial.suggest_float('ent_coef', low=0.0, high=0.3),
                     vf_coef=trial.suggest_float('vf coef', low=0.4, high=0.9),

@@ -369,6 +369,7 @@ class Optimization:
         new_logger = logger.configure(f'optimization/{agent_dir}', ["csv"])
 
         print(f'Optimizing parallell process {self.parallell_process_counter}. Agent: {self.AGENT_NAME} | Num episodes: {self.EPISODES}')
+        print("\nTraining with these parameters: ", parameters)
         # train agent with early stopping and save best agents only
         stop_train_cb = StopTrainingOnNoModelImprovement(max_no_improvement_evals=1,
                                                          min_evals=1,

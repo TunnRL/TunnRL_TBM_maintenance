@@ -36,9 +36,9 @@ LIFE = 400000  # theoretical durability of one cutter [m]
 STROKE_LENGTH = 1.8  # length of one stroke [m]
 MAX_STROKES = 1000  # number of strokes per episode
 
-EPISODES = 20  # max episodes to train for 10_000
+EPISODES = 10_000  # max episodes to train for 10_000
 # evaluations in optimization and checkpoints in training every X episodes
-CHECKPOINT_INTERVAL = 3  # 100
+CHECKPOINT_INTERVAL = 100
 
 T_C_MAX = 75  # maximum time to change one cutter [min]
 
@@ -47,16 +47,16 @@ T_C_MAX = 75  # maximum time to change one cutter [min]
 # already trained agent is executed = "Execution"
 MODE = 'Optimization'  # 'Optimization', 'Training', 'Execution'
 DEFAULT_TRIAL = True  # first run a trial with default parameters.
-N_OPTUNA_TRIALS = 3  # n optuna trials to run in total (including eventual default trial)
+N_OPTUNA_TRIALS = 5  # n optuna trials to run in total (including eventual default trial)
 # NOTE: memory can be an issue for many parallell processes. Size of neural network and 
 # available memory will be limiting factors
 N_CORES_PARALLELL = -1
-N_PARALLELL_PROCESSES = 2
-assert N_PARALLELL_PROCESSES <= N_OPTUNA_TRIALS, "Num. parallell processes cannot be higher than number of trials"
+N_PARALLELL_PROCESSES = 10
+# assert N_PARALLELL_PROCESSES <= N_OPTUNA_TRIALS, "Num. parallell processes cannot be higher than number of trials"
 # name of the study if MODE == 'Optimization' or 'Training'
 # the Study name must start with the name of the agent that needs to be one of
 # 'PPO', 'A2C', 'DDPG', 'SAC', 'TD3'
-STUDY = 'PPO_2022_08_10_study'  # DDPG_2022_07_27_study 'PPO_2022_08_03_study'
+STUDY = 'PPO_2022_08_15_study'  # DDPG_2022_07_27_study 'PPO_2022_08_03_study'
 
 EXECUTION_MODEL = "PPO20220805-122226"
 NUM_TEST_EPISODES = 3
@@ -108,7 +108,7 @@ if MODE == 'Optimization':  # study
         direction='maximize', study_name=STUDY, storage=db_file,
         load_if_exists=True, sampler=sampler)
     
-    Parallel(n_jobs=N_CORES_PARALLELL, verbose=0, backend="loky")(
+    Parallel(n_jobs=N_CORES_PARALLELL, verbose=10, backend="loky")(
         delayed(optimize)(N_OPTUNA_TRIALS) for _ in range(N_PARALLELL_PROCESSES))
     
     study = optuna.load_study(study_name=STUDY, storage=db_file)

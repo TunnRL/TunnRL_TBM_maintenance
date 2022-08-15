@@ -6,12 +6,14 @@ authors = ["geograz <->", "tfha <tom.frode.hansen@gmail.com>"]
 license = "MIT"
 
 [tool.poetry.dependencies]
-python = ">=3.10,<3.12"
+python = ">=3.10.5,<3.12"
 stable-baselines3 = "^1.6.0"
 numpy = "^1.23.1"
 optuna = "^2.10.1"
 joblib = "^1.1.0"
 scikit-learn = "^1.1.1"
+importlib-resources = "^5.9.0"
+pysqlite3 = "^0.4.7"
 
 [tool.poetry.dev-dependencies]
 mypy = "^0.971"

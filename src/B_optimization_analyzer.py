@@ -14,13 +14,15 @@ import matplotlib.pyplot as plt
 import numpy as np
 import optuna
 import joblib
+import ipdb
+from sklearn.preprocessing import LabelEncoder
 
 
 from D_training_path_analyzer import training_path
 
 ###############################################################################
 # Constants and fixed variables
-STUDY = 'PPO_2022_08_10_study'  # DDPG_2022_07_27_study TD3_2022_07_27_study
+STUDY = 'PPO_2022_08_15_study'  # DDPG_2022_07_27_study TD3_2022_07_27_study
 agent = STUDY.split('_')[0]
 FILETYPE_TO_LOAD = "db"  # "pkl" "db"
 
@@ -39,6 +41,12 @@ else:
                      "Valid filetypes are: db, pkl")
 
 df_study = study.trials_dataframe()
+
+# some cleaning
+le_noise = LabelEncoder()
+df_study["params_action_noise"] = le_noise.fit_transform(df_study["params_action_noise"])
+le_activation = LabelEncoder()
+df_study["params_activation_fn"] = le_activation.fit_transform(df_study["params_activation_fn"])
 
 # print values of best trial in study
 trial = study.best_trial
@@ -86,6 +94,8 @@ PARAMS = [p for p in df_study.columns if "params_" in p]
 if agent == 'SAC' or agent == 'DDPG' or agent == 'TD3' or agent == "PPO":
     df_study['params_action_noise'].fillna(value='None', inplace=True)
 
+# ipdb.set_trace()
+
 fig = plt.figure(figsize=(18, 9))
 
 for i, param in enumerate(PARAMS):
@@ -105,10 +115,16 @@ for i, param in enumerate(PARAMS):
 
     if 'learning rate' in param:
         ax.set_xscale('log')
+    if "noise" in param:
+        plt.xticks(range(len(le_noise.classes_)), le_noise.classes_)
+    if "activation" in param:
+        plt.xticks(range(len(le_activation.classes_)), le_activation.classes_)
+
 ax.legend()
 fig.suptitle(STUDY.split('_')[0])
 
 plt.tight_layout()
+plt.show()
 plt.savefig(f'graphics/{STUDY}_optimization_scatter.svg')
 plt.close()
 
