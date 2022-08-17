@@ -35,32 +35,35 @@ LIFE = 400000  # theoretical durability of one cutter [m]
 
 STROKE_LENGTH = 1.8  # length of one stroke [m]
 MAX_STROKES = 1000  # number of strokes per episode
+BROKEN_CUTTERS_THRESH = 0.5  # minimum required percentage of functional cutters
 
 EPISODES = 10_000  # max episodes to train for 10_000
 # evaluations in optimization and checkpoints in training every X episodes
 
 CHECKPOINT_INTERVAL = 100
 
-BROKEN_CUTTERS_THRESH = 0.5  # minimum required percentage of functional cutters
-
 # MODE determines if either an optimization should run = "Optimization", or a
 # new agent is trained with prev. optimized parameters = "Training", or an
 # already trained agent is executed = "Execution"
 
-MODE = 'Optimization'  # 'Optimization', 'Training', 'Execution'
-DEFAULT_TRIAL = True  # first run a trial with default parameters.
-N_OPTUNA_TRIALS = 5  # n optuna trials to run in total (including eventual default trial)
+MODE = 'Execution'  # 'Optimization', 'Training', 'Execution'
+DEFAULT_TRIAL = False  # first run a trial with default parameters.
+N_OPTUNA_TRIALS = 2  # n optuna trials to run in total (including eventual default trial)
 # NOTE: memory can be an issue for many parallell processes. Size of neural network and 
 # available memory will be limiting factors
 N_CORES_PARALLELL = -1
-N_PARALLELL_PROCESSES = 10
+N_PARALLELL_PROCESSES = 5
 # assert N_PARALLELL_PROCESSES <= N_OPTUNA_TRIALS, "Num. parallell processes cannot be higher than number of trials"
 # name of the study if MODE == 'Optimization' or 'Training'
 # the Study name must start with the name of the agent that needs to be one of
 # 'PPO', 'A2C', 'DDPG', 'SAC', 'TD3'
-STUDY = 'PPO_2022_08_15_study'  # DDPG_2022_07_27_study 'PPO_2022_08_03_study'
+STUDY = 'PPO_2022_08_17_study'  # DDPG_2022_07_27_study 'PPO_2022_08_03_study'
 
-EXECUTION_MODEL = "PPO20220805-122226"
+#load best parameters from study object in training. Alt: load from yaml
+#TODO: do an automatic save of parameters upon completing an optuna-experiment session
+LOAD_PARAMS_FROM_STUDY = True
+
+EXECUTION_MODEL = "PPO20220817-115856"
 NUM_TEST_EPISODES = 3
 
 ###############################################################################
@@ -94,6 +97,8 @@ def optimize(n_trials: int):
 
     Args:
         n_trials (int): Number of trials in each parallell process.
+    
+    TODO: move this to Optimization class
     """
     db_path = f"results/{STUDY}.db"
     db_file = f"sqlite:///{db_path}"
@@ -101,11 +106,10 @@ def optimize(n_trials: int):
     study.optimize(optim.objective, n_trials=n_trials,
                    catch=(ValueError,))
 
-
 if MODE == 'Optimization':  # study
     db_path = f"results/{STUDY}.db"
     db_file = f"sqlite:///{db_path}"
-    sampler = optuna.samplers.TPESampler()
+    sampler = optuna.samplers.TPESampler() #TODO: play around with sampling configs
     study = optuna.create_study(
         direction='maximize', study_name=STUDY, storage=db_file,
         load_if_exists=True, sampler=sampler)
@@ -120,8 +124,7 @@ if MODE == 'Optimization':  # study
     print('  Value: ', trial.value)
     print('  Params: ')
     for key, value in trial.params.items():
-        print('    {}: {}'.format(key, value))
-
+        print(f"    {key}: {value}")
 
 elif MODE == 'Training':
     print('new main training run with optimized parameters started')
@@ -129,10 +132,17 @@ elif MODE == 'Training':
     db_file = f"sqlite:///{db_path}"
     study = optuna.load_study(study_name=STUDY, storage=db_file)
 
-    trial = study.best_trial
-    print(f"Highest reward: {trial.value}")
-    print(f"Best hyperparameters: {trial.params}")
-    optim.train_agent(agent_name=agent, best_parameters=trial.params)
+    best_trial = study.best_trial
+    print(f"Highest reward: {best_trial.value}")
+    if LOAD_PARAMS_FROM_STUDY: 
+        print(f"loading parameters from the study object: {STUDY}")
+        best_params_dict = optim.remake_params_dict(
+            algorithm=agent, raw_params_dict=best_trial.params)
+    else:
+        print("loading parameters from yaml file")
+        
+    print(f"Best hyperparameters: {best_params_dict}")
+    optim.train_agent(agent_name=agent, best_parameters=best_params_dict)
 
 elif MODE == 'Execution':
     agent_name = EXECUTION_MODEL[0:3]
@@ -140,7 +150,8 @@ elif MODE == 'Execution':
                             agent_dir=EXECUTION_MODEL)
 
     # test agent throughout multiple episodes
-    for test in range(NUM_TEST_EPISODES):
+    for test_ep_num in range(NUM_TEST_EPISODES):
+        print(f"Episode num: {test_ep_num}")
         state = env.reset()  # reset new environment
         terminal = False  # reset terminal flag
 
@@ -152,7 +163,9 @@ elif MODE == 'Execution':
         moved_cutters = []  # collect n of moved_cutters cutters per stroke
 
         # one episode loop
+        i = 0
         while not terminal:
+            print(f"Stroke (step) num: {i}")
             # collect number of broken cutters in curr. state
             broken_cutters.append(len(np.where(state == 0)[0]))
             # agent takes an action -> tells which cutters to replace
@@ -165,11 +178,12 @@ elif MODE == 'Execution':
             rewards.append(reward)
             replaced_cutters.append(env.replaced_cutters)
             moved_cutters.append(env.moved_cutters)
+            i += 1
 
-        plotter.state_action_plot(states, actions, n_strokes=200,
-                                  savepath=f'checkpoints/sample/{EXECUTION_MODEL}{test}_state_action.svg')
-        plotter.environment_parameter_plot(f'checkpoints/sample/{EXECUTION_MODEL}{test}_episode.svg'), test
-        plotter.sample_ep_plot(states, actions, rewards, ep=test,
-                               savepath=f'checkpoints/sample/{EXECUTION_MODEL}{test}_sample.svg',
+        plotter.state_action_plot(states, actions, n_strokes=200, n_c_tot=n_c_tot,
+                                  savepath=f'checkpoints/sample/{EXECUTION_MODEL}{test_ep_num}_state_action.svg')
+        plotter.environment_parameter_plot(test_ep_num, env, savepath=f'checkpoints/sample/{EXECUTION_MODEL}{test}_episode.svg')
+        plotter.sample_ep_plot(states, actions, rewards, ep=test_ep_num,
+                               savepath=f'checkpoints/sample/{EXECUTION_MODEL}{test_ep_num}_sample.svg',
                                replaced_cutters=replaced_cutters,
                                moved_cutters=moved_cutters)

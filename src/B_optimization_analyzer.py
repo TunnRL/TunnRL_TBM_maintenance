@@ -17,7 +17,7 @@ import optuna
 import joblib
 import ipdb
 from sklearn.preprocessing import LabelEncoder
-
+import pandas as pd
 
 from D_training_path_analyzer import training_path
 
@@ -42,15 +42,17 @@ else:
     raise ValueError(f"{FILETYPE_TO_LOAD} is not a valid filetype. "
                      "Valid filetypes are: db, pkl")
 
-df_study = study.trials_dataframe()
+df_study: pd.DataFrame = study.trials_dataframe()
 
 print(df_study.tail(n=20))
 
 # some cleaning
-le_noise = LabelEncoder()
-df_study["params_action_noise"] = le_noise.fit_transform(df_study["params_action_noise"])
-le_activation = LabelEncoder()
-df_study["params_activation_fn"] = le_activation.fit_transform(df_study["params_activation_fn"])
+if "params_action_noise" in df_study.columns:
+    le_noise = LabelEncoder()
+    df_study["params_action_noise"] = le_noise.fit_transform(df_study["params_action_noise"])
+if "params_activation_fn" in df_study.columns:
+    le_activation = LabelEncoder()
+    df_study["params_activation_fn"] = le_activation.fit_transform(df_study["params_activation_fn"])
 
 # print values of best trial in study
 trial = study.best_trial
@@ -62,52 +64,52 @@ print("Best hyperparameters:\n {}".format(trial.params))
 
 params = [p for p in df_study.columns if "params_" in p]
 
-params_ = params[2:]
+# params_ = params[2:]
 
-fig, ax = plt.subplots(figsize=(18, 9))
+# fig, ax = plt.subplots(figsize=(18, 9))
 
-mins = df_study[params_].min().values
-f = df_study[params_].values-mins
-maxs = np.max(f, axis=0)
+# mins = df_study[params_].min().values
+# f = df_study[params_].values-mins
+# maxs = np.max(f, axis=0)
 
-cmap = matplotlib.cm.get_cmap('cividis')
-norm = matplotlib.colors.Normalize(vmin=600, vmax=df_study['value'].max())
+# cmap = matplotlib.cm.get_cmap('cividis')
+# norm = matplotlib.colors.Normalize(vmin=600, vmax=df_study['value'].max())
 
-for t in range(len(df_study)):
-    df_temp = df_study.sort_values(by='value').iloc[t]
-    x = np.arange(len(params_))
-    y = df_temp[params_].values
+# for t in range(len(df_study)):
+#     df_temp = df_study.sort_values(by='value').iloc[t]
+#     x = np.arange(len(params_))
+#     y = df_temp[params_].values
 
-    y = y - mins
-    y = y / maxs
+#     y = y - mins
+#     y = y / maxs
 
-    if df_temp['state'] == 'FAIL':
-        ax.plot(x, y, c='red', alpha=0.5)
-    elif df_temp['state'] == 'RUNNING':
-        pass
-    else:
+#     if df_temp['state'] == 'FAIL':
+#         ax.plot(x, y, c='red', alpha=0.5)
+#     elif df_temp['state'] == 'RUNNING':
+#         pass
+#     else:
         
-        if df_temp['value'] < 600:
-            ax.plot(x, y, c=cmap(norm(df_temp['value'])), alpha=0.2)
-        else:
-            ax.plot(x, y, c=cmap(norm(df_temp['value'])), alpha=1, zorder=10)
+#         if df_temp['value'] < 600:
+#             ax.plot(x, y, c=cmap(norm(df_temp['value'])), alpha=0.2)
+#         else:
+#             ax.plot(x, y, c=cmap(norm(df_temp['value'])), alpha=1, zorder=10)
 
-ax.scatter(x, np.zeros(x.shape), color='black')
-ax.scatter(x, np.ones(x.shape), color='black')
+# ax.scatter(x, np.zeros(x.shape), color='black')
+# ax.scatter(x, np.ones(x.shape), color='black')
 
-for i in range(len(x)):
-    ax.text(x=x[i], y=-0.01, s=np.round(df_study[params_].min().values[i], 4),
-            horizontalalignment='center', verticalalignment='top')
-    ax.text(x=x[i], y=1.01, s=np.round(df_study[params_].max().values[i], 4),
-            horizontalalignment='center', verticalalignment='bottom')
+# for i in range(len(x)):
+#     ax.text(x=x[i], y=-0.01, s=np.round(df_study[params_].min().values[i], 4),
+#             horizontalalignment='center', verticalalignment='top')
+#     ax.text(x=x[i], y=1.01, s=np.round(df_study[params_].max().values[i], 4),
+#             horizontalalignment='center', verticalalignment='bottom')
 
-ax.set_xticks(x)
-ax.set_yticks([0, 1])
-ax.set_xticklabels([p[7:] for p in params_])
-ax.set_yticklabels([])
-ax.grid()
+# ax.set_xticks(x)
+# ax.set_yticks([0, 1])
+# ax.set_xticklabels([p[7:] for p in params_])
+# ax.set_yticklabels([])
+# ax.grid()
 
-plt.tight_layout()
+# plt.tight_layout()
 
 # print(ghjkl)
 ###############################################################################
@@ -140,8 +142,8 @@ ax.set_xlabel('trial number')
 ax.set_ylabel('reward')
 ax.legend()
 plt.tight_layout()
-# plt.savefig(f'graphics/{STUDY}_optimization_progress.svg')
-# plt.close()
+plt.savefig(f'graphics/{STUDY}_optimization_progress.svg')
+plt.close()
 
 #####
 # scatterplot of indivdual hyperparameters vs. reward
@@ -182,11 +184,11 @@ fig.suptitle(STUDY.split('_')[0])
 
 plt.tight_layout()
 
-# plt.savefig(f'graphics/{STUDY}_optimization_scatter.svg')
-# plt.close()
+plt.savefig(f'graphics/{STUDY}_optimization_scatter.svg')
+plt.close()
 
 #####
 # plot intermediate steps of the training paths
-training_path(agent, folder='optimization')#,
-              # savepath=f'graphics/{STUDY}_optimization_interms.svg')
+training_path(agent, folder='optimization',
+              savepath=f'graphics/{STUDY}_optimization_interms.svg')
 

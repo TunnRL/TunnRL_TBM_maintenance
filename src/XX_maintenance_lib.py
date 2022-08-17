@@ -371,6 +371,7 @@ class Optimization:
         self.n_actions = n_c_tot * n_c_tot
         self.freq = self.MAX_STROKES * self.CHECKPOINT_INTERVAL  # checkpoint frequency
         self.parallell_process_counter: int = 0
+        self.hparams = Hyperparameters()
 
     def objective(self, trial: optuna.trial.Trial) -> float | list[float]:
         '''Objective function that drives the optimization of parameter values for the 
@@ -382,8 +383,8 @@ class Optimization:
             parameters = {"policy": "MlpPolicy", "env": self.environment}
             self.DEFAULT_TRIAL = False
         else:
-            hparams = Hyperparameters()
-            parameters = hparams.suggest_hyperparameters(
+            # hparams = Hyperparameters()
+            parameters = self.hparams.suggest_hyperparameters(
                 trial, self.AGENT_NAME, self.environment,
                 steps_episode=self.MAX_STROKES, num_actions=self.n_actions)
 
@@ -401,10 +402,10 @@ class Optimization:
             case _:
                 raise NotImplementedError(f"{self.AGENT_NAME} not implemented")
 
-        agent_dir = self.AGENT_NAME + datetime.now().strftime("%Y%m%d-%H%M%S")
+        agent_dir = self.AGENT_NAME + datetime.now().strftime("%Y%m%d-%H%M%S-%f")
         new_logger = logger.configure(f'optimization/{agent_dir}', ["csv"])
 
-        print(f'Optimizing parallell process {self.parallell_process_counter}. Agent: {self.AGENT_NAME} | Num episodes: {self.EPISODES}')
+        print(f'\nOptimizing parallell process {self.parallell_process_counter}. Agent: {self.AGENT_NAME} | Num episodes: {self.EPISODES}')
         print("\nTraining with these parameters: ", parameters)
         # train agent with early stopping and save best agents only
         stop_train_cb = StopTrainingOnNoModelImprovement(max_no_improvement_evals=1,
@@ -461,20 +462,19 @@ class Optimization:
                 raise NotImplementedError()
 
         agent_dir = self.AGENT_NAME + datetime.now().strftime("%Y%m%d-%H%M%S")
-        new_logger = logger.configure(Path(f'checkpoints/{agent_dir}'),
-                                      ["csv"])
+        new_logger = logger.configure(f'checkpoints/{agent_dir}', ["csv"])
         # mode that trains an agent based on previous OPTUNA study
         checkpoint_callback = CheckpointCallback(save_freq=self.freq,
-                                                 save_path=Path(f'checkpoints/{agent_dir}'),
+                                                 save_path=f'checkpoints/{agent_dir}',
                                                  name_prefix=f'{self.AGENT_NAME}',
                                                  verbose=1)
         custom_callback = CustomCallback(check_freq=self.freq,
-                                         save_path=Path(f'checkpoints/{agent_dir}'),
+                                         save_path=f'checkpoints/{agent_dir}',
                                          name_prefix=f'{self.AGENT_NAME}',
                                          MAX_STROKES=self.MAX_STROKES,
                                          AGENT_NAME=self.AGENT_NAME)
         eval_cb = EvalCallback(self.environment,
-                               best_model_save_path=Path(f'checkpoints/{agent_dir}'),
+                               best_model_save_path=f'checkpoints/{agent_dir}',
                                log_path='checkpoints',
                                deterministic=False,
                                n_eval_episodes=10,
@@ -489,6 +489,45 @@ class Optimization:
         agent.set_logger(new_logger)
         agent.learn(total_timesteps=self.EPISODES * self.MAX_STROKES,
                     callback=callback)
+    
+    def remake_params_dict(self, algorithm: str, raw_params_dict: dict) -> dict:
+        """Reshape the dictionary of parameters to the format needed for algorithms defined in 
+        stable-baselines3. Basically to reshape network inputs into net_arch dict."""
+        n_nodes_not_shared_layer = raw_params_dict["n_nodes_layer"]
+        n_not_shared_layers = raw_params_dict["n_not_shared_layers"]
+
+        reshaped_dict = {}
+        if algorithm in ["PPO", "A2C"]:
+            n_nodes_shared_layer = raw_params_dict["n_nodes_shared_layer"]
+            n_shared_layers = raw_params_dict["n_shared_layers"]
+
+            network_description = dict(
+                net_arch=self.hparams._define_policy_network(
+                algorithm, n_not_shared_layers, n_nodes_not_shared_layer, n_shared_layers, n_nodes_shared_layer),
+                activation_fn=self.hparams._define_activation_fn(raw_params_dict["activation_fn"]))
+
+            remove_keys = ["activation_fn", "n_nodes_layer", "n_nodes_shared_layer", "n_shared_layers","n_not_shared_layers"]
+
+        elif algorithm in ['DDPG', 'SAC','TD3']:
+            network_description = dict(
+                net_arch=self.hparams._define_policy_network(
+                algorithm, n_not_shared_layers, n_nodes_not_shared_layer),
+                activation_fn=raw_params_dict["activation_fn"])
+
+            remove_keys = ["activation_fn", "n_nodes_layer","n_not_shared_layers"]
+        else:
+            raise ValueError(f"{algorithm} is not a valid algorithm")
+
+        reshaped_dict = {key: val for key, val in raw_params_dict.items() if key not in remove_keys}
+        reshaped_dict.update(dict(
+            policy='MlpPolicy', 
+            env=self.environment, 
+            policy_kwargs=network_description))
+
+        # special purpose to remove
+        # reshaped_dict["gamma"] = reshaped_dict.pop("discount")
+
+        return reshaped_dict
 
 
 if __name__ == "__main__":

@@ -101,7 +101,7 @@ class Plotter:
         plt.savefig(Path(savepath))
         plt.close()
 
-    def state_action_plot(self, states, actions, n_strokes, savepath):
+    def state_action_plot(self, states, actions, n_strokes: int,n_c_tot: int, savepath: str):
         '''plot that shows combinations of states and actions for the first
         n_strokes of an episode'''
         fig = plt.figure(figsize=(20, 6))
@@ -109,7 +109,7 @@ class Plotter:
         ax = fig.add_subplot(211)
         ax.imshow(np.vstack(states[:n_strokes]).T, aspect='auto',
                   interpolation='none', vmin=0, vmax=1)
-        ax.set_yticks(np.arange(-.5, self.n_c_tot), minor=True)
+        ax.set_yticks(np.arange(-.5, n_c_tot), minor=True)
         ax.set_xticks(np.arange(-.5, n_strokes), minor=True)
 
         ax.set_xticks(np.arange(n_strokes), minor=False)
@@ -119,16 +119,16 @@ class Plotter:
 
         ax.grid(which='minor', color='black', linestyle='-', linewidth=1)
         ax.set_xlim(left=-1, right=n_strokes)
-        ax.set_ylim(bottom=-0.5, top=self.n_c_tot-0.5)
+        ax.set_ylim(bottom=-0.5, top=n_c_tot-0.5)
         ax.set_yticks
         ax.set_ylabel('cutter states on\ncutter positions')
 
         ax = fig.add_subplot(212)
 
         for stroke in range(n_strokes):
-            for i in range(self.n_c_tot):
+            for i in range(n_c_tot):
                 # select cutter from action vector
-                cutter = actions[stroke][i*self.n_c_tot: i*self.n_c_tot+self.n_c_tot]
+                cutter = actions[stroke][i*n_c_tot: i*n_c_tot+n_c_tot]
                 if np.max(cutter) < 0.9:
                     # cutter is not acted on
                     pass
@@ -149,39 +149,39 @@ class Plotter:
                              dx=0, dy=-(i-np.argmax(cutter)), color=f'C{i}',
                              zorder=10)
         ax.set_xticks(np.arange(n_strokes), minor=True)
-        ax.set_yticks(np.arange(self.n_c_tot), minor=True)
+        ax.set_yticks(np.arange(n_c_tot), minor=True)
         ax.set_xlim(left=-1, right=n_strokes)
         ax.grid(zorder=0, which='both', color='grey')
         ax.set_xlabel('strokes')
         ax.set_ylabel('actions on\ncutter positions')
 
         plt.tight_layout(h_pad=0)
-        plt.savefig(Path(savepath))
+        plt.savefig(savepath)
         plt.close()
 
-    def environment_parameter_plot(self, savepath, ep):
+    def environment_parameter_plot(self, ep, env, savepath):
         '''plot that shows the generated TBM parameters of the episode'''
-        x = np.arange(len(self.Jv_s))  # strokes
+        x = np.arange(len(env.Jv_s))  # strokes
         # count broken cutters due to blocky conditions
-        n_brokens = np.count_nonzero(self.brokens, axis=1)
+        n_brokens = np.count_nonzero(env.brokens, axis=1)
 
         fig, (ax1, ax2, ax3, ax4, ax5, ax6) = plt.subplots(nrows=6,
                                                            figsize=(12, 9))
 
-        ax1.plot(x, self.Jv_s, color='black')
+        ax1.plot(x, env.Jv_s, color='black')
         ax1.grid(alpha=0.5)
         ax1.set_ylabel('Volumetric Joint count\n[joints / m3]')
         ax1.set_xlim(left=0, right=len(x))
         ax1.set_title(f'episode {ep}', fontsize=10)
         ax1.set_xticklabels([])
 
-        ax2.plot(x, self.UCS_s, color='black')
+        ax2.plot(x, env.UCS_s, color='black')
         ax2.grid(alpha=0.5)
         ax2.set_ylabel('Rock UCS\n[MPa]')
         ax2.set_xlim(left=0, right=len(x))
         ax2.set_xticklabels([])
 
-        ax3.plot(x, self.FPIblocky_s, color='black')
+        ax3.plot(x, env.FPIblocky_s, color='black')
         ax3.hlines([50, 100, 200, 300], xmin=0, xmax=len(x), color='black',
                    alpha=0.5)
         ax3.set_ylim(bottom=0, top=400)
@@ -189,13 +189,13 @@ class Plotter:
         ax3.set_xlim(left=0, right=len(x))
         ax3.set_xticklabels([])
 
-        ax4.plot(x, self.TF_s, color='black')
+        ax4.plot(x, env.TF_s, color='black')
         ax4.grid(alpha=0.5)
         ax4.set_ylabel('thrust force\n[kN]')
         ax4.set_xlim(left=0, right=len(x))
         ax4.set_xticklabels([])
 
-        ax5.plot(x, self.penetration, color='black')
+        ax5.plot(x, env.penetration, color='black')
         ax5.grid(alpha=0.5)
         ax5.set_ylabel('penetration\n[mm/rot]')
         ax5.set_xlim(left=0, right=len(x))

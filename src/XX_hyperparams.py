@@ -32,29 +32,36 @@ class Hyperparameters:
         """Hyperparameter suggestions for optuna optimization of a chosen
         RL-architecture.
         Each lookup of algorithm returns a dictionary of parameters for that
-        algorithm."""
+        algorithm.
+        
+        NOTE: Every suggest-function called will add a parameter to the trial-object and
+        will be returned from trial.best_params
+        """
 
         # suggesting different network architectures
-        # TODO: num nodes should increase by log
-        num_layers = trial.suggest_int("num_layers", low=1, high=5, step=1)
-        num_nodes_layer = trial.suggest_categorical("n_nodes_layer", [8, 16, 32, 64, 128, 256, 512])
-        num_shared_layers = trial.suggest_int("num_shared_layers", low=0, high=3, step=1)
-        num_nodes_shared_layer = trial.suggest_categorical("n_nodes_shared_layer", [8, 16, 32, 64, 128, 256, 512])
+        num_not_shared_layers = trial.suggest_int("n_not_shared_layers", low=1, high=5, step=1)
+        num_nodes_not_shared_layer = trial.suggest_categorical("n_nodes_layer", [8, 16, 32, 64, 128, 256, 512])
+        suggest_activation_fn = trial.suggest_categorical("activation_fn", ["tanh", "relu", "leaky_relu"])
 
-        network_architecture = self._define_policy_network(algorithm,
-                                                           num_layers,
-                                                           num_nodes_layer,
-                                                           num_shared_layers,
-                                                           num_nodes_shared_layer)
-        if algorithm == 'PPO' or algorithm == 'A2C':
+        # logic for special parameters for different architetures
+        if algorithm in ["PPO", "A2C"]:
+            num_shared_layers = trial.suggest_int("n_shared_layers", low=0, high=3, step=1)
+            num_nodes_shared_layer = trial.suggest_categorical("n_nodes_shared_layer", [8, 16, 32, 64, 128, 256, 512])
             # suggesting different activation functions
-            activation_fn = trial.suggest_categorical("activation_fn", ["tanh", "relu", "leaky_relu"])
-            activation_fn = {"tanh": nn.Tanh, "relu": nn.ReLU, "leaky_relu": nn.LeakyReLU}[activation_fn]
-        if algorithm == 'DDPG' or algorithm == 'SAC' or algorithm == 'TD3':
+        if algorithm in ['DDPG', 'SAC','TD3']:
             # computing action noise
             action_noise = trial.suggest_categorical('action_noise', [None, 'NormalActionNoise', "OrnsteinUhlenbeckActionNoise"])
             action_noise = self._yield_action_noise(action_noise, num_actions)
 
+        network_architecture = self._define_policy_network(algorithm,
+                                                           num_not_shared_layers,
+                                                           num_nodes_not_shared_layer,
+                                                           num_shared_layers,
+                                                           num_nodes_shared_layer)
+
+        activation_fn = self._define_activation_fn(suggest_activation_fn)
+
+        #TODO: check all parameter names for similarities with names in api
         match algorithm:
             case "PPO":
                 # adjusting the learning rate scheduler
@@ -68,14 +75,14 @@ class Hyperparameters:
                     n_steps=steps_episode,
                     batch_size=50,
                     n_epochs=10,
-                    gamma=trial.suggest_float('discount', low=0.6, high=1),
-                    gae_lambda=trial.suggest_float('gae lambda', low=0.75, high=1),
-                    clip_range=trial.suggest_float('clip range', low=0.1, high=0.45),
-                    learning_rate=trial.suggest_float('learning rate', low=1e-5, high=1e-3, log=True),
+                    gamma=trial.suggest_float('gamma', low=0.6, high=1),
+                    gae_lambda=trial.suggest_float('gae_lambda', low=0.75, high=1),
+                    clip_range=trial.suggest_float('clip_range', low=0.1, high=0.45),
+                    learning_rate=trial.suggest_float('learning_rate', low=1e-5, high=1e-3, log=True),
                     normalize_advantage=True,
                     ent_coef=trial.suggest_float('ent_coef', low=0.0, high=0.3),
-                    vf_coef=trial.suggest_float('vf coef', low=0.4, high=0.9),
-                    max_grad_norm=trial.suggest_float('max grad norm', low=0.3, high=0.7),
+                    vf_coef=trial.suggest_float('vf_coef', low=0.4, high=0.9),
+                    max_grad_norm=trial.suggest_float('max_grad_norm', low=0.3, high=0.7),
                     use_sde=False,
                     verbose=0,
                     policy_kwargs=dict(net_arch=network_architecture,
@@ -86,12 +93,12 @@ class Hyperparameters:
                     policy='MlpPolicy',
                     env=environment,
                     learning_rate=trial.suggest_float('learning rate', low=1e-5, high=1e-1, log=True),
-                    n_steps=trial.suggest_int('n steps', low=1, high=20, step=1),
+                    n_steps=trial.suggest_int('n_steps', low=1, high=20, step=1),
                     gamma=trial.suggest_float('discount', low=0.0, high=1),
-                    gae_lambda=trial.suggest_float('gae lambda', low=0.0, high=1),
+                    gae_lambda=trial.suggest_float('gae_lambda', low=0.0, high=1),
                     ent_coef=trial.suggest_float('ent_coef', low=0.0, high=1),
-                    vf_coef=trial.suggest_float('vf coef', low=0.0, high=1),
-                    max_grad_norm=trial.suggest_float('max grad norm', low=0, high=1),
+                    vf_coef=trial.suggest_float('vf_coef', low=0.0, high=1),
+                    max_grad_norm=trial.suggest_float('max_grad_norm', low=0, high=1),
                     rms_prop_eps=trial.suggest_float('rms_prop_eps', low=1e-6, high=1e-3, log=True),
                     verbose=0,
                     policy_kwargs=dict(net_arch=network_architecture,
@@ -101,9 +108,9 @@ class Hyperparameters:
                 params = dict(
                     policy='MlpPolicy',
                     env=environment,
-                    learning_rate=trial.suggest_float('learning rate', low=1e-5, high=1e-2, log=True),
+                    learning_rate=trial.suggest_float('learning_rate', low=1e-5, high=1e-2, log=True),
                     batch_size=trial.suggest_int('batch_size', low=50, high=300, step=50),
-                    learning_starts=trial.suggest_int('learning starts', low=50, high=1000, step=50),
+                    learning_starts=trial.suggest_int('learning_starts', low=50, high=1000, step=50),
                     tau=trial.suggest_float('tau', low=1e-4, high=1e-1, log=True),
                     gamma=trial.suggest_float('discount', low=0.0, high=1),
                     action_noise=action_noise,
@@ -116,8 +123,8 @@ class Hyperparameters:
                 params = dict(
                     policy='MlpPolicy',
                     env=environment,
-                    learning_rate=trial.suggest_float('learning rate', low=1e-5, high=1e-2, log=True),
-                    learning_starts=trial.suggest_int('learning starts', low=50, high=1000, step=50),
+                    learning_rate=trial.suggest_float('learning_rate', low=1e-5, high=1e-2, log=True),
+                    learning_starts=trial.suggest_int('learning_starts', low=50, high=1000, step=50),
                     batch_size=trial.suggest_int('batch_size', low=50, high=300, step=50),
                     gamma=trial.suggest_float('discount', low=0.0, high=1),
                     tau=trial.suggest_float('tau', low=1e-4, high=1, log=True),
@@ -126,7 +133,7 @@ class Hyperparameters:
                     action_noise=action_noise,
                     ent_coef=trial.suggest_float('ent_coef', low=0.0, high=1),
                     target_update_interval=trial.suggest_int('target_update_interval', low=1, high=10),
-                    use_sde=trial.suggest_categorical('use sde', [True, False]),
+                    use_sde=trial.suggest_categorical('use_sde', [True, False]),
                     use_sde_at_warmup=trial.suggest_categorical('use_sde_at_warmup', [True, False]),
                     verbose=0,
                     policy_kwargs=dict(net_arch=network_architecture)
@@ -135,8 +142,8 @@ class Hyperparameters:
                 params = dict(
                     policy='MlpPolicy',
                     env=environment,
-                    learning_rate=trial.suggest_float('learning rate', low=1e-4, high=1e-1, log=True),
-                    learning_starts=trial.suggest_int('learning starts', low=50, high=1000, step=50),
+                    learning_rate=trial.suggest_float('learning_rate', low=1e-4, high=1e-1, log=True),
+                    learning_starts=trial.suggest_int('learning_starts', low=50, high=1000, step=50),
                     batch_size=trial.suggest_int('batch_size', low=50, high=300, step=50),
                     tau=trial.suggest_float('tau', low=1e-4, high=1e-1, log=True),
                     gamma=trial.suggest_float('discount', low=0.0, high=1),
@@ -157,7 +164,7 @@ class Hyperparameters:
         return params
 
     def _define_policy_network(self, algorithm: str = "PPO",
-                               num_layers: int = 2, num_nodes_layer: int = 64,
+                               num_not_shared_layers: int = 2, num_nodes_layer: int = 64,
                                num_shared_layers: int = 0,
                                num_nodes_shared_layer: int = 0) -> list:
         """Setting up a policy network.
@@ -190,12 +197,18 @@ class Hyperparameters:
 
         policy_network = []
         value_network = []
-        for _ in range(num_layers):
+        for _ in range(num_not_shared_layers):
             policy_network.append(num_nodes_layer)
             value_network.append(num_nodes_layer)
 
         network_description.append(dict(pi=policy_network, vf=value_network))
         return network_description
+
+    def _define_activation_fn(self, activation_fn_name: str): 
+            """Returns a pytorch activation function used on the final fully connected
+            layer output."""
+            functions = {"tanh": nn.Tanh, "relu": nn.ReLU, "leaky_relu": nn.LeakyReLU}
+            return functions[activation_fn_name]
 
     def _yield_action_noise(self, action_noise: str,
                             n_actions: int) -> NDArray:
