@@ -66,7 +66,7 @@ class Maintenance:
                good_cutters: int) -> float:
         """Reward function. Drives the agent learning process.
 
-        Handles replacing and moving cutters.
+        Handle the replacing and moving of cutters.
         """
         # if good_cutters < self.n_c_tot * 0.5:
         #     r = 0
@@ -111,8 +111,8 @@ class CustomEnv(gym.Env):
     '''
     def __init__(self,
                  n_c_tot: int,
-                 LIFE: int, 
-                 MAX_STROKES: int, 
+                 LIFE: int,
+                 MAX_STROKES: int,
                  STROKE_LENGTH: float,
                  cutter_pathlenghts: float,
                  CUTTERHEAD_RADIUS: float,
@@ -141,7 +141,7 @@ class CustomEnv(gym.Env):
         self.cutter_pathlenghts = cutter_pathlenghts
         self.R = CUTTERHEAD_RADIUS
 
-
+        # instantiated state variables
         self.m = Maintenance(n_c_tot, broken_cutters_thresh)
 
         # state variables assigned in class methods:
@@ -151,18 +151,16 @@ class CustomEnv(gym.Env):
         self.moved_cutters: list
         self.penetration: NDArray
 
-
     def step(self, actions: NDArray) -> tuple[NDArray, float, bool, dict]:
         '''Main function that moves the environment one step further.
             - Updates the state and reward.
             - Checks if the terminal state is reached.
         '''
         # replace cutters based on action of agent
-        self.state = self.implement_action(actions, self.state)
+        self.state = self._implement_action(actions, self.state)
 
         # compute reward
         good_cutters = len(np.where(self.state > 0)[0])
-
         reward = self.m.reward(self.replaced_cutters, self.moved_cutters,
                                good_cutters)
 
@@ -183,7 +181,7 @@ class CustomEnv(gym.Env):
 
         return self.state, reward, terminal, {}
 
-    def implement_action(self, action: NDArray, state_before: NDArray) -> NDArray:
+    def _implement_action(self, action: NDArray, state_before: NDArray) -> NDArray:
         '''Function that interprets the "raw action" and modifies the state.'''
         state_new = state_before
         self.replaced_cutters = []
@@ -237,7 +235,7 @@ class CustomEnv(gym.Env):
         brokens = np.zeros(shape=(self.MAX_STROKES, self.n_c_tot))
 
         for stroke in range(self.MAX_STROKES):
-            # based on FPI blocky cutters have different likelyhoods to break
+            # based on FPI-blocky, cutters have different likelyhoods to break
             if FPIblocky_s[stroke] > 200 and FPIblocky_s[stroke] <= 300:
                 if np.random.randint(0, 100) == 0:
                     size = np.random.randint(1, 4)

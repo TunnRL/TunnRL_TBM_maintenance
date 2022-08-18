@@ -16,6 +16,7 @@ import numpy as np
 import optuna
 from stable_baselines3.common.env_checker import check_env
 from joblib import Parallel, delayed
+import yaml
 
 from XX_maintenance_lib import CustomEnv, Optimization
 from XX_plotting import Plotter
@@ -46,7 +47,7 @@ CHECKPOINT_INTERVAL = 100
 # new agent is trained with prev. optimized parameters = "Training", or an
 # already trained agent is executed = "Execution"
 
-MODE = 'Execution'  # 'Optimization', 'Training', 'Execution'
+MODE = 'Training'  # 'Optimization', 'Training', 'Execution'
 DEFAULT_TRIAL = False  # first run a trial with default parameters.
 N_OPTUNA_TRIALS = 2  # n optuna trials to run in total (including eventual default trial)
 # NOTE: memory can be an issue for many parallell processes. Size of neural network and 
@@ -57,9 +58,9 @@ N_PARALLELL_PROCESSES = 5
 # name of the study if MODE == 'Optimization' or 'Training'
 # the Study name must start with the name of the agent that needs to be one of
 # 'PPO', 'A2C', 'DDPG', 'SAC', 'TD3'
-STUDY = 'PPO_2022_08_17_study'  # DDPG_2022_07_27_study 'PPO_2022_08_03_study'
+STUDY = 'PPO_2022_08_15_study'  # DDPG_2022_07_27_study 'PPO_2022_08_03_study'
 
-#load best parameters from study object in training. Alt: load from yaml
+#load best parameters from study object in training. Alternative: load from yaml
 #TODO: do an automatic save of parameters upon completing an optuna-experiment session
 LOAD_PARAMS_FROM_STUDY = True
 
@@ -140,6 +141,10 @@ elif MODE == 'Training':
             algorithm=agent, raw_params_dict=best_trial.params)
     else:
         print("loading parameters from yaml file")
+        with open("results/algorithm_parameters/PPO.yaml") as file:
+            best_params_dict: dict = yaml.safe_load(file)
+            
+        best_params_dict.update(dict(env=env, n_steps=MAX_STROKES, verbose=0))
         
     print(f"Best hyperparameters: {best_params_dict}")
     optim.train_agent(agent_name=agent, best_parameters=best_params_dict)
