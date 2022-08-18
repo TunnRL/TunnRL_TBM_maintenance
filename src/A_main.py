@@ -49,7 +49,7 @@ CHECKPOINT_INTERVAL = 100
 
 MODE = 'Training'  # 'Optimization', 'Training', 'Execution'
 DEFAULT_TRIAL = False  # first run a trial with default parameters.
-N_OPTUNA_TRIALS = 2  # n optuna trials to run in total (including eventual default trial)
+N_SINGLE_RUN_OPTUNA_TRIALS = 2  # n optuna trials to run in total (including eventual default trial)
 # NOTE: memory can be an issue for many parallell processes. Size of neural network and 
 # available memory will be limiting factors
 N_CORES_PARALLELL = -1
@@ -69,6 +69,8 @@ NUM_TEST_EPISODES = 3
 
 ###############################################################################
 # computed variables and instantiations
+
+
 
 n_c_tot = int(round((CUTTERHEAD_RADIUS - TRACK_SPACING / 2) / TRACK_SPACING, 0)) + 1
 print(f'total number of cutters: {n_c_tot}\n')
@@ -108,6 +110,8 @@ def optimize(n_trials: int):
                    catch=(ValueError,))
 
 if MODE == 'Optimization':  # study
+    print(f"{N_SINGLE_RUN_OPTUNA_TRIALS * N_PARALLELL_PROCESSES} optuna trials are processed")
+
     db_path = f"results/{STUDY}.db"
     db_file = f"sqlite:///{db_path}"
     sampler = optuna.samplers.TPESampler() #TODO: play around with sampling configs
@@ -116,7 +120,7 @@ if MODE == 'Optimization':  # study
         load_if_exists=True, sampler=sampler)
     
     Parallel(n_jobs=N_CORES_PARALLELL, verbose=10, backend="loky")(
-        delayed(optimize)(N_OPTUNA_TRIALS) for _ in range(N_PARALLELL_PROCESSES))
+        delayed(optimize)(N_SINGLE_RUN_OPTUNA_TRIALS) for _ in range(N_PARALLELL_PROCESSES))
     
     study = optuna.load_study(study_name=STUDY, storage=db_file)
     print('Number of finished trials: ', len(study.trials))
