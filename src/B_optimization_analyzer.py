@@ -11,16 +11,20 @@ code contributors: Georg H. Erharter, Tom F. Hansen
 """
 
 import matplotlib.pyplot as plt
+import matplotlib
 import numpy as np
 import optuna
 import joblib
-
+import ipdb
+from sklearn.preprocessing import LabelEncoder
+import pandas as pd
 
 from D_training_path_analyzer import training_path
 
 ###############################################################################
 # Constants and fixed variables
-STUDY = 'PPO_2022_08_08_study'  # DDPG_2022_07_27_study TD3_2022_07_27_study
+
+STUDY = 'PPO_2022_08_15_study'  # DDPG_2022_07_27_study TD3_2022_07_27_study
 agent = STUDY.split('_')[0]
 FILETYPE_TO_LOAD = "db"  # "pkl" "db"
 
@@ -38,13 +42,76 @@ else:
     raise ValueError(f"{FILETYPE_TO_LOAD} is not a valid filetype. "
                      "Valid filetypes are: db, pkl")
 
-df_study = study.trials_dataframe()
+df_study: pd.DataFrame = study.trials_dataframe()
+
+print(df_study.tail(n=20))
+
+# some cleaning
+if "params_action_noise" in df_study.columns:
+    le_noise = LabelEncoder()
+    df_study["params_action_noise"] = le_noise.fit_transform(df_study["params_action_noise"])
+if "params_activation_fn" in df_study.columns:
+    le_activation = LabelEncoder()
+    df_study["params_activation_fn"] = le_activation.fit_transform(df_study["params_activation_fn"])
 
 # print values of best trial in study
 trial = study.best_trial
 print('\nHighest reward: {}'.format(trial.value))
 print("Best hyperparameters:\n {}".format(trial.params))
 
+
+# optuna.importance.get_param_importances(study)
+
+params = [p for p in df_study.columns if "params_" in p]
+
+# params_ = params[2:]
+
+# fig, ax = plt.subplots(figsize=(18, 9))
+
+# mins = df_study[params_].min().values
+# f = df_study[params_].values-mins
+# maxs = np.max(f, axis=0)
+
+# cmap = matplotlib.cm.get_cmap('cividis')
+# norm = matplotlib.colors.Normalize(vmin=600, vmax=df_study['value'].max())
+
+# for t in range(len(df_study)):
+#     df_temp = df_study.sort_values(by='value').iloc[t]
+#     x = np.arange(len(params_))
+#     y = df_temp[params_].values
+
+#     y = y - mins
+#     y = y / maxs
+
+#     if df_temp['state'] == 'FAIL':
+#         ax.plot(x, y, c='red', alpha=0.5)
+#     elif df_temp['state'] == 'RUNNING':
+#         pass
+#     else:
+        
+#         if df_temp['value'] < 600:
+#             ax.plot(x, y, c=cmap(norm(df_temp['value'])), alpha=0.2)
+#         else:
+#             ax.plot(x, y, c=cmap(norm(df_temp['value'])), alpha=1, zorder=10)
+
+# ax.scatter(x, np.zeros(x.shape), color='black')
+# ax.scatter(x, np.ones(x.shape), color='black')
+
+# for i in range(len(x)):
+#     ax.text(x=x[i], y=-0.01, s=np.round(df_study[params_].min().values[i], 4),
+#             horizontalalignment='center', verticalalignment='top')
+#     ax.text(x=x[i], y=1.01, s=np.round(df_study[params_].max().values[i], 4),
+#             horizontalalignment='center', verticalalignment='bottom')
+
+# ax.set_xticks(x)
+# ax.set_yticks([0, 1])
+# ax.set_xticklabels([p[7:] for p in params_])
+# ax.set_yticklabels([])
+# ax.grid()
+
+# plt.tight_layout()
+
+# print(ghjkl)
 ###############################################################################
 # different visualizations of OPTUNA optimization
 
@@ -80,15 +147,17 @@ plt.close()
 
 #####
 # scatterplot of indivdual hyperparameters vs. reward
-PARAMS = [p for p in df_study.columns if "params_" in p]
 
 # replance NaN with "None"
+
 if agent == 'SAC' or agent == 'DDPG' or agent == 'TD3':
-    df_study[f'params_{agent}_action_noise'].fillna(value='None', inplace=True)
+    df_study['params_action_noise'].fillna(value='None', inplace=True)
+
+# ipdb.set_trace()
 
 fig = plt.figure(figsize=(18, 9))
 
-for i, param in enumerate(PARAMS):
+for i, param in enumerate(params):
     ax = fig.add_subplot(2, 7, i+1)
     ax.scatter(df_study[df_study['state'] == 'COMPLETE'][param],
                df_study[df_study['state'] == 'COMPLETE']['value'],
@@ -99,16 +168,22 @@ for i, param in enumerate(PARAMS):
                        df_study['value'].min()),
                s=20, color='red', edgecolor='black', alpha=0.5, label='FAIL')
     ax.grid(alpha=0.5)
-    ax.set_xlabel(param.split('_')[-1])
+    ax.set_xlabel(param[7:])
     if i == 0:
         ax.set_ylabel('reward')
 
     if 'learning rate' in param:
         ax.set_xscale('log')
+    if "noise" in param:
+        plt.xticks(range(len(le_noise.classes_)), le_noise.classes_)
+    if "activation" in param:
+        plt.xticks(range(len(le_activation.classes_)), le_activation.classes_)
+
 ax.legend()
 fig.suptitle(STUDY.split('_')[0])
 
 plt.tight_layout()
+
 plt.savefig(f'graphics/{STUDY}_optimization_scatter.svg')
 plt.close()
 
@@ -116,3 +191,4 @@ plt.close()
 # plot intermediate steps of the training paths
 training_path(agent, folder='optimization',
               savepath=f'graphics/{STUDY}_optimization_interms.svg')
+

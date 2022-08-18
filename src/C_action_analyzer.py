@@ -6,7 +6,6 @@ Created on Tue Jul 26 10:15:32 2022
 """
 
 import numpy as np
-from pathlib import Path
 from sklearn.decomposition import PCA
 from stable_baselines3 import PPO
 
