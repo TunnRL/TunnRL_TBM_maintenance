@@ -219,8 +219,8 @@ class CustomEnv(gym.Env):
 
         return np.array(x[1:])
 
-    def generate(self, Jv_low: NDArray = 0, Jv_high: NDArray = 22, 
-                 UCS_center: NDArray = 80, UCS_range: NDArray = 30) -> tuple:
+    def generate(self, Jv_low: int = 0, Jv_high: int = 22, 
+                 UCS_center: int = 80, UCS_range: int = 30) -> tuple:
         '''Function generates TBM recordings for one episode. Equations and
         models based on Delisio & Zhao (2014) - "A new model for TBM
         performance prediction in blocky rock conditions",
