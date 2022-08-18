@@ -17,6 +17,7 @@ import optuna
 from stable_baselines3.common.env_checker import check_env
 from joblib import Parallel, delayed
 import yaml
+import torch.nn as nn  # used in evaluation of yaml file
 
 from XX_maintenance_lib import CustomEnv, Optimization
 from XX_plotting import Plotter
@@ -60,17 +61,19 @@ N_PARALLELL_PROCESSES = 5
 # 'PPO', 'A2C', 'DDPG', 'SAC', 'TD3'
 STUDY = 'PPO_2022_08_15_study'  # DDPG_2022_07_27_study 'PPO_2022_08_03_study'
 
-#load best parameters from study object in training. Alternative: load from yaml
-#TODO: do an automatic save of parameters upon completing an optuna-experiment session
-LOAD_PARAMS_FROM_STUDY = True
+# load best parameters from study object in training. Alternative: load from yaml
+# TODO: do an automatic save of parameters upon completing an optuna-experiment session
+LOAD_PARAMS_FROM_STUDY = False
 
 EXECUTION_MODEL = "PPO20220817-115856"
 NUM_TEST_EPISODES = 3
 
+# set to run SB3 environment check function
+# Checks if env is a suitable gym environment
+CHECK_ENV = False  
+
 ###############################################################################
-# computed variables and instantiations
-
-
+# computed/derived variables and instantiations
 
 n_c_tot = int(round((CUTTERHEAD_RADIUS - TRACK_SPACING / 2) / TRACK_SPACING, 0)) + 1
 print(f'total number of cutters: {n_c_tot}\n')
@@ -81,13 +84,14 @@ cutter_pathlenghts = cutter_positions * 2 * np.pi  # [m]
 
 env = CustomEnv(n_c_tot, LIFE, MAX_STROKES, STROKE_LENGTH, cutter_pathlenghts,
                 CUTTERHEAD_RADIUS, BROKEN_CUTTERS_THRESH)
-# check_env(env)  # check if env is a suitable gym environment
+if CHECK_ENV:
+    check_env(env)
 
-agent = STUDY.split('_')[0]
-assert agent in ["PPO", "A2C", "DDPG", "SAC", "TD3"], f"{agent} is not a valid agent."
+agent_name = STUDY.split('_')[0]
+assert agent_name in ["PPO", "A2C", "DDPG", "SAC", "TD3"], f"{agent_name} is not a valid agent."
 
 optim = Optimization(n_c_tot, env, EPISODES, CHECKPOINT_INTERVAL, MODE,
-                     MAX_STROKES, agent, DEFAULT_TRIAL)
+                     MAX_STROKES, agent_name, DEFAULT_TRIAL)
 
 plotter = Plotter()
 
@@ -95,7 +99,7 @@ plotter = Plotter()
 # run one of the three modes: Optimization, Training, Execution
 
 
-def optimize(n_trials: int):
+def optimize(n_trials: int) -> None:
     """Optimize-function to be called in parallell process.
 
     Args:
@@ -106,15 +110,17 @@ def optimize(n_trials: int):
     db_path = f"results/{STUDY}.db"
     db_file = f"sqlite:///{db_path}"
     study = optuna.load_study(study_name=STUDY, storage=db_file)
-    study.optimize(optim.objective, n_trials=n_trials,
-                   catch=(ValueError,))
+    study.optimize(optim.objective,
+                   n_trials=n_trials,
+                   catch=(ValueError,),
+                   show_progress_bar=True)
 
 if MODE == 'Optimization':  # study
     print(f"{N_SINGLE_RUN_OPTUNA_TRIALS * N_PARALLELL_PROCESSES} optuna trials are processed")
 
     db_path = f"results/{STUDY}.db"
     db_file = f"sqlite:///{db_path}"
-    sampler = optuna.samplers.TPESampler() #TODO: play around with sampling configs
+    sampler = optuna.samplers.TPESampler()  # TODO: play around with sampling configs
     study = optuna.create_study(
         direction='maximize', study_name=STUDY, storage=db_file,
         load_if_exists=True, sampler=sampler)
@@ -133,25 +139,27 @@ if MODE == 'Optimization':  # study
 
 elif MODE == 'Training':
     print('new main training run with optimized parameters started')
-    db_path = f"results/{STUDY}.db"
-    db_file = f"sqlite:///{db_path}"
-    study = optuna.load_study(study_name=STUDY, storage=db_file)
-
-    best_trial = study.best_trial
-    print(f"Highest reward: {best_trial.value}")
+    
     if LOAD_PARAMS_FROM_STUDY: 
         print(f"loading parameters from the study object: {STUDY}")
+        db_path = f"results/{STUDY}.db"
+        db_file = f"sqlite:///{db_path}"
+        study = optuna.load_study(study_name=STUDY, storage=db_file)
+        best_trial = study.best_trial
+        print(f"Highest reward from best trial: {best_trial.value}")
+        
         best_params_dict = optim.remake_params_dict(
-            algorithm=agent, raw_params_dict=best_trial.params)
+            algorithm=agent_name, raw_params_dict=best_trial.params)
     else:
-        print("loading parameters from yaml file")
-        with open("results/algorithm_parameters/PPO.yaml") as file:
+        print("loading parameters from yaml file...")
+        with open(f"results/algorithm_parameters/{agent_name}.yaml") as file:
             best_params_dict: dict = yaml.safe_load(file)
             
-        best_params_dict.update(dict(env=env, n_steps=MAX_STROKES, verbose=0))
+        best_params_dict["policy_kwargs"] = eval(best_params_dict["policy_kwargs"])
+        best_params_dict.update(dict(env=env, n_steps=MAX_STROKES))
         
-    print(f"Best hyperparameters: {best_params_dict}")
-    optim.train_agent(agent_name=agent, best_parameters=best_params_dict)
+    print(f"Parameters used in training: {best_params_dict}")
+    optim.train_agent(agent_name=agent_name, best_parameters=best_params_dict)
 
 elif MODE == 'Execution':
     agent_name = EXECUTION_MODEL[0:3]
@@ -191,7 +199,7 @@ elif MODE == 'Execution':
 
         plotter.state_action_plot(states, actions, n_strokes=200, n_c_tot=n_c_tot,
                                   savepath=f'checkpoints/sample/{EXECUTION_MODEL}{test_ep_num}_state_action.svg')
-        plotter.environment_parameter_plot(test_ep_num, env, savepath=f'checkpoints/sample/{EXECUTION_MODEL}{test}_episode.svg')
+        plotter.environment_parameter_plot(test_ep_num, env, savepath=f'checkpoints/sample/{EXECUTION_MODEL}{test_ep_num}_episode.svg')
         plotter.sample_ep_plot(states, actions, rewards, ep=test_ep_num,
                                savepath=f'checkpoints/sample/{EXECUTION_MODEL}{test_ep_num}_sample.svg',
                                replaced_cutters=replaced_cutters,

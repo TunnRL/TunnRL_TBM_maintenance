@@ -12,7 +12,7 @@ code contributors: Georg H. Erharter, Tom F. Hansen
 """
 
 from datetime import datetime
-from pathlib import Path
+import uuid
 
 import gym
 import matplotlib.pyplot as plt
@@ -400,7 +400,7 @@ class Optimization:
             case _:
                 raise NotImplementedError(f"{self.AGENT_NAME} not implemented")
 
-        agent_dir = self.AGENT_NAME + datetime.now().strftime("%Y%m%d-%H%M%S-%f")
+        agent_dir = f'{self.AGENT_NAME}_{uuid.uuid4()}'
         new_logger = logger.configure(f'optimization/{agent_dir}', ["csv"])
 
         print(f'\nOptimizing parallell process {self.parallell_process_counter}. Agent: {self.AGENT_NAME} | Num episodes: {self.EPISODES}')
@@ -459,7 +459,7 @@ class Optimization:
             case _:
                 raise NotImplementedError()
 
-        agent_dir = self.AGENT_NAME + datetime.now().strftime("%Y%m%d-%H%M%S")
+        agent_dir = f'{self.AGENT_NAME}_{uuid.uuid4()}'
         new_logger = logger.configure(f'checkpoints/{agent_dir}', ["csv"])
         # mode that trains an agent based on previous OPTUNA study
         checkpoint_callback = CheckpointCallback(save_freq=self.freq,
