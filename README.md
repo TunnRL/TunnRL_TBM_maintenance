@@ -91,7 +91,12 @@ Callbacks are not a part of the actual training process but provides functionali
 logging metrics, early stopping etc.
 4. Train the agent by looping over episodes, thereby making new actions and changin the state, each time with a new version of the 
 environment. This functionality is wrapped into the learn function in Stable Baselines3.
-`agent.learn(total_timesteps=self.EPISODES * self.MAX_STROKES, callback=callback)`
+`agent.learn(total_timesteps=self.EPISODES * self.MAX_STROKES, callback=callback)`.
+
+In every episode (say 10 000 episodes), the agent takes (loops over) a number of steps
+(which is TBM-strokes in this environment, eg. 1000 strokes of 1.8 meter). In each step a MLP-neural network is trained to match the best actions to the given state, ie. that maximize the reward.
+This training session is a classic NN-machine learning session looping over a number of
+epochs (eg 10 epochs) in order to minimize the loss-function.
 
 
 ## How to use the functionality

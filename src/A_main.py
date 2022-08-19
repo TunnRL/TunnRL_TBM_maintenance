@@ -19,9 +19,10 @@ from joblib import Parallel, delayed
 import yaml
 import torch.nn as nn  # used in evaluation of yaml file
 
-from XX_maintenance_lib import CustomEnv, Optimization
+from XX_experiment_factory import Optimization, load_best_model
+from XX_TBM_environment import CustomEnv
+from XX_hyperparams import Hyperparameters
 from XX_plotting import Plotter
-from XX_utility import load_best_model
 
 
 warnings.filterwarnings("ignore",
@@ -41,29 +42,28 @@ BROKEN_CUTTERS_THRESH = 0.5  # minimum required percentage of functional cutters
 
 EPISODES = 10_000  # max episodes to train for 10_000
 # evaluations in optimization and checkpoints in training every X episodes
-
 CHECKPOINT_INTERVAL = 100
 
 # MODE determines if either an optimization should run = "Optimization", or a
 # new agent is trained with prev. optimized parameters = "Training", or an
 # already trained agent is executed = "Execution"
 
-MODE = 'Training'  # 'Optimization', 'Training', 'Execution'
+MODE = 'Optimization'  # 'Optimization', 'Training', 'Execution'
 DEFAULT_TRIAL = False  # first run a trial with default parameters.
-N_SINGLE_RUN_OPTUNA_TRIALS = 2  # n optuna trials to run in total (including eventual default trial)
+N_SINGLE_RUN_OPTUNA_TRIALS = 3  # n optuna trials to run in total (including eventual default trial)
 # NOTE: memory can be an issue for many parallell processes. Size of neural network and 
 # available memory will be limiting factors
 N_CORES_PARALLELL = -1
-N_PARALLELL_PROCESSES = 5
+N_PARALLELL_PROCESSES = 1
 # assert N_PARALLELL_PROCESSES <= N_OPTUNA_TRIALS, "Num. parallell processes cannot be higher than number of trials"
 # name of the study if MODE == 'Optimization' or 'Training'
 # the Study name must start with the name of the agent that needs to be one of
 # 'PPO', 'A2C', 'DDPG', 'SAC', 'TD3'
-STUDY = 'PPO_2022_08_15_study'  # DDPG_2022_07_27_study 'PPO_2022_08_03_study'
+STUDY = 'PPO_2022_08_19_study'  # DDPG_2022_07_27_study 'PPO_2022_08_03_study'
 
 # load best parameters from study object in training. Alternative: load from yaml
 # TODO: do an automatic save of parameters upon completing an optuna-experiment session
-LOAD_PARAMS_FROM_STUDY = False
+LOAD_PARAMS_FROM_STUDY = True
 
 EXECUTION_MODEL = "PPO20220817-115856"
 NUM_TEST_EPISODES = 3
@@ -76,7 +76,7 @@ CHECK_ENV = False
 # computed/derived variables and instantiations
 
 n_c_tot = int(round((CUTTERHEAD_RADIUS - TRACK_SPACING / 2) / TRACK_SPACING, 0)) + 1
-print(f'total number of cutters: {n_c_tot}\n')
+print(f'\ntotal number of cutters: {n_c_tot}\n')
 
 cutter_positions = np.cumsum(np.full((n_c_tot), TRACK_SPACING)) - TRACK_SPACING / 2
 
@@ -90,33 +90,17 @@ if CHECK_ENV:
 agent_name = STUDY.split('_')[0]
 assert agent_name in ["PPO", "A2C", "DDPG", "SAC", "TD3"], f"{agent_name} is not a valid agent."
 
-optim = Optimization(n_c_tot, env, EPISODES, CHECKPOINT_INTERVAL, MODE,
+optim = Optimization(n_c_tot, env, STUDY, EPISODES, CHECKPOINT_INTERVAL, MODE,
                      MAX_STROKES, agent_name, DEFAULT_TRIAL)
-
+hparams = Hyperparameters()
 plotter = Plotter()
 
 ###############################################################################
 # run one of the three modes: Optimization, Training, Execution
 
 
-def optimize(n_trials: int) -> None:
-    """Optimize-function to be called in parallell process.
-
-    Args:
-        n_trials (int): Number of trials in each parallell process.
-    
-    TODO: move this to Optimization class
-    """
-    db_path = f"results/{STUDY}.db"
-    db_file = f"sqlite:///{db_path}"
-    study = optuna.load_study(study_name=STUDY, storage=db_file)
-    study.optimize(optim.objective,
-                   n_trials=n_trials,
-                   catch=(ValueError,),
-                   show_progress_bar=True)
-
 if MODE == 'Optimization':  # study
-    print(f"{N_SINGLE_RUN_OPTUNA_TRIALS * N_PARALLELL_PROCESSES} optuna trials are processed")
+    print(f"{N_SINGLE_RUN_OPTUNA_TRIALS * N_PARALLELL_PROCESSES} optuna trials are processed\n")
 
     db_path = f"results/{STUDY}.db"
     db_file = f"sqlite:///{db_path}"
@@ -126,7 +110,7 @@ if MODE == 'Optimization':  # study
         load_if_exists=True, sampler=sampler)
     
     Parallel(n_jobs=N_CORES_PARALLELL, verbose=10, backend="loky")(
-        delayed(optimize)(N_SINGLE_RUN_OPTUNA_TRIALS) for _ in range(N_PARALLELL_PROCESSES))
+        delayed(optim.optimize)(N_SINGLE_RUN_OPTUNA_TRIALS) for _ in range(N_PARALLELL_PROCESSES))
     
     study = optuna.load_study(study_name=STUDY, storage=db_file)
     print('Number of finished trials: ', len(study.trials))
@@ -138,7 +122,7 @@ if MODE == 'Optimization':  # study
         print(f"    {key}: {value}")
 
 elif MODE == 'Training':
-    print('new main training run with optimized parameters started')
+    print(f'New main training run with optimized parameters for {agent_name} started...')
     
     if LOAD_PARAMS_FROM_STUDY: 
         print(f"loading parameters from the study object: {STUDY}")
@@ -148,13 +132,14 @@ elif MODE == 'Training':
         best_trial = study.best_trial
         print(f"Highest reward from best trial: {best_trial.value}")
         
-        best_params_dict = optim.remake_params_dict(
-            algorithm=agent_name, raw_params_dict=best_trial.params)
+        best_params_dict = hparams.remake_params_dict(
+            algorithm=agent_name, raw_params_dict=best_trial.params, env=env)
     else:
         print("loading parameters from yaml file...")
         with open(f"results/algorithm_parameters/{agent_name}.yaml") as file:
             best_params_dict: dict = yaml.safe_load(file)
-            
+        
+        best_params_dict["learning_rate"] = hparams.parse_learning_rate(best_params_dict["learning_rate"])    
         best_params_dict["policy_kwargs"] = eval(best_params_dict["policy_kwargs"])
         best_params_dict.update(dict(env=env, n_steps=MAX_STROKES))
         
