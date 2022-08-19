@@ -41,7 +41,7 @@ class PlotTrainingProgressCallback(BaseCallback):
     '''custom callback to log and visualize parameters of the training
     progress'''
 
-    def __init__(self, check_freq: int, save_path: str, name_prefix: str, 
+    def __init__(self, check_freq: int, save_path: str, name_prefix: str,
                  MAX_STROKES: int, AGENT_NAME: str, verbose: int = 0) -> None:
         super(PlotTrainingProgressCallback, self).__init__(verbose)
 

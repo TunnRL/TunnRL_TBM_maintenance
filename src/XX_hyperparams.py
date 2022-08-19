@@ -33,28 +33,28 @@ class Hyperparameters:
         RL-architecture.
         Each lookup of algorithm returns a dictionary of parameters for that
         algorithm.
-        
-        NOTE: Every suggest-function called will add a parameter to the trial-object and
-        will be returned from trial.best_params
+
+        NOTE: Every suggest-function called will add a parameter to the
+        trial-object and will be returned from trial.best_params
         """
 
         # suggesting different network architectures
-        num_not_shared_layers = trial.suggest_int("n_not_shared_layers", low=1, high=5, step=1)
-        num_nodes_not_shared_layer = trial.suggest_categorical("n_nodes_layer", [8, 16, 32, 64, 128, 256, 512])
+        num_not_shared_layers = trial.suggest_int("n_not_shared_layers", low=1, high=8, step=1)
+        num_nodes_not_shared_layer = trial.suggest_categorical("n_nodes_layer", [8, 16, 32, 64, 128, 256, 512, 1024])
         suggest_activation_fn = trial.suggest_categorical("activation_fn", ["tanh", "relu", "leaky_relu"])
-        
+
         # learning rate scheduler
         lr_schedule = trial.suggest_categorical('lr_schedule', ['linear_decrease', 'constant'])
-        learning_rate = trial.suggest_float('learning_rate', low=1e-5, high=1e-3, log=True)
+        learning_rate = trial.suggest_float('learning_rate', low=1e-6, high=1e-3, log=True)
         if lr_schedule == "linear_decrease" or lr_schedule == "fun":
             learning_rate: Callable = self._linear_schedule(learning_rate)
 
         # logic for special parameters for different architetures
         if algorithm in ["PPO", "A2C"]:
-            num_shared_layers = trial.suggest_int("n_shared_layers", low=0, high=3, step=1)
-            num_nodes_shared_layer = trial.suggest_categorical("n_nodes_shared_layer", [8, 16, 32, 64, 128, 256, 512])
-        
-        if algorithm in ['DDPG', 'SAC','TD3']:
+            num_shared_layers = trial.suggest_int("n_shared_layers", low=0, high=6, step=1)
+            num_nodes_shared_layer = trial.suggest_categorical("n_nodes_shared_layer", [8, 16, 32, 64, 128, 256, 512, 1024])
+
+        if algorithm in ['DDPG', 'SAC', 'TD3']:
             action_noise = trial.suggest_categorical('action_noise', [None, 'NormalActionNoise', "OrnsteinUhlenbeckActionNoise"])
             action_noise = self._yield_action_noise(action_noise, num_actions)
 
@@ -76,14 +76,14 @@ class Hyperparameters:
                     n_steps=steps_episode,
                     batch_size=50,
                     n_epochs=10,
-                    gamma=trial.suggest_float('gamma', low=0.6, high=1),
-                    gae_lambda=trial.suggest_float('gae_lambda', low=0.75, high=1),
-                    clip_range=trial.suggest_float('clip_range', low=0.1, high=0.45),
+                    gamma=trial.suggest_float('gamma', low=0.05, high=1),
+                    gae_lambda=trial.suggest_float('gae_lambda', low=0.5, high=1),
+                    clip_range=trial.suggest_float('clip_range', low=0.05, high=0.8),
                     learning_rate=learning_rate,
                     normalize_advantage=True,
-                    ent_coef=trial.suggest_float('ent_coef', low=0.0, high=0.3),
-                    vf_coef=trial.suggest_float('vf_coef', low=0.4, high=0.9),
-                    max_grad_norm=trial.suggest_float('max_grad_norm', low=0.3, high=0.7),
+                    ent_coef=trial.suggest_float('ent_coef', low=0.0, high=0.4),
+                    vf_coef=trial.suggest_float('vf_coef', low=0.1, high=1),
+                    max_grad_norm=trial.suggest_float('max_grad_norm', low=0.05, high=0.7),
                     use_sde=False,
                     verbose=0,
                     policy_kwargs=dict(net_arch=network_architecture,
@@ -165,7 +165,8 @@ class Hyperparameters:
         return params
 
     def _define_policy_network(self, algorithm: str = "PPO",
-                               num_not_shared_layers: int = 2, num_nodes_layer: int = 64,
+                               num_not_shared_layers: int = 2,
+                               num_nodes_layer: int = 64,
                                num_shared_layers: int = 0,
                                num_nodes_shared_layer: int = 0) -> list:
         """Setting up a policy network.
