@@ -9,14 +9,15 @@ code contributors: Georg H. Erharter, Tom F. Hansen
 """
 
 from pathlib import Path
-
+import matplotlib
 import matplotlib.cm as mplcm
 import matplotlib.gridspec as gridspec
 import matplotlib.pyplot as plt
 import numpy as np
+from os import listdir
 import pandas as pd
+import sklearn
 from mpl_toolkits.axes_grid1 import make_axes_locatable
-from numpy.typing import NDArray
 
 
 class Plotter:
@@ -98,10 +99,11 @@ class Plotter:
         ax.grid(alpha=0.5)
 
         plt.tight_layout()
-        plt.savefig(Path(savepath))
+        plt.savefig(savepath)
         plt.close()
 
-    def state_action_plot(self, states, actions, n_strokes: int,n_c_tot: int, savepath: str):
+    def state_action_plot(self, states, actions, n_strokes: int, n_c_tot: int,
+                          savepath: str):
         '''plot that shows combinations of states and actions for the first
         n_strokes of an episode'''
         fig = plt.figure(figsize=(20, 6))
@@ -267,4 +269,186 @@ class Plotter:
         plt.tight_layout()
         if savepath is not None:
             plt.savefig(savepath)
+            plt.close()
+
+    def custom_parallel_coordinate_plot(self, df_study: pd.DataFrame,
+                                        params: list,
+                                        le_activation: sklearn.preprocessing.LabelEncoder,
+                                        savepath: str = None,
+                                        show: bool = True) -> None:
+        '''custom implementation of the plot_parallel_coordinate() function of
+        optuna:
+        https://optuna.readthedocs.io/en/stable/reference/visualization/generated/optuna.visualization.plot_parallel_coordinate.html#optuna.visualization.plot_parallel_coordinate
+        '''
+        # TODO consider le_noise
+        fig, ax = plt.subplots(figsize=(18, 9))
+
+        mins = df_study[params].min().values
+        f = df_study[params].values-mins
+        maxs = np.max(f, axis=0)
+
+        cmap = matplotlib.cm.get_cmap('cividis')
+        norm = matplotlib.colors.Normalize(vmin=df_study['value'].min(),
+                                           vmax=df_study['value'].max())
+
+        for t in range(len(df_study)):
+            df_temp = df_study.sort_values(by='value').iloc[t]
+            x = np.arange(len(params))
+            y = df_temp[params].values
+
+            y = y - mins
+            y = y / maxs
+
+            if df_temp['state'] == 'FAIL':
+                ax.plot(x, y, c='red', alpha=0.5)
+            elif df_temp['state'] == 'RUNNING':
+                pass
+            else:
+
+                if df_temp['value'] < 600:
+                    ax.plot(x, y, c=cmap(norm(df_temp['value'])), alpha=0.2)
+                else:
+                    ax.plot(x, y, c=cmap(norm(df_temp['value'])), alpha=1,
+                            zorder=10)
+
+        ax.scatter(x, np.zeros(x.shape), color='black')
+        ax.scatter(x, np.ones(x.shape), color='black')
+
+        for i in range(len(x)):
+            if params[i] == 'params_activation_fn':
+                ax.text(x=x[i], y=-0.01, s=le_activation.classes_[0],
+                        horizontalalignment='center', verticalalignment='top')
+                ax.text(x=x[i], y=0.5, s=le_activation.classes_[1],
+                        horizontalalignment='center', verticalalignment='top')
+                ax.text(x=x[i], y=1.01, s=le_activation.classes_[2],
+                        horizontalalignment='center',
+                        verticalalignment='bottom')
+            else:
+                ax.text(x=x[i], y=-0.01,
+                        s=np.round(df_study[params].min().values[i], 4),
+                        horizontalalignment='center', verticalalignment='top')
+                ax.text(x=x[i], y=1.01,
+                        s=np.round(df_study[params].max().values[i], 4),
+                        horizontalalignment='center',
+                        verticalalignment='bottom')
+
+        ax.set_xticks(x)
+        ax.set_yticks([0, 1])
+        ax.set_xticklabels([p[7:] for p in params], rotation=45, ha='right')
+        ax.set_yticklabels([])
+        ax.grid()
+
+        plt.tight_layout()
+        if savepath is not None:
+            plt.savefig(savepath)
+        if show is False:
+            plt.close()
+
+    def custom_optimization_history_plot(self, df_study: pd.DataFrame,
+                                         savepath: str = None,
+                                         show: bool = True) -> None:
+
+        values_max = []
+        for i, value in enumerate(df_study['value']):
+            if i == 0:
+                values_max.append(value)
+            else:
+                if value > values_max[int(i-1)]:
+                    values_max.append(value)
+                else:
+                    values_max.append(values_max[int(i-1)])
+
+        fig, ax = plt.subplots(figsize=(5, 5))
+
+        ax.scatter(df_study[df_study['state'] == 'COMPLETE']['number'],
+                   df_study[df_study['state'] == 'COMPLETE']['value'],
+                   s=30, alpha=0.7, color='grey', edgecolor='black',
+                   label='COMPLETE')
+        ax.scatter(df_study[df_study['state'] == 'FAIL']['number'],
+                   np.full(len(df_study[df_study['state'] == 'FAIL']),
+                           df_study['value'].min()),
+                   s=30, alpha=0.7, color='red', edgecolor='black',
+                   label='FAIL')
+        ax.plot(df_study['number'], values_max, color='black')
+        ax.grid(alpha=0.5)
+        ax.set_xlabel('trial number')
+        ax.set_ylabel('reward')
+        ax.legend()
+        plt.tight_layout()
+        if savepath is not None:
+            plt.savefig(savepath)
+        if show is False:
+            plt.close()
+
+    def custom_slice_plot(self, df_study: pd.DataFrame, params: list,
+                          le_noise: sklearn.preprocessing.LabelEncoder = None,
+                          le_activation: sklearn.preprocessing.LabelEncoder = None,
+                          savepath: str = None,
+                          show: bool = True) -> None:
+        fig = plt.figure(figsize=(18, 9))
+
+        for i, param in enumerate(params):
+            ax = fig.add_subplot(2, 7, i+1)
+            ax.scatter(df_study[df_study['state'] == 'COMPLETE'][param],
+                       df_study[df_study['state'] == 'COMPLETE']['value'],
+                       s=20, color='grey', edgecolor='black', alpha=0.5,
+                       label='COMPLETE')
+            ax.scatter(df_study[df_study['state'] == 'FAIL'][param],
+                       np.full(len(df_study[df_study['state'] == 'FAIL']),
+                               df_study['value'].min()),
+                       s=20, color='red', edgecolor='black', alpha=0.5,
+                       label='FAIL')
+            ax.grid(alpha=0.5)
+            ax.set_xlabel(param[7:])
+            if i == 0:
+                ax.set_ylabel('reward')
+
+            if 'learning_rate' in param:
+                ax.set_xscale('log')
+            if "noise" in param:
+                plt.xticks(range(len(le_noise.classes_)),
+                           le_noise.classes_)
+            if "activation" in param:
+                plt.xticks(range(len(le_activation.classes_)),
+                           le_activation.classes_)
+
+        ax.legend()
+
+        plt.tight_layout()
+        if savepath is not None:
+            plt.savefig(savepath)
+        if show is False:
+            plt.close()
+
+    def custom_intermediate_values_plot(self, agent: str, folder: str,
+                                        savepath: str = None,
+                                        show: bool = True) -> None:
+        maxs = []
+
+        # plot of the progress of individual runs
+        fig, ax = plt.subplots(figsize=(10, 8))
+
+        for trial in listdir(folder):
+            if agent in trial:
+                df_log = pd.read_csv(f'{folder}/{trial}/progress.csv')
+                df_log['episodes'] = df_log['time/total_timesteps'] / df_log['rollout/ep_len_mean']
+                df_log.dropna(axis=0, subset=['time/time_elapsed'],
+                              inplace=True)
+                ax.plot(df_log['episodes'], df_log['rollout/ep_rew_mean'],
+                        alpha=0.5, color='C0')
+                maxs.append(df_log['rollout/ep_rew_mean'].max())
+
+        ax.set_title(agent)
+
+        # ax.set_ylim(top=1000, bottom=0)
+        ax.grid(alpha=0.5)
+        ax.set_xlabel('episodes')
+        ax.set_ylabel('reward')
+        # ax.set_yscale('log')
+        print(max(maxs))
+
+        plt.tight_layout()
+        if savepath is not None:
+            plt.savefig(savepath)
+        if show is False:
             plt.close()
