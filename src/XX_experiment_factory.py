@@ -37,13 +37,13 @@ from stable_baselines3.common.evaluation import evaluate_policy
 from XX_hyperparams import Hyperparameters
 
 
-class CustomCallback(BaseCallback):
+class PlotTrainingProgressCallback(BaseCallback):
     '''custom callback to log and visualize parameters of the training
     progress'''
 
     def __init__(self, check_freq: int, save_path: str, name_prefix: str, 
                  MAX_STROKES: int, AGENT_NAME: str, verbose: int = 0) -> None:
-        super(CustomCallback, self).__init__(verbose)
+        super(PlotTrainingProgressCallback, self).__init__(verbose)
 
         self.check_freq = check_freq  # checking frequency in [steps]
         self.save_path = save_path  # folder to save the plot to
@@ -179,7 +179,7 @@ class Optimization:
                                eval_freq=self.freq,
                                callback_after_eval=stop_train_cb,
                                verbose=0, warn=False)
-        custom_callback = CustomCallback(check_freq=self.freq,
+        custom_callback = PlotTrainingProgressCallback(check_freq=self.freq,
                                          save_path=f'optimization/{agent_dir}',
                                          name_prefix=f'{self.AGENT_NAME}',
                                          MAX_STROKES=self.MAX_STROKES,
@@ -217,7 +217,8 @@ class Optimization:
         try:
             study.optimize(self.objective,
                         n_trials=n_trials,
-                        catch=(ValueError,)
+                        catch=(ValueError,),
+                        callbacks=[cb_print_agent_dir]
                         )
             
         except KeyboardInterrupt: #TODO: check how to interrupt
@@ -256,7 +257,7 @@ class Optimization:
                                                  save_path=f'checkpoints/{agent_dir}',
                                                  name_prefix=f'{self.AGENT_NAME}',
                                                  verbose=1)
-        custom_callback = CustomCallback(check_freq=self.freq,
+        custom_callback = PlotTrainingProgressCallback(check_freq=self.freq,
                                          save_path=f'checkpoints/{agent_dir}',
                                          name_prefix=f'{self.AGENT_NAME}',
                                          MAX_STROKES=self.MAX_STROKES,
