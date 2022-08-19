@@ -9,7 +9,8 @@ import numpy as np
 from sklearn.decomposition import PCA
 from stable_baselines3 import PPO
 
-from XX_maintenance_lib import plotter, CustomEnv
+from XX_plotting import Plotter
+from XX_TBM_environment import CustomEnv
 
 R = 3  # cutterhead radius [m]
 D = 0.11  # cutter track spacing [m]
@@ -33,7 +34,7 @@ cutter_pathlenghts = cutter_positions * 2 * np.pi  # [m]
 env = CustomEnv(n_c_tot, LIFE, MAX_STROKES, STROKE_LENGTH, cutter_pathlenghts,
                 R, t_C_max)
 
-pltr = plotter()
+pltr = Plotter()
 env = CustomEnv(n_c_tot, LIFE, MAX_STROKES, STROKE_LENGTH,
                 cutter_pathlenghts, R, t_C_max)
 

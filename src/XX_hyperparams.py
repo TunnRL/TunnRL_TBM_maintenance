@@ -42,17 +42,23 @@ class Hyperparameters:
         num_not_shared_layers = trial.suggest_int("n_not_shared_layers", low=1, high=5, step=1)
         num_nodes_not_shared_layer = trial.suggest_categorical("n_nodes_layer", [8, 16, 32, 64, 128, 256, 512])
         suggest_activation_fn = trial.suggest_categorical("activation_fn", ["tanh", "relu", "leaky_relu"])
+        
+        # learning rate scheduler
+        lr_schedule = trial.suggest_categorical('lr_schedule', ['linear_decrease', 'constant'])
+        learning_rate = trial.suggest_float('learning_rate', low=1e-5, high=1e-3, log=True)
+        if lr_schedule == "linear_decrease" or lr_schedule == "fun":
+            learning_rate: Callable = self._linear_schedule(learning_rate)
 
         # logic for special parameters for different architetures
         if algorithm in ["PPO", "A2C"]:
             num_shared_layers = trial.suggest_int("n_shared_layers", low=0, high=3, step=1)
             num_nodes_shared_layer = trial.suggest_categorical("n_nodes_shared_layer", [8, 16, 32, 64, 128, 256, 512])
-            # suggesting different activation functions
+        
         if algorithm in ['DDPG', 'SAC','TD3']:
-            # computing action noise
             action_noise = trial.suggest_categorical('action_noise', [None, 'NormalActionNoise', "OrnsteinUhlenbeckActionNoise"])
             action_noise = self._yield_action_noise(action_noise, num_actions)
 
+        # prerocessing suggestions to the right input format for SB3 algorithms
         network_architecture = self._define_policy_network(algorithm,
                                                            num_not_shared_layers,
                                                            num_nodes_not_shared_layer,
@@ -61,14 +67,9 @@ class Hyperparameters:
 
         activation_fn = self._define_activation_fn(suggest_activation_fn)
 
-        #TODO: check all parameter names for similarities with names in api
+        # TODO: also change learning rate code in other algorithms than PPO
         match algorithm:
             case "PPO":
-                # adjusting the learning rate scheduler
-                # learning_rate = trial.suggest_float('learning rate', low=1e-4, high=1e-3, log=True),
-                # learning_scheduler = trial.suggest_categorical("learning_scheduler", ["constant","linear_decrease"])
-                # if learning_scheduler == "linear_decrease":
-                #     learning_rate = self.linear_schedule(learning_rate)
                 params = dict(
                     policy='MlpPolicy',
                     env=environment,
@@ -78,7 +79,7 @@ class Hyperparameters:
                     gamma=trial.suggest_float('gamma', low=0.6, high=1),
                     gae_lambda=trial.suggest_float('gae_lambda', low=0.75, high=1),
                     clip_range=trial.suggest_float('clip_range', low=0.1, high=0.45),
-                    learning_rate=trial.suggest_float('learning_rate', low=1e-5, high=1e-3, log=True),
+                    learning_rate=learning_rate,
                     normalize_advantage=True,
                     ent_coef=trial.suggest_float('ent_coef', low=0.0, high=0.3),
                     vf_coef=trial.suggest_float('vf_coef', low=0.4, high=0.9),
@@ -235,23 +236,88 @@ class Hyperparameters:
                 noise = None
         return noise
 
-    def linear_schedule(self, initial_value: float | str) -> Callable[[float], float]:
-        """
-        TODO: Not in use. Do this in the callback instead
-
-        Linear learning rate scheduler.
-        :param initial_value: (float or str)
-        :return: (function)
+    def _linear_schedule(self, initial_value: float | str) -> Callable[[float], float]:
+        """Linear learning rate scheduler.
+        
+        Args:
+            param initial_value: (float or str)
+        Returns: 
+            (function)
         """
         if isinstance(initial_value, str):
             initial_value = float(initial_value)
 
             def func(progress_remaining: float) -> float:
-                """
-                Progress will decrease from 1 (beginning) to 0
+                """ Progress will decrease from 1 (beginning) to 0.
+                Decreases for every epoch.
+                
                 :param progress_remaining: (float)
                 :return: (float)
                 """
                 return progress_remaining * initial_value
 
         return func
+    
+    def remake_params_dict(self, algorithm: str, raw_params_dict: dict, env: gym.Env) -> dict:
+        """Reshape the dictionary of parameters to the format needed for algorithms defined in 
+        stable-baselines3. Basically to reshape network inputs into policy_kwargs."""
+        
+        n_nodes_not_shared_layer = raw_params_dict["n_nodes_layer"]
+        n_not_shared_layers = raw_params_dict["n_not_shared_layers"]
+
+        reshaped_dict = {}
+        if algorithm in ["PPO", "A2C"]:
+            n_nodes_shared_layer = raw_params_dict["n_nodes_shared_layer"]
+            n_shared_layers = raw_params_dict["n_shared_layers"]
+
+            network_description = dict(
+                net_arch=self._define_policy_network(
+                algorithm, n_not_shared_layers, n_nodes_not_shared_layer, n_shared_layers, n_nodes_shared_layer),
+                activation_fn=self._define_activation_fn(raw_params_dict["activation_fn"]))
+
+            remove_keys = ["activation_fn", "n_nodes_layer", "n_nodes_shared_layer", "n_shared_layers","n_not_shared_layers", "lr_schedule"]
+
+        elif algorithm in ['DDPG', 'SAC','TD3']:
+            network_description = dict(
+                net_arch=self._define_policy_network(
+                algorithm, n_not_shared_layers, n_nodes_not_shared_layer),
+                activation_fn=raw_params_dict["activation_fn"])
+
+            remove_keys = ["activation_fn", "n_nodes_layer","n_not_shared_layers", "lr_schedule"]
+        else:
+            raise ValueError(f"{algorithm} is not a valid algorithm")
+
+        if raw_params_dict["lr_schedule"] == "linear_decrease":
+            learning_rate = self._linear_schedule(raw_params_dict["learning_rate"])
+
+        reshaped_dict = {key: val for key, val in raw_params_dict.items() if key not in remove_keys}
+        reshaped_dict.update(dict(
+            policy='MlpPolicy', 
+            env=env, 
+            policy_kwargs=network_description,
+            learning_rate=learning_rate))
+
+        return reshaped_dict
+    
+    def parse_learning_rate(self, lr_rate: str | float) -> Callable | float:
+        """Parse learning rate description from yaml-file to a float value or
+        a lr_scheduler function.
+
+        Args:
+            lr_rate (str | float): lr_rate in yaml-file. Eg. lin_0.043504 or 0.0034
+
+        Returns:
+            Callable | float: constant float value or function for lr_scheduler
+        """
+        if isinstance(lr_rate, str):
+            split_res = lr_rate.split("_")
+            lr_rate = split_res[1]
+            if split_res[0] == "lin":
+                lr_spec = self._linear_schedule(lr_rate)
+            else:
+                raise ValueError(f"{split_res[0]} is not a valid lr scheduler term. Valid terms: lin,")
+            
+        else:
+            lr_spec = float(lr_rate)
+            
+        return lr_spec
