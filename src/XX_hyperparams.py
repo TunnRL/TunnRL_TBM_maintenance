@@ -245,17 +245,14 @@ class Hyperparameters:
         Returns: 
             (function)
         """
-        if isinstance(initial_value, str):
-            initial_value = float(initial_value)
-
-            def func(progress_remaining: float) -> float:
-                """ Progress will decrease from 1 (beginning) to 0.
-                Decreases for every epoch.
-                
-                :param progress_remaining: (float)
-                :return: (float)
-                """
-                return progress_remaining * initial_value
+        def func(progress_remaining: float) -> float:
+            """ Progress will decrease from 1 (beginning) to 0.
+            Decreases for every epoch.
+            
+            :param progress_remaining: (float)
+            :return: (float)
+            """
+            return progress_remaining * initial_value
 
         return func
     
@@ -312,7 +309,7 @@ class Hyperparameters:
         """
         if isinstance(lr_rate, str):
             split_res = lr_rate.split("_")
-            lr_rate = split_res[1]
+            lr_rate = float(split_res[1])
             if split_res[0] == "lin":
                 lr_spec = self._linear_schedule(lr_rate)
             else:

@@ -53,8 +53,8 @@ DEFAULT_TRIAL = False  # first run a trial with default parameters.
 N_SINGLE_RUN_OPTUNA_TRIALS = 3  # n optuna trials to run in total (including eventual default trial)
 # NOTE: memory can be an issue for many parallell processes. Size of neural network and 
 # available memory will be limiting factors
-N_CORES_PARALLELL = -1
-N_PARALLELL_PROCESSES = 1
+N_CORES_PARALLELL = 3
+N_PARALLELL_PROCESSES = 3
 # assert N_PARALLELL_PROCESSES <= N_OPTUNA_TRIALS, "Num. parallell processes cannot be higher than number of trials"
 # name of the study if MODE == 'Optimization' or 'Training'
 # the Study name must start with the name of the agent that needs to be one of

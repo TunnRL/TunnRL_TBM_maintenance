@@ -135,14 +135,11 @@ class Optimization:
     def objective(self, trial: optuna.trial.Trial) -> float | list[float]:
         '''Objective function that drives the optimization of parameter values for the 
         RL-agent.'''
-        
-        self.parallell_process_counter += 1  # TODO: this is not working properly
 
         if self.DEFAULT_TRIAL:
             parameters = {"policy": "MlpPolicy", "env": self.environment}
             self.DEFAULT_TRIAL = False
         else:
-            # hparams = Hyperparameters()
             parameters = self.hparams.suggest_hyperparameters(
                 trial, self.AGENT_NAME, self.environment,
                 steps_episode=self.MAX_STROKES, num_actions=self.n_actions)
@@ -166,7 +163,7 @@ class Optimization:
         new_logger = logger.configure(f'optimization/{agent_dir}', ["csv"])
 
         print(f'\nOptimizing agent in dir: {agent_dir}. Agent: {self.AGENT_NAME} | Num episodes: {self.EPISODES}')
-        print("\nTraining with these parameters: \n", parameters)
+        print(f"\nTraining with these parameters: \n {parameters}\n")
         # train agent with early stopping and save best agents only
         stop_train_cb = StopTrainingOnNoModelImprovement(max_no_improvement_evals=1,
                                                          min_evals=1,
@@ -221,7 +218,7 @@ class Optimization:
                         callbacks=[cb_print_agent_dir]
                         )
             
-        except KeyboardInterrupt: #TODO: check how to interrupt
+        except KeyboardInterrupt: #TODO: check how to interrupt the proper way
             print('Number of finished trials: ', len(study.trials))
             print('Best trial:')
             trial = study.best_trial
