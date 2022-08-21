@@ -35,6 +35,7 @@ from stable_baselines3.common.callbacks import (
 from stable_baselines3.common.evaluation import evaluate_policy
 
 from XX_hyperparams import Hyperparameters
+from XX_plotting import Plotter
 
 
 class PlotTrainingProgressCallback(BaseCallback):
@@ -42,14 +43,15 @@ class PlotTrainingProgressCallback(BaseCallback):
     progress'''
 
     def __init__(self, check_freq: int, save_path: str, name_prefix: str,
-                 MAX_STROKES: int, AGENT_NAME: str, verbose: int = 0) -> None:
+                 MAX_STROKES: int, verbose: int = 0) -> None:
         super(PlotTrainingProgressCallback, self).__init__(verbose)
 
         self.check_freq = check_freq  # checking frequency in [steps]
         self.save_path = save_path  # folder to save the plot to
         self.name_prefix = name_prefix  # name prefix for the plot
         self.MAX_STROKES = MAX_STROKES
-        self.AGENT_NAME = AGENT_NAME
+
+        self.pltr = Plotter()
 
     def _on_step(self) -> bool:
         if self.n_calls % self.check_freq == 0:
@@ -57,45 +59,9 @@ class PlotTrainingProgressCallback(BaseCallback):
             df_log = pd.read_csv(f'{self.save_path}/progress.csv')
             df_log['episodes'] = df_log[r'time/total_timesteps'] / self.MAX_STROKES
 
-            # works for all models
-            ep = df_log['episodes'].iloc[-1]
-            reward = df_log[r'rollout/ep_rew_mean'].iloc[-1]
-
-            fig, (ax1, ax2) = plt.subplots(nrows=2, ncols=1, figsize=(10, 8))
-            ax1.plot(df_log['episodes'], df_log[r'rollout/ep_rew_mean'],
-                     label=r'rollout/ep_rew_mean')
-            try:
-                ax1.scatter(df_log['episodes'], df_log['eval/mean_reward'],
-                            label=r'eval/mean_reward')
-            except KeyError:
-                pass
-            ax1.legend()
-            ax1.grid(alpha=0.5)
-            ax1.set_ylabel('reward')
-
-            # model specific visualization of loss
-            if self.AGENT_NAME == 'TD3' or self.AGENT_NAME == 'DDPG':
-                ax2.plot(df_log['episodes'], df_log[r'train/critic_loss'],
-                         label=r'train/critic_loss')
-                ax2.plot(df_log['episodes'], df_log[r'train/actor_loss'],
-                         label=r'train/actor_loss')
-            elif self.AGENT_NAME == 'PPO':
-                ax2.plot(df_log['episodes'], df_log[r'train/value_loss'],
-                         label=r'train/value_loss')
-                ax2.plot(df_log['episodes'], df_log[r'train/loss'],
-                         label=r'train/loss')
-                ax2.plot(df_log['episodes'], df_log[r'train/policy_gradient_loss'],
-                         label=r'train/policy_gradient_loss')
-                ax2.plot(df_log['episodes'], df_log[r'train/entropy_loss'],
-                         label=r'train/entropy_loss')
-            ax2.legend()
-            ax2.grid(alpha=0.5)
-            ax2.set_xlabel('episodes')
-            ax2.set_ylabel('loss')
-
-            plt.tight_layout()
-            plt.savefig(f'{self.save_path}/{self.name_prefix}_training.svg')
-            plt.close()
+            self.pltr.training_progress_plot(df_log,
+                                             savepath=f'{self.save_path}/{self.name_prefix}_training.svg',
+                                             show=False)
 
         return True
 
@@ -103,28 +69,30 @@ class PlotTrainingProgressCallback(BaseCallback):
 class PrintExperimentDirCallback:
     def __init__(self, agent_dir: str):
         self.agent_dir = agent_dir
-    
-    def __call__(self, study: optuna.study.Study, trial: optuna.trial.FrozenTrial) -> None:
+
+    def __call__(self, study: optuna.study.Study,
+                 trial: optuna.trial.FrozenTrial) -> None:
         print(f"Experiment info is saved in: {self.agent_dir}")
 
 
 class Optimization:
-    """Functionality to train (optimize the reward of an agent) 
+    """Functionality to train (optimize the reward of an agent)
     and hyperparameter tuning of agent parameters using Optuna."""
 
-    def __init__(self, n_c_tot: int, environment: gym.Env, STUDY: str, EPISODES: int,
-                 CHECKPOINT_INTERVAL: int, MODE: str, MAX_STROKES: int,
-                 AGENT_NAME: str, DEFAULT_TRIAL: bool) -> None:
+    def __init__(self, n_c_tot: int, environment: gym.Env, STUDY: str,
+                 EPISODES: int, CHECKPOINT_INTERVAL: int, MAX_STROKES: int,
+                 AGENT_NAME: str, DEFAULT_TRIAL: bool,
+                 MAX_NO_IMPROVEMENT: int) -> None:
 
         self.n_c_tot = n_c_tot
         self.environment = environment
         self.STUDY = STUDY
         self.EPISODES = EPISODES
         self.CHECKPOINT_INTERVAL = CHECKPOINT_INTERVAL
-        self.MODE = MODE
         self.MAX_STROKES = MAX_STROKES
         self.AGENT_NAME = AGENT_NAME
         self.DEFAULT_TRIAL = DEFAULT_TRIAL
+        self.MAX_NO_IMPROVEMENT = MAX_NO_IMPROVEMENT
 
         self.n_actions = n_c_tot * n_c_tot
         self.freq = self.MAX_STROKES * self.CHECKPOINT_INTERVAL  # checkpoint frequency
@@ -133,8 +101,8 @@ class Optimization:
         self.hparams = Hyperparameters()
 
     def objective(self, trial: optuna.trial.Trial) -> float | list[float]:
-        '''Objective function that drives the optimization of parameter values for the 
-        RL-agent.'''
+        '''Objective function that drives the optimization of parameter values
+        for the RL-agent.'''
 
         if self.DEFAULT_TRIAL:
             parameters = {"policy": "MlpPolicy", "env": self.environment}
@@ -165,7 +133,7 @@ class Optimization:
         print(f'\nOptimizing agent in dir: {agent_dir}. Agent: {self.AGENT_NAME} | Num episodes: {self.EPISODES}')
         print(f"\nTraining with these parameters: \n {parameters}\n")
         # train agent with early stopping and save best agents only
-        stop_train_cb = StopTrainingOnNoModelImprovement(max_no_improvement_evals=1,
+        stop_train_cb = StopTrainingOnNoModelImprovement(max_no_improvement_evals=self.MAX_NO_IMPROVEMENT,
                                                          min_evals=1,
                                                          verbose=1)
         eval_cb = EvalCallback(self.environment,
@@ -175,12 +143,11 @@ class Optimization:
                                n_eval_episodes=3,
                                eval_freq=self.freq,
                                callback_after_eval=stop_train_cb,
-                               verbose=0, warn=False)
+                               verbose=1, warn=False)
         custom_callback = PlotTrainingProgressCallback(check_freq=self.freq,
                                          save_path=f'optimization/{agent_dir}',
                                          name_prefix=f'{self.AGENT_NAME}',
-                                         MAX_STROKES=self.MAX_STROKES,
-                                         AGENT_NAME=self.AGENT_NAME)
+                                         MAX_STROKES=self.MAX_STROKES)
         callback = CallbackList([eval_cb, custom_callback])
 
         agent.set_logger(new_logger)
@@ -199,7 +166,7 @@ class Optimization:
         final_reward = mean_ep_reward  # objective's reward
         print(f"Agent in dir: {agent_dir} has a reward of: {mean_ep_reward}\n")
         return final_reward
-    
+
     def optimize(self, n_trials: int) -> None:
         """Optimize-function to be called in parallell process.
 
@@ -210,14 +177,11 @@ class Optimization:
         db_path = f"results/{self.STUDY}.db"
         db_file = f"sqlite:///{db_path}"
         study = optuna.load_study(study_name=self.STUDY, storage=db_file)
-        
+
         try:
-            study.optimize(self.objective,
-                        n_trials=n_trials,
-                        catch=(ValueError,),
-                        callbacks=[cb_print_agent_dir]
-                        )
-            
+            study.optimize(self.objective, n_trials=n_trials,
+                           catch=(ValueError,), callbacks=[cb_print_agent_dir])
+
         except KeyboardInterrupt: #TODO: check how to interrupt the proper way
             print('Number of finished trials: ', len(study.trials))
             print('Best trial:')
@@ -229,7 +193,7 @@ class Optimization:
 
     def train_agent(self, agent_name: str, best_parameters: dict) -> None:
         """Train agent with best parameters from an optimization study."""
-        
+
         agent_dir = f'{self.AGENT_NAME}_{uuid.uuid4()}'
         best_parameters.update(dict(tensorboard_log=f"optimization/{agent_dir}"))
         print(f"Checkpoint dir: {agent_dir}")
@@ -257,8 +221,7 @@ class Optimization:
         custom_callback = PlotTrainingProgressCallback(check_freq=self.freq,
                                          save_path=f'checkpoints/{agent_dir}',
                                          name_prefix=f'{self.AGENT_NAME}',
-                                         MAX_STROKES=self.MAX_STROKES,
-                                         AGENT_NAME=self.AGENT_NAME)
+                                         MAX_STROKES=self.MAX_STROKES)
         eval_cb = EvalCallback(self.environment,
                                best_model_save_path=f'checkpoints/{agent_dir}',
                                log_path='checkpoints',
@@ -275,9 +238,10 @@ class Optimization:
         agent.set_logger(new_logger)
         agent.learn(total_timesteps=self.EPISODES * self.MAX_STROKES,
                     callback=callback)
-    
 
-def load_best_model(agent_name: str, main_dir: str, agent_dir: str) -> BaseAlgorithm:
+
+def load_best_model(agent_name: str, main_dir: str,
+                    agent_dir: str) -> BaseAlgorithm:
     """Load best model from a directory.
 
     Args:
@@ -287,7 +251,7 @@ def load_best_model(agent_name: str, main_dir: str, agent_dir: str) -> BaseAlgor
         agent_name = "DDPG"
 
     path = f'{main_dir}/{agent_dir}/best_model.zip'
-    
+
     if agent_name == 'PPO':
         agent = PPO.load(path)
     elif agent_name == 'A2C':
