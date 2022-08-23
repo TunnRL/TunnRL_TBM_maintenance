@@ -11,26 +11,29 @@ code contributors: Georg H. Erharter, Tom F. Hansen
 """
 
 
+import warnings
+from pathlib import Path
+
 from joblib import Parallel, delayed
 import numpy as np
 import optuna
 from stable_baselines3.common.env_checker import check_env
 import torch.nn as nn  # used in evaluation of yaml file
-import warnings
 import yaml
 
 from XX_experiment_factory import Optimization, load_best_model
-from XX_TBM_environment import CustomEnv
 from XX_hyperparams import Hyperparameters
 from XX_plotting import Plotter
+from XX_TBM_environment import CustomEnv
 
-warnings.filterwarnings("ignore",
-                        category=optuna.exceptions.ExperimentalWarning)
+
 
 ###############################################################################
-# Constants and fixed variables
+# CONSTANTS AND FIXED VARIABLES
+###############################################################################
 
 # TBM excavation parameters
+######################
 CUTTERHEAD_RADIUS = 3  # cutterhead radius [m]
 TRACK_SPACING = 0.11  # cutter track spacing [m]
 LIFE = 400000  # theoretical durability of one cutter [m]
@@ -38,68 +41,134 @@ STROKE_LENGTH = 1.8  # length of one stroke [m]
 MAX_STROKES = 1000  # number of strokes per episode
 BROKEN_CUTTERS_THRESH = 0.5  # minimum required % of functional cutters
 
+# MAIN EXPERIMENT INFO
+######################
 # MODE determines if either an optimization should run = "Optimization", or a
 # new agent is trained with prev. optimized parameters = "Training", or an
 # already trained agent is executed = "Execution"
-MODE = 'Training'  # 'Optimization', 'Training', 'Execution'
 
+MODE = "optimization"  # 'optimization', 'training', 'execution'
+# set to run SB3 environment check function
 # Checks if env is a suitable gym environment
 CHECK_ENV = False
 
-# Parameters for modes "Optimization" and "Training"
+# PARAMETERS FOR MODES OPTIMIZATION AND TRAINING
+#####################
+# name of the study if MODE == 'Optimization' or 'Training'
+# the Study name must start with the name of the agent that needs to be one of
+# 'PPO', 'A2C', 'DDPG', 'SAC', 'TD3'
+STUDY = "PPO_2022_08_22_study"  # DDPG_2022_07_27_study 'PPO_2022_08_03_study'
+# evaluations in optimization and checkpoints in training every X episodes
+CHECKPOINT_INTERVAL = 100
+
 EPISODES = 12_000  # max episodes to train for
-CHECKPOINT_INTERVAL = 50  # evaluation interval
-STUDY = 'TD3_2022_08_21_study'  # name of the study to create / load
+# -1 for debug, -2 for debug and no logging, 0 mainly for optimization, 1 mainly for training
+VERBOSE_LEVEL = -1
 
-# Parameters for "Optimization" mode only
+# OPTIMIZATION SPECIAL SETUP
+######################
 DEFAULT_TRIAL = False  # first run a trial with default parameters.
-N_SINGLE_RUN_OPTUNA_TRIALS = 40  # n optuna trials to run in total (including eventual default trial)
-N_CORES_PARALLELL = -1  # max number of cores to use for parallel optimization
-N_PARALLELL_PROCESSES = 7  # max number of optimizations to run in parallel
 MAX_NO_IMPROVEMENT = 2  # maximum number of evaluations without improvement
+# n optuna trials to run in total (including eventual default trial)
+N_SINGLE_RUN_OPTUNA_TRIALS = 2
+# NOTE: memory can be an issue for many parallell processes. Size of neural network and
+# available memory will be limiting factors
+N_CORES_PARALLELL = 2
+N_PARALLELL_PROCESSES = 2
 
-# Parameters for "Training" mode only
-# load best parameters for training from study object or from yaml
-# TODO: do an automatic save of parameters upon completing an optuna-experiment session
-LOAD_PARAMS_FROM_STUDY = True
+# TRAINING SPECIAL SETUP
+######################
+# load best parameters from study object in training. Alternative: load from yaml
+LOAD_PARAMS_FROM_STUDY = False
 
-# Parameters for "Execution" mode only
-EXECUTION_MODEL = "TD3_c4bd1236-3760-488b-8656-0fb008b4b6a3"
-NUM_TEST_EPISODES = 1
+# EXECUTION SPECIAL SETUP
+######################
+EXECUTION_MODEL = "PPO20220817-115856"
+NUM_TEST_EPISODES = 3
 
 ###############################################################################
-# computed/derived variables and instantiations
+# WARNINGS AND ERROR CHECKING INPUT VARIABLES
+###############################################################################
 
-n_c_tot = int(round((CUTTERHEAD_RADIUS - TRACK_SPACING / 2) / TRACK_SPACING, 0)) + 1
-print(f'\ntotal number of cutters: {n_c_tot}\n')
+warnings.filterwarnings("ignore",
+                        category=optuna.exceptions.ExperimentalWarning)
 
-cutter_positions = np.cumsum(np.full((n_c_tot), TRACK_SPACING)) - TRACK_SPACING / 2
+if DEFAULT_TRIAL is True:
+    warnings.warn(
+        "Optimization runs are started with default parameter values"
+    )
+    
+assert N_CORES_PARALLELL >= N_PARALLELL_PROCESSES, "Num cores must be >= num parallell processes."
+if N_PARALLELL_PROCESSES > 1 and (MODE == "training" or MODE == "execution"):
+    warnings.warn("No parallellization in training and execution mode")
+# assert (
+  #  N_PARALLELL_PROCESSES <= N_SINGLE_RUN_OPTUNA_TRIALS
+#), "Num. parallell processes cannot be higher than the number of single trials"
+
+if LOAD_PARAMS_FROM_STUDY is True:
+    assert Path(
+        f"./results/{STUDY}.db"
+    ).exists(), "The study object does not exist"
+    
+if MODE == "optimization" and VERBOSE_LEVEL == 1:
+    warnings.warn("Verbosity level is set to full training mode logging")
+if VERBOSE_LEVEL == -1:
+    warnings.warn("Verbosity set to debugging mode with quick response")
+    # setting setup values for quicker response.
+    # TODO: use instead separat hydrafiles for debug, train, optimize, execute
+    EPISODES = 20
+    CHECKPOINT_INTERVAL = 10
+    MAX_NO_IMPROVEMENT = 1
+###############################################################################
+# COMPUTED/DERIVED VARIABLES AND INSTANTIATIONS
+###############################################################################
+
+n_c_tot = (
+    int(round((CUTTERHEAD_RADIUS - TRACK_SPACING / 2) / TRACK_SPACING, 0)) + 1
+)
+print(f"\ntotal number of cutters: {n_c_tot}\n")
+
+cutter_positions = (
+    np.cumsum(np.full((n_c_tot), TRACK_SPACING)) - TRACK_SPACING / 2
+)
 
 cutter_pathlenghts = cutter_positions * 2 * np.pi  # [m]
 
-env = CustomEnv(n_c_tot, LIFE, MAX_STROKES, STROKE_LENGTH, cutter_pathlenghts,
-                CUTTERHEAD_RADIUS, BROKEN_CUTTERS_THRESH)
+env = CustomEnv(
+    n_c_tot,
+    LIFE,
+    MAX_STROKES,
+    STROKE_LENGTH,
+    cutter_pathlenghts,
+    CUTTERHEAD_RADIUS,
+    BROKEN_CUTTERS_THRESH,
+)
 if CHECK_ENV:
     check_env(env)
 
 agent_name = STUDY.split('_')[0]
 assert agent_name in ["PPO", "A2C", "DDPG", "SAC", "TD3"], f"{agent_name} is not a valid agent."
 
-optim = Optimization(n_c_tot, env, STUDY, EPISODES, CHECKPOINT_INTERVAL,
-                     MAX_STROKES, agent_name, DEFAULT_TRIAL,
+optim = Optimization(n_c_tot, env, STUDY, EPISODES, CHECKPOINT_INTERVAL, MODE,
+                     MAX_STROKES, agent_name, DEFAULT_TRIAL, VERBOSE_LEVEL,
                      MAX_NO_IMPROVEMENT)
+
 hparams = Hyperparameters()
 plotter = Plotter()
 
 ###############################################################################
-# run one of the three modes: Optimization, Training, Execution
+# run one of the three modes: optimization, training, execution
 
-if MODE == 'Optimization':  # study
-    print(f"{N_SINGLE_RUN_OPTUNA_TRIALS * N_PARALLELL_PROCESSES} optuna trials are processed\n")
+
+
+if MODE == "optimization":  # study
+    print(
+        f"{N_SINGLE_RUN_OPTUNA_TRIALS * N_PARALLELL_PROCESSES} optuna trials are processed in {N_PARALLELL_PROCESSES} processes.\n"
+    )
 
     db_path = f"results/{STUDY}.db"
     db_file = f"sqlite:///{db_path}"
-    sampler = optuna.samplers.TPESampler()  # TODO: play around with sampling configs
+    sampler = optuna.samplers.TPESampler()
     study = optuna.create_study(
         direction='maximize', study_name=STUDY, storage=db_file,
         load_if_exists=True, sampler=sampler)

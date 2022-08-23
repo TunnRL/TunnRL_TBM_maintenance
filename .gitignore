@@ -19,3 +19,4 @@ settings.json
 
 # some dev tools
 .flake8
+.vscode

@@ -310,17 +310,16 @@ class Hyperparameters:
         else:
             raise ValueError(f"{algorithm} is not a valid algorithm")
 
-        if raw_params_dict["lr_schedule"] == "linear_decrease":
-            learning_rate = self._linear_schedule(raw_params_dict["learning_rate"])
-        else:
-            learning_rate = raw_params_dict["learning_rate"]
-
         reshaped_dict = {key: val for key, val in raw_params_dict.items() if key not in remove_keys}
+        
+        if raw_params_dict["lr_schedule"] == "linear_decrease":
+            reshaped_dict["learning_rate"] = self._linear_schedule(raw_params_dict["learning_rate"])
+            
         reshaped_dict.update(dict(
-            policy='MlpPolicy',
-            env=env,
-            policy_kwargs=network_description,
-            learning_rate=learning_rate))
+            policy='MlpPolicy', 
+            env=env, 
+            policy_kwargs=network_description))
+
         if algorithm in ['DDPG', 'SAC', 'TD3']:
             reshaped_dict.update(dict(action_noise=action_noise))
 
