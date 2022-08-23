@@ -32,7 +32,8 @@ warnings.filterwarnings(
 
 
 ###############################################################################
-# Constants and fixed variables
+# CONSTANTS AND FIXED VARIABLES
+###############################################################################
 
 # MAIN EXPERIMENT INFO
 ######################
@@ -115,7 +116,8 @@ if VERBOSE_LEVEL == -1:
 CHECK_ENV = False
 
 ###############################################################################
-# computed/derived variables and instantiations
+# COMPUTED/DERIVED VARIABLES AND INSTANTIATIONS
+###############################################################################
 
 n_c_tot = (
     int(round((CUTTERHEAD_RADIUS - TRACK_SPACING / 2) / TRACK_SPACING, 0)) + 1
@@ -166,7 +168,7 @@ hparams = Hyperparameters()
 plotter = Plotter()
 
 ###############################################################################
-# run one of the three modes: Optimization, Training, Execution
+# run one of the three modes: optimization, training, execution
 
 
 if MODE == "optimization":  # study
