@@ -9,6 +9,7 @@ code contributors: Georg H. Erharter, Tom F. Hansen
 """
 
 from pathlib import Path
+from pandas.errors import EmptyDataError
 import matplotlib
 import matplotlib.cm as mplcm
 import matplotlib.gridspec as gridspec
@@ -16,7 +17,7 @@ import matplotlib.pyplot as plt
 import numpy as np
 from os import listdir
 import pandas as pd
-import sklearn
+from sklearn.preprocessing import LabelEncoder
 from mpl_toolkits.axes_grid1 import make_axes_locatable
 
 
@@ -27,6 +28,10 @@ class Plotter:
     def sample_ep_plot(self, states, actions, rewards, ep, savepath,
                        replaced_cutters, moved_cutters):
         '''plot of different recordings of one exemplary episode'''
+
+        replaced_cutters = [len(cutters) for cutters in replaced_cutters]
+        moved_cutters = [len(cutters) for cutters in moved_cutters]
+        strokes = np.arange(len(moved_cutters))
 
         cmap = mplcm.get_cmap('viridis')
 
@@ -41,7 +46,7 @@ class Plotter:
         ax = fig.add_subplot(gs[0, 0])
         for cutter in range(states_arr.shape[1]):
             rgba = cmap(cutter / states_arr.shape[1])
-            ax.plot(np.arange(states_arr.shape[0]), states_arr[:, cutter],
+            ax.plot(strokes, states_arr[:, cutter],
                     color=rgba, label=cutter)
         h_legend, l_legend = ax.get_legend_handles_labels()
         ax.set_xlim(left=-1, right=actions_arr.shape[0]+1)
@@ -59,8 +64,7 @@ class Plotter:
 
         # bar plot that shows how many cutters were moved
         ax = fig.add_subplot(gs[1, 0])
-        ax.bar(x=np.arange(actions_arr.shape[0]),
-               height=moved_cutters, color='grey')
+        ax.bar(x=strokes, height=moved_cutters, color='grey')
         avg_changed = np.mean(moved_cutters)
         ax.axhline(y=avg_changed, color='black')
         ax.text(x=950, y=avg_changed-avg_changed*0.05,
@@ -73,8 +77,7 @@ class Plotter:
 
         # bar plot that shows how many cutters were replaced
         ax = fig.add_subplot(gs[2, 0])
-        ax.bar(x=np.arange(actions_arr.shape[0]),
-               height=replaced_cutters, color='grey')
+        ax.bar(x=strokes, height=replaced_cutters, color='grey')
         avg_changed = np.mean(replaced_cutters)
         ax.axhline(y=avg_changed, color='black')
         ax.text(x=950, y=avg_changed-avg_changed*0.05,
@@ -87,7 +90,7 @@ class Plotter:
 
         # plot that shows the reward per stroke
         ax = fig.add_subplot(gs[3, 0])
-        ax.scatter(x=np.arange(len(rewards)), y=rewards, color='grey', s=1)
+        ax.scatter(x=strokes, y=rewards, color='grey', s=1)
         ax.axhline(y=np.mean(rewards), color='black')
         ax.text(x=950, y=np.mean(rewards)-0.05,
                 s=f'avg. reward / stroke: {round(np.mean(rewards), 2)}',
@@ -102,8 +105,9 @@ class Plotter:
         plt.savefig(savepath)
         plt.close()
 
-    def state_action_plot(self, states, actions, n_strokes: int, n_c_tot: int,
-                          savepath: str):
+    def state_action_plot(self, states: list, actions: list, n_strokes: int,
+                          n_c_tot: int, savepath: str = None,
+                          show: bool = True) -> None:
         '''plot that shows combinations of states and actions for the first
         n_strokes of an episode'''
         fig = plt.figure(figsize=(20, 6))
@@ -128,6 +132,7 @@ class Plotter:
         ax = fig.add_subplot(212)
 
         for stroke in range(n_strokes):
+
             for i in range(n_c_tot):
                 # select cutter from action vector
                 cutter = actions[stroke][i*n_c_tot: i*n_c_tot+n_c_tot]
@@ -158,10 +163,13 @@ class Plotter:
         ax.set_ylabel('actions on\ncutter positions')
 
         plt.tight_layout(h_pad=0)
-        plt.savefig(savepath)
-        plt.close()
+        if savepath is not None:
+            plt.savefig(savepath)
+        if show is False:
+            plt.close()
 
-    def environment_parameter_plot(self, ep, env, savepath):
+    def environment_parameter_plot(self, ep, env, savepath: str = None,
+                                   show: bool = True) -> None:
         '''plot that shows the generated TBM parameters of the episode'''
         x = np.arange(len(env.Jv_s))  # strokes
         # count broken cutters due to blocky conditions
@@ -210,8 +218,10 @@ class Plotter:
         ax6.set_xlim(left=0, right=len(x))
 
         plt.tight_layout()
-        plt.savefig(Path(savepath))
-        plt.close()
+        if savepath is not None:
+            plt.savefig(savepath)
+        if show is False:
+            plt.close()
 
     def trainingprogress_plot(self, df, summed_actions, name):
         '''plot of different metrices of the whole training progress so far'''
@@ -273,7 +283,7 @@ class Plotter:
 
     def custom_parallel_coordinate_plot(self, df_study: pd.DataFrame,
                                         params: list,
-                                        le_activation: sklearn.preprocessing.LabelEncoder,
+                                        le_activation: LabelEncoder,
                                         savepath: str = None,
                                         show: bool = True) -> None:
         '''custom implementation of the plot_parallel_coordinate() function of
@@ -281,6 +291,9 @@ class Plotter:
         https://optuna.readthedocs.io/en/stable/reference/visualization/generated/optuna.visualization.plot_parallel_coordinate.html#optuna.visualization.plot_parallel_coordinate
         '''
         # TODO consider le_noise
+
+        df_study['params_lr_schedule'] = np.where(df_study['params_lr_schedule']=='constant', 0, 1)
+
         fig, ax = plt.subplots(figsize=(18, 9))
 
         mins = df_study[params].min().values
@@ -319,8 +332,14 @@ class Plotter:
                 ax.text(x=x[i], y=-0.01, s=le_activation.classes_[0],
                         horizontalalignment='center', verticalalignment='top')
                 ax.text(x=x[i], y=0.5, s=le_activation.classes_[1],
-                        horizontalalignment='center', verticalalignment='top')
+                        horizontalalignment='right', verticalalignment='top')
                 ax.text(x=x[i], y=1.01, s=le_activation.classes_[2],
+                        horizontalalignment='center',
+                        verticalalignment='bottom')
+            elif params[i] == 'params_lr_schedule':
+                ax.text(x=x[i], y=-0.01, s='constant',
+                        horizontalalignment='center', verticalalignment='top')
+                ax.text(x=x[i], y=1.01, s='linear decrease',
                         horizontalalignment='center',
                         verticalalignment='bottom')
             else:
@@ -348,32 +367,29 @@ class Plotter:
                                          savepath: str = None,
                                          show: bool = True) -> None:
 
-        values_max = []
-        for i, value in enumerate(df_study['value']):
-            if i == 0:
-                values_max.append(value)
-            else:
-                if value > values_max[int(i-1)]:
-                    values_max.append(value)
-                else:
-                    values_max.append(values_max[int(i-1)])
-
         fig, ax = plt.subplots(figsize=(5, 5))
 
         ax.scatter(df_study[df_study['state'] == 'COMPLETE']['number'],
                    df_study[df_study['state'] == 'COMPLETE']['value'],
                    s=30, alpha=0.7, color='grey', edgecolor='black',
-                   label='COMPLETE')
+                   label='COMPLETE', zorder=10)
         ax.scatter(df_study[df_study['state'] == 'FAIL']['number'],
                    np.full(len(df_study[df_study['state'] == 'FAIL']),
                            df_study['value'].min()),
                    s=30, alpha=0.7, color='red', edgecolor='black',
-                   label='FAIL')
-        ax.plot(df_study['number'], values_max, color='black')
+                   label='FAIL', zorder=10)
+        ax.scatter(df_study[df_study['state'] == 'RUNNING']['number'],
+                   np.full(len(df_study[df_study['state'] == 'RUNNING']),
+                           df_study['value'].min()),
+                   s=30, alpha=0.7, color='white', edgecolor='black',
+                   label='RUNNING', zorder=10)
+        ax.plot(df_study['number'], df_study['value'].ffill().cummax(),
+                color='black')
         ax.grid(alpha=0.5)
         ax.set_xlabel('trial number')
         ax.set_ylabel('reward')
         ax.legend()
+
         plt.tight_layout()
         if savepath is not None:
             plt.savefig(savepath)
@@ -381,14 +397,14 @@ class Plotter:
             plt.close()
 
     def custom_slice_plot(self, df_study: pd.DataFrame, params: list,
-                          le_noise: sklearn.preprocessing.LabelEncoder = None,
-                          le_activation: sklearn.preprocessing.LabelEncoder = None,
+                          le_noise: LabelEncoder = None,
+                          le_activation: LabelEncoder = None,
                           savepath: str = None,
                           show: bool = True) -> None:
-        fig = plt.figure(figsize=(18, 9))
+        fig = plt.figure(figsize=(20, 12))
 
         for i, param in enumerate(params):
-            ax = fig.add_subplot(2, 7, i+1)
+            ax = fig.add_subplot(3, 6, i+1)
             ax.scatter(df_study[df_study['state'] == 'COMPLETE'][param],
                        df_study[df_study['state'] == 'COMPLETE']['value'],
                        s=20, color='grey', edgecolor='black', alpha=0.5,
@@ -421,31 +437,76 @@ class Plotter:
             plt.close()
 
     def custom_intermediate_values_plot(self, agent: str, folder: str,
+                                        mode: str = 'rollout',
                                         savepath: str = None,
                                         show: bool = True) -> None:
-        maxs = []
 
-        # plot of the progress of individual runs
+        # only get trials of one agent type
+        trials = [t for t in listdir(folder) if agent in t]
+
         fig, ax = plt.subplots(figsize=(10, 8))
 
-        for trial in listdir(folder):
-            if agent in trial:
+        for trial in trials:
+            try:
                 df_log = pd.read_csv(f'{folder}/{trial}/progress.csv')
-                df_log['episodes'] = df_log['time/total_timesteps'] / df_log['rollout/ep_len_mean']
-                df_log.dropna(axis=0, subset=['time/time_elapsed'],
-                              inplace=True)
-                ax.plot(df_log['episodes'], df_log['rollout/ep_rew_mean'],
-                        alpha=0.5, color='C0')
-                maxs.append(df_log['rollout/ep_rew_mean'].max())
+                if df_log[r'eval/mean_reward'].max() > 800:
+                    print(trial)
+                n_strokes = df_log[r'rollout/ep_len_mean'].median()
+                df_log['episodes'] = df_log[r'time/total_timesteps'] / n_strokes
+
+                if mode == 'rollout':
+                    ax.plot(df_log['episodes'], df_log[r'rollout/ep_rew_mean'],
+                            alpha=0.3, color='black')
+                elif mode == 'eval':
+                    try:
+                        df_log.dropna(axis=0,
+                                      subset=['eval/mean_reward'],
+                                      inplace=True)
+                        ax.plot(df_log['episodes'],
+                                df_log[r'eval/mean_reward'],
+                                alpha=0.3, color='black')
+                    except KeyError:
+                        pass
+            except EmptyDataError:
+                pass
 
         ax.set_title(agent)
 
-        # ax.set_ylim(top=1000, bottom=0)
         ax.grid(alpha=0.5)
         ax.set_xlabel('episodes')
         ax.set_ylabel('reward')
         # ax.set_yscale('log')
-        print(max(maxs))
+
+        plt.tight_layout()
+        if savepath is not None:
+            plt.savefig(savepath)
+        if show is False:
+            plt.close()
+
+    def training_progress_plot(self, df_log: pd.DataFrame,
+                               savepath: str = None,
+                               show: bool = True) -> None:
+        fig, (ax1, ax2) = plt.subplots(nrows=2, ncols=1, figsize=(10, 8))
+        ax1.plot(df_log['episodes'], df_log[r'rollout/ep_rew_mean'],
+                 label=r'rollout/ep_rew_mean')
+        try:
+            ax1.scatter(df_log['episodes'], df_log['eval/mean_reward'],
+                        label=r'eval/mean_reward')
+        except KeyError:
+            pass
+        ax1.legend()
+        ax1.grid(alpha=0.5)
+        ax1.set_ylabel('reward')
+
+        # model specific visualization of loss
+        for column in df_log.columns:
+            if 'train' in column and 'loss' in column:
+                ax2.plot(df_log['episodes'], df_log[column], label=column)
+
+        ax2.legend()
+        ax2.grid(alpha=0.5)
+        ax2.set_xlabel('episodes')
+        ax2.set_ylabel('loss')
 
         plt.tight_layout()
         if savepath is not None:

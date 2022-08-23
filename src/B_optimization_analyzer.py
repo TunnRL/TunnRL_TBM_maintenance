@@ -21,7 +21,7 @@ from XX_plotting import Plotter
 ###############################################################################
 # Constants and fixed variables
 
-STUDY = 'PPO_2022_08_18_study'  # DDPG_2022_07_27_study TD3_2022_07_27_study
+STUDY = 'A2C_2022_08_21_study'
 agent = STUDY.split('_')[0]
 FILETYPE_TO_LOAD = "db"
 
@@ -43,12 +43,14 @@ else:
 
 df_study: pd.DataFrame = study.trials_dataframe()
 
-print(df_study.tail(n=20))
+print(df_study.tail(n=25))
 
 # some cleaning
 if "params_action_noise" in df_study.columns:
     le_noise = LabelEncoder()
     df_study["params_action_noise"] = le_noise.fit_transform(df_study["params_action_noise"])
+else:
+    le_noise = None
 if "params_activation_fn" in df_study.columns:
     le_activation = LabelEncoder()
     df_study["params_activation_fn"] = le_activation.fit_transform(df_study["params_activation_fn"])
@@ -79,6 +81,7 @@ pltr.custom_optimization_history_plot(df_study,
 
 # scatterplot of indivdual hyperparameters vs. reward
 pltr.custom_slice_plot(df_study, params, le_activation=le_activation,
+                       le_noise=le_noise,
                        savepath=f'graphics/{STUDY}_optimization_scatter.svg')
 
 # plot intermediate steps of the training paths
