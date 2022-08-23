@@ -47,15 +47,15 @@ MODE = 'Training'  # 'Optimization', 'Training', 'Execution'
 CHECK_ENV = False
 
 # Parameters for modes "Optimization" and "Training"
-EPISODES = 10_000  # max episodes to train for
+EPISODES = 12_000  # max episodes to train for
 CHECKPOINT_INTERVAL = 50  # evaluation interval
-STUDY = 'SAC_2022_08_21_study'  # name of the study to create / load
+STUDY = 'TD3_2022_08_21_study'  # name of the study to create / load
 
 # Parameters for "Optimization" mode only
 DEFAULT_TRIAL = False  # first run a trial with default parameters.
-N_SINGLE_RUN_OPTUNA_TRIALS = 5  # n optuna trials to run in total (including eventual default trial)
+N_SINGLE_RUN_OPTUNA_TRIALS = 40  # n optuna trials to run in total (including eventual default trial)
 N_CORES_PARALLELL = -1  # max number of cores to use for parallel optimization
-N_PARALLELL_PROCESSES = 3  # max number of optimizations to run in parallel
+N_PARALLELL_PROCESSES = 7  # max number of optimizations to run in parallel
 MAX_NO_IMPROVEMENT = 2  # maximum number of evaluations without improvement
 
 # Parameters for "Training" mode only
@@ -64,7 +64,7 @@ MAX_NO_IMPROVEMENT = 2  # maximum number of evaluations without improvement
 LOAD_PARAMS_FROM_STUDY = True
 
 # Parameters for "Execution" mode only
-EXECUTION_MODEL = "PPO_94f701e8-797d-4834-8462-d76b07436bdf"
+EXECUTION_MODEL = "TD3_c4bd1236-3760-488b-8656-0fb008b4b6a3"
 NUM_TEST_EPISODES = 1
 
 ###############################################################################
@@ -106,15 +106,6 @@ if MODE == 'Optimization':  # study
 
     Parallel(n_jobs=N_CORES_PARALLELL, verbose=10, backend="loky")(
         delayed(optim.optimize)(N_SINGLE_RUN_OPTUNA_TRIALS) for _ in range(N_PARALLELL_PROCESSES))
-
-    # study = optuna.load_study(study_name=STUDY, storage=db_file)
-    # print('Number of finished trials: ', len(study.trials))
-    # print('Best trial:')
-    # trial = study.best_trial
-    # print('  Value: ', trial.value)
-    # print('  Params: ')
-    # for key, value in trial.params.items():
-    #     print(f"    {key}: {value}")
 
 elif MODE == 'Training':
     print(f'New {agent_name} training run with optimized parameters started.')
@@ -178,7 +169,7 @@ elif MODE == 'Execution':
             moved_cutters.append(env.moved_cutters)
             i += 1
 
-        plotter.state_action_plot(states, actions, n_strokes=200,
+        plotter.state_action_plot(states, actions, n_strokes=300,
                                   n_c_tot=n_c_tot, show=False,
                                   savepath=f'checkpoints/_sample/{EXECUTION_MODEL}{test_ep_num}_state_action.svg')
         plotter.environment_parameter_plot(test_ep_num, env, show=False,
