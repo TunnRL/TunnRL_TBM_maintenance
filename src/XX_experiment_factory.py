@@ -23,6 +23,7 @@ import matplotlib.pyplot as plt
 import numpy as np
 import optuna
 import pandas as pd
+import yaml
 from numpy.typing import NDArray
 from optuna.integration.mlflow import MLflowCallback
 from rich.console import Console
@@ -37,9 +38,9 @@ from stable_baselines3.common.callbacks import (
     StopTrainingOnNoModelImprovement,
 )
 from stable_baselines3.common.evaluation import evaluate_policy
-import yaml
 
 from XX_hyperparams import Hyperparameters
+
 
 # from rich.traceback import install
 
