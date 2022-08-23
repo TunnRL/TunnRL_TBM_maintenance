@@ -17,14 +17,12 @@ code contributors: Georg H. Erharter, Tom F. Hansen
 import uuid
 from pprint import pformat
 from typing import Any
+import warnings
 
 import gym
-import matplotlib.pyplot as plt
-import numpy as np
 import optuna
 import pandas as pd
 import yaml
-from numpy.typing import NDArray
 from optuna.integration.mlflow import MLflowCallback
 from rich.console import Console
 from stable_baselines3 import A2C, DDPG, PPO, SAC, TD3
@@ -43,9 +41,8 @@ from XX_hyperparams import Hyperparameters
 from XX_plotting import Plotter
 
 
-# from rich.traceback import install
-
-# install()
+warnings.filterwarnings("ignore",
+                        category=optuna.exceptions.ExperimentalWarning)
 
 
 class PlotTrainingProgressCallback(BaseCallback):
@@ -136,13 +133,14 @@ class Optimization:
         self.DEFAULT_TRIAL = DEFAULT_TRIAL
         self.VERBOSE_LEVEL = VERBOSE_LEVEL
         self.MAX_NO_IMPROVEMENT = MAX_NO_IMPROVEMENT
+        self.MODE = MODE
 
         self.n_actions = n_c_tot * n_c_tot
         # n steps, eg. 1000 steps x 100 checkpoint_interval = every 100 000 steps
         self.checkpoint_frequency = self.MAX_STROKES * self.CHECKPOINT_INTERVAL
         self.hparams = Hyperparameters()
         self.agent_dir: str = ""
-
+       
     def objective(self, trial: optuna.trial.Trial) -> float | list[float]:
         '''Objective function that drives the optimization of parameter values
         for the RL-agent.'''
@@ -215,7 +213,7 @@ class Optimization:
         
         finally:
             print("Saving best parameters to a yaml_file")
-            with open(f"results/{self.STUDY}_best_params_{study.best_value}.yaml", "w") as file:
+            with open(f"results/{self.STUDY}_best_params_{study.best_value: .2f}.yaml", "w") as file:
                 yaml.dump(study.best_params, file)
 
     def train_agent(self, best_parameters: dict) -> None:
@@ -295,7 +293,7 @@ class Optimization:
                 best_model_save_path=f'{self.MODE}/{agent_dir}',
                 log_path=f'{self.MODE}/{agent_dir}',
                 deterministic=False,
-                n_eval_episodes=n_eval_episodes
+                n_eval_episodes=n_eval_episodes,
                 eval_freq=self.checkpoint_frequency,
                 callback_after_eval=stop_train_cb,
                 verbose=1, warn=False)
@@ -317,8 +315,7 @@ class Optimization:
                         check_freq=self.checkpoint_frequency,
                         save_path=f'{main_dir}/{agent_dir}',
                         name_prefix=f'{self.AGENT_NAME}',
-                        MAX_STROKES=self.MAX_STROKES,
-                        AGENT_NAME=self.AGENT_NAME)
+                        MAX_STROKES=self.MAX_STROKES)
                 )
                 if self.MODE == "training":
                     cb_list.append(
@@ -340,6 +337,7 @@ class Optimization:
         
         cb_list = CallbackList(cb_list)
         return cb_list, sb3_logger
+
 
 def load_best_model(agent_name: str, main_dir: str,
                     agent_dir: str) -> BaseAlgorithm:

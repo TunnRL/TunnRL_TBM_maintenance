@@ -10,7 +10,6 @@ Created on Sat Oct 30 12:46:42 2021
 code contributors: Georg H. Erharter, Tom F. Hansen
 """
 
-
 import warnings
 from pathlib import Path
 
@@ -27,12 +26,11 @@ from XX_plotting import Plotter
 from XX_TBM_environment import CustomEnv
 
 
-
 ###############################################################################
 # CONSTANTS AND FIXED VARIABLES
 ###############################################################################
 
-# TBM excavation parameters
+# TBM EXCAVATION PARAMETERS
 ######################
 CUTTERHEAD_RADIUS = 3  # cutterhead radius [m]
 TRACK_SPACING = 0.11  # cutter track spacing [m]
@@ -63,7 +61,7 @@ CHECKPOINT_INTERVAL = 100
 
 EPISODES = 12_000  # max episodes to train for
 # -1 for debug, -2 for debug and no logging, 0 mainly for optimization, 1 mainly for training
-VERBOSE_LEVEL = -1
+VERBOSE_LEVEL = 0
 
 # OPTIMIZATION SPECIAL SETUP
 ######################
@@ -97,28 +95,25 @@ if DEFAULT_TRIAL is True:
     warnings.warn(
         "Optimization runs are started with default parameter values"
     )
-    
+
 assert N_CORES_PARALLELL >= N_PARALLELL_PROCESSES, "Num cores must be >= num parallell processes."
 if N_PARALLELL_PROCESSES > 1 and (MODE == "training" or MODE == "execution"):
     warnings.warn("No parallellization in training and execution mode")
-# assert (
-  #  N_PARALLELL_PROCESSES <= N_SINGLE_RUN_OPTUNA_TRIALS
-#), "Num. parallell processes cannot be higher than the number of single trials"
 
 if LOAD_PARAMS_FROM_STUDY is True:
     assert Path(
         f"./results/{STUDY}.db"
     ).exists(), "The study object does not exist"
-    
+
 if MODE == "optimization" and VERBOSE_LEVEL == 1:
     warnings.warn("Verbosity level is set to full training mode logging")
 if VERBOSE_LEVEL == -1:
     warnings.warn("Verbosity set to debugging mode with quick response")
     # setting setup values for quicker response.
-    # TODO: use instead separat hydrafiles for debug, train, optimize, execute
     EPISODES = 20
     CHECKPOINT_INTERVAL = 10
     MAX_NO_IMPROVEMENT = 1
+    
 ###############################################################################
 # COMPUTED/DERIVED VARIABLES AND INSTANTIATIONS
 ###############################################################################
@@ -159,8 +154,6 @@ plotter = Plotter()
 ###############################################################################
 # run one of the three modes: optimization, training, execution
 
-
-
 if MODE == "optimization":  # study
     print(
         f"{N_SINGLE_RUN_OPTUNA_TRIALS * N_PARALLELL_PROCESSES} optuna trials are processed in {N_PARALLELL_PROCESSES} processes.\n"
@@ -195,7 +188,7 @@ elif MODE == 'Training':
         with open(f"results/algorithm_parameters/{agent_name}.yaml") as file:
             best_params_dict: dict = yaml.safe_load(file)
 
-        best_params_dict["learning_rate"] = hparams.parse_learning_rate(best_params_dict["learning_rate"])    
+        best_params_dict["learning_rate"] = hparams.parse_learning_rate(best_params_dict["learning_rate"])
         best_params_dict["policy_kwargs"] = eval(best_params_dict["policy_kwargs"])
         best_params_dict.update(dict(env=env, n_steps=MAX_STROKES))
 
