@@ -25,6 +25,10 @@ from XX_hyperparams import Hyperparameters
 from XX_plotting import Plotter
 from XX_TBM_environment import CustomEnv
 
+from rich.traceback import install
+
+install()
+
 
 ###############################################################################
 # CONSTANTS AND FIXED VARIABLES
@@ -45,7 +49,7 @@ BROKEN_CUTTERS_THRESH = 0.5  # minimum required % of functional cutters
 # new agent is trained with prev. optimized parameters = "Training", or an
 # already trained agent is executed = "Execution"
 
-MODE = "optimization"  # 'optimization', 'training', 'execution'
+MODE = "training"  # 'optimization', 'training', 'execution'
 # set to run SB3 environment check function
 # Checks if env is a suitable gym environment
 CHECK_ENV = False
@@ -61,7 +65,7 @@ CHECKPOINT_INTERVAL = 100
 
 EPISODES = 12_000  # max episodes to train for
 # -1 for debug, -2 for debug and no logging, 0 mainly for optimization, 1 mainly for training
-VERBOSE_LEVEL = 0
+VERBOSE_LEVEL = 1
 
 # OPTIMIZATION SPECIAL SETUP
 ######################
@@ -169,7 +173,7 @@ if MODE == "optimization":  # study
     Parallel(n_jobs=N_CORES_PARALLELL, verbose=10, backend="loky")(
         delayed(optim.optimize)(N_SINGLE_RUN_OPTUNA_TRIALS) for _ in range(N_PARALLELL_PROCESSES))
 
-elif MODE == 'Training':
+elif MODE == 'training':
     print(f'New {agent_name} training run with optimized parameters started.')
 
     if LOAD_PARAMS_FROM_STUDY is True:
@@ -192,8 +196,7 @@ elif MODE == 'Training':
         best_params_dict["policy_kwargs"] = eval(best_params_dict["policy_kwargs"])
         best_params_dict.update(dict(env=env, n_steps=MAX_STROKES))
 
-    print(f"Parameters used in training: {best_params_dict}")
-    optim.train_agent(agent_name=agent_name, best_parameters=best_params_dict)
+    optim.train_agent(best_parameters=best_params_dict)
 
 elif MODE == 'Execution':
     agent_name = EXECUTION_MODEL.split('_')[0]
@@ -240,3 +243,6 @@ elif MODE == 'Execution':
                                savepath=f'checkpoints/_sample/{EXECUTION_MODEL}{test_ep_num}_sample.svg',
                                replaced_cutters=replaced_cutters,
                                moved_cutters=moved_cutters)
+
+else:
+    raise ValueError(f"{MODE} is not a valid mode")

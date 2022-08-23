@@ -98,10 +98,10 @@ class PrintExperimentInfoCallback(BaseCallback):
         self.checkpoint_interval = checkpoint_interval
 
     def _on_training_start(self) -> None:
-        print(f'\n{self.mode} agent in dir: {self.agent_dir} | Num episodes: {self.n_episodes}')
-        print(f"Evaluation frequency is every {self.checkpoint_interval} episode / {self.checkpoint_interval * 1000} step")
+        console = Console()
+        console.print(f'\n{self.mode} agent in dir: {self.agent_dir} | Num episodes: {self.n_episodes}')
+        console.print(f"Evaluation frequency is every {self.checkpoint_interval} episode / {self.checkpoint_interval * 1000} step")
         if self.verbose > 0:
-            console = Console()
             console.print(f"\nTraining with these parameters: \n{pformat(self.parameters)}\n")
             
     def _on_step(self) -> bool:
@@ -290,8 +290,8 @@ class Optimization:
         cb_list.append(
             EvalCallback(  # saves best model
                 self.environment,
-                best_model_save_path=f'{self.MODE}/{agent_dir}',
-                log_path=f'{self.MODE}/{agent_dir}',
+                best_model_save_path=f'{main_dir}/{agent_dir}',
+                log_path=f'{main_dir}/{agent_dir}',
                 deterministic=False,
                 n_eval_episodes=n_eval_episodes,
                 eval_freq=self.checkpoint_frequency,
