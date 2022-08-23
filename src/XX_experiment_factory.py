@@ -15,6 +15,8 @@ code contributors: Georg H. Erharter, Tom F. Hansen
 """
 
 import uuid
+from pprint import pformat
+from typing import Any
 
 import gym
 import matplotlib.pyplot as plt
@@ -22,6 +24,8 @@ import numpy as np
 import optuna
 import pandas as pd
 from numpy.typing import NDArray
+from optuna.integration.mlflow import MLflowCallback
+from rich.console import Console
 from stable_baselines3 import A2C, DDPG, PPO, SAC, TD3
 from stable_baselines3.common import logger
 from stable_baselines3.common.base_class import BaseAlgorithm
@@ -33,8 +37,13 @@ from stable_baselines3.common.callbacks import (
     StopTrainingOnNoModelImprovement,
 )
 from stable_baselines3.common.evaluation import evaluate_policy
+import yaml
 
 from XX_hyperparams import Hyperparameters
+
+# from rich.traceback import install
+
+# install()
 
 
 class PlotTrainingProgressCallback(BaseCallback):
@@ -100,12 +109,43 @@ class PlotTrainingProgressCallback(BaseCallback):
         return True
 
 
-class PrintExperimentDirCallback:
-    def __init__(self, agent_dir: str):
+class PrintExperimentInfoCallback(BaseCallback):
+    """Callback that prints info when starting a new experiment.
+        - parameters for agent
+        - input to environment
+        - agent name
+        - optimization or checkpoint directory
+        - NOTE: in callback you have access to self. model, env, globals, locals
+    """
+    def __init__(self, 
+                 mode: str, 
+                 agent_dir: str, 
+                 parameters: dict, 
+                 n_episodes: int,
+                 checkpoint_interval: int, 
+                 verbose: int = 0,
+                 ) -> None:
+        super().__init__(verbose=verbose)
+        self.mode = mode
         self.agent_dir = agent_dir
-    
-    def __call__(self, study: optuna.study.Study, trial: optuna.trial.FrozenTrial) -> None:
-        print(f"Experiment info is saved in: {self.agent_dir}")
+        self.parameters = parameters
+        self.verbose = verbose
+        self.n_episodes = n_episodes
+        self.checkpoint_interval = checkpoint_interval
+
+    def _on_training_start(self) -> None:
+        print(f'\n{self.mode} agent in dir: {self.agent_dir} | Num episodes: {self.n_episodes}')
+        print(f"Evaluation frequency is every {self.checkpoint_interval} episode / {self.checkpoint_interval * 1000} step")
+        if self.verbose > 0:
+            console = Console()
+            console.print(f"\nTraining with these parameters: \n{pformat(self.parameters)}\n")
+            
+    def _on_step(self) -> bool:
+        if self.n_calls < 1:
+            # can call self.locals["actions"] to get actions
+            # TODO: try to print the value, not only the scheduler object
+            print("Learning rate: ", self.model.learning_rate)
+            return True
 
 
 class Optimization:
@@ -114,7 +154,8 @@ class Optimization:
 
     def __init__(self, n_c_tot: int, environment: gym.Env, STUDY: str, EPISODES: int,
                  CHECKPOINT_INTERVAL: int, MODE: str, MAX_STROKES: int,
-                 AGENT_NAME: str, DEFAULT_TRIAL: bool) -> None:
+                 AGENT_NAME: str, DEFAULT_TRIAL: bool, VERBOSE_LEVEL: int,
+                 MAX_NO_IMPROVEMENT: int) -> None:
 
         self.n_c_tot = n_c_tot
         self.environment = environment
@@ -125,12 +166,14 @@ class Optimization:
         self.MAX_STROKES = MAX_STROKES
         self.AGENT_NAME = AGENT_NAME
         self.DEFAULT_TRIAL = DEFAULT_TRIAL
+        self.VERBOSE_LEVEL = VERBOSE_LEVEL
+        self.MAX_NO_IMPROVEMENT = MAX_NO_IMPROVEMENT
 
         self.n_actions = n_c_tot * n_c_tot
-        self.freq = self.MAX_STROKES * self.CHECKPOINT_INTERVAL  # checkpoint frequency
-        self.parallell_process_counter: int = 0
-        self.agent_dir: str
+        # n steps, eg. 1000 steps x 100 checkpoint_interval = every 100 000 steps
+        self.checkpoint_frequency = self.MAX_STROKES * self.CHECKPOINT_INTERVAL
         self.hparams = Hyperparameters()
+        self.agent_dir: str = ""
 
     def objective(self, trial: optuna.trial.Trial) -> float | list[float]:
         '''Objective function that drives the optimization of parameter values for the 
@@ -144,7 +187,98 @@ class Optimization:
                 trial, self.AGENT_NAME, self.environment,
                 steps_episode=self.MAX_STROKES, num_actions=self.n_actions)
 
-        match self.AGENT_NAME:
+        agent = self._setup_agent(self.AGENT_NAME, parameters)
+
+        self.agent_dir = f'{self.AGENT_NAME}_{uuid.uuid4()}'
+        callbacks, new_logger = self._setup_callbacks_and_logger(
+            self.VERBOSE_LEVEL, parameters)
+        
+        if new_logger is not None:
+            agent.set_logger(new_logger)
+        agent.learn(total_timesteps=self.EPISODES * self.MAX_STROKES,
+                    callback=callbacks)
+        del agent
+
+        print('Load agent and evaluate on 10 last episodes...')
+        agent = load_best_model(
+            self.AGENT_NAME, main_dir="optimization", agent_dir=self.agent_dir)
+
+        mean_ep_reward = evaluate_policy(agent, self.environment,
+                                         n_eval_episodes=10,
+                                         deterministic=False,
+                                         warn=False)[0]
+        final_reward = mean_ep_reward  # objective's reward
+        print(f"Agent in dir: {self.agent_dir} has a reward of: {mean_ep_reward}\n")
+        return final_reward
+    
+    def optimize(self, n_trials: int) -> None:
+        """Optimize-function to be called in parallell process.
+        
+        Saves parameter-values and corresponding reward to mlflow.
+        Start mlflow GUI by calling from optimization-dir:
+        >>>mlflow ui
+
+        Args:
+            n_trials (int): Number of trials in each parallell process.
+        """
+        cb_mlflow = MLflowCallback(
+            tracking_uri=f"./optimization/{self.AGENT_NAME}/mlruns", metric_name="reward")
+        db_path = f"results/{self.STUDY}.db"
+        db_file = f"sqlite:///{db_path}"
+        study = optuna.load_study(study_name=self.STUDY, storage=db_file)
+        
+        try:
+            study.optimize(
+                self.objective,
+                n_trials=n_trials,
+                catch=(ValueError,),
+                callbacks=[cb_mlflow]
+            )
+            
+        except KeyboardInterrupt:
+            print('Number of finished trials: ', len(study.trials))
+            print('Best trial:')
+            trial = study.best_trial
+            print('  Value: ', trial.value)
+            print('  Params: ')
+            for key, value in trial.params.items():
+                print(f"    {key}: {value}")
+        
+        finally:
+            print("Saving best parameters to a yaml_file")
+            with open(f"results/{self.STUDY}_best_params_{study.best_value}.yaml", "w") as file:
+                yaml.dump(study.best_params, file)
+
+    def train_agent(self, best_parameters: dict) -> None:
+        """Train agent with best parameters from an optimization study."""
+
+        agent = self._setup_agent(self.AGENT_NAME, best_parameters)
+        
+        # TODO implement callback that logs also environmental training
+        # TODO parameters (broken cutters, n changes per ep etc.)
+        
+        self.agent_dir = f'{self.AGENT_NAME}_{uuid.uuid4()}'
+        callbacks, new_logger = self._setup_callbacks_and_logger(
+            self.VERBOSE_LEVEL, best_parameters
+        )
+        
+        if new_logger is not None:
+            agent.set_logger(new_logger)
+
+        agent.learn(total_timesteps=self.EPISODES * self.MAX_STROKES,
+                    callback=callbacks)
+        
+    def _setup_agent(self, agent_name: str, parameters: dict) -> BaseAlgorithm:
+        """Instantiating and returning an SB3 agent.
+
+        Args:
+            agent_name (str): algorithm name (PPO, DDPG etc.)
+            parameters (dict): input parameters to algorithm
+
+        Returns:
+            BaseAlgorithm: instantiated SB3 agent
+        """
+        match agent_name:
             case "PPO":
                 agent = PPO(**parameters)
             case "SAC":
@@ -157,125 +291,89 @@ class Optimization:
                 agent = TD3(**parameters)
             case _:
                 raise NotImplementedError(f"{self.AGENT_NAME} not implemented")
+        return agent
+        
+    def _setup_callbacks_and_logger(self,
+                                    verbose_level: int,
+                                    parameters: dict) -> tuple[list, Any]:
+        """Defining callbacks and logger used in training and optimizing an RL agent.
 
-        agent_dir = f'{self.AGENT_NAME}_{uuid.uuid4()}'
-        self.agent_dir = agent_dir
-        new_logger = logger.configure(f'optimization/{agent_dir}', ["csv"])
-
-        print(f'\nOptimizing agent in dir: {agent_dir}. Agent: {self.AGENT_NAME} | Num episodes: {self.EPISODES}')
-        print(f"\nTraining with these parameters: \n {parameters}\n")
-        # train agent with early stopping and save best agents only
-        stop_train_cb = StopTrainingOnNoModelImprovement(max_no_improvement_evals=1,
-                                                         min_evals=1,
-                                                         verbose=1)
-        eval_cb = EvalCallback(self.environment,
-                               best_model_save_path=f'optimization/{agent_dir}',
-                               log_path=f'optimization/{agent_dir}',
-                               deterministic=False,
-                               n_eval_episodes=3,
-                               eval_freq=self.freq,
-                               callback_after_eval=stop_train_cb,
-                               verbose=0, warn=False)
-        custom_callback = PlotTrainingProgressCallback(check_freq=self.freq,
-                                         save_path=f'optimization/{agent_dir}',
-                                         name_prefix=f'{self.AGENT_NAME}',
-                                         MAX_STROKES=self.MAX_STROKES,
-                                         AGENT_NAME=self.AGENT_NAME)
-        callback = CallbackList([eval_cb, custom_callback])
-
-        agent.set_logger(new_logger)
-        agent.learn(total_timesteps=self.EPISODES * self.MAX_STROKES,
-                    callback=callback)
-        del agent
-
-        print('Load agent and evaluate on 10 last episodes...')
-        agent = load_best_model(
-            self.AGENT_NAME, main_dir="optimization", agent_dir=agent_dir)
-
-        mean_ep_reward = evaluate_policy(agent, self.environment,
-                                         n_eval_episodes=10,
-                                         deterministic=False,
-                                         warn=False)[0]
-        final_reward = mean_ep_reward  # objective's reward
-        print(f"Agent in dir: {agent_dir} has a reward of: {mean_ep_reward}\n")
-        return final_reward
-    
-    def optimize(self, n_trials: int) -> None:
-        """Optimize-function to be called in parallell process.
+        Different setups for different training modes.
 
         Args:
-            n_trials (int): Number of trials in each parallell process.
+            mode (str): training or optimization
+            verbosity_level (int): setting the information level for logging
+            parameters (dict): parameters for agent in experiment
+
+        Returns:
+            tuple[list, Any, str]: callbacklist, SB3-logger
         """
-        cb_print_agent_dir = PrintExperimentDirCallback("test")
-        db_path = f"results/{self.STUDY}.db"
-        db_file = f"sqlite:///{db_path}"
-        study = optuna.load_study(study_name=self.STUDY, storage=db_file)
+        agent_dir = self.agent_dir
+        main_dir = ("optimization" if self.MODE == "optimization" else "checkpoints")
+        max_no_improvement_evals = (self.MAX_NO_IMPROVEMENT if self.MODE == "optimizing" else 5)
         
-        try:
-            study.optimize(self.objective,
-                        n_trials=n_trials,
-                        catch=(ValueError,),
-                        callbacks=[cb_print_agent_dir]
-                        )
+        cb_list = []
+        sb3_logger = None  # for debugging, ie. don't make dir etc.
+        # callback values
+        
+        # callbacks for all verbose levels
+        stop_train_cb = StopTrainingOnNoModelImprovement(  # kicked off by EvalCallback
+            max_no_improvement_evals=max_no_improvement_evals,
+            min_evals=1,
+            verbose=1)
             
-        except KeyboardInterrupt: #TODO: check how to interrupt the proper way
-            print('Number of finished trials: ', len(study.trials))
-            print('Best trial:')
-            trial = study.best_trial
-            print('  Value: ', trial.value)
-            print('  Params: ')
-            for key, value in trial.params.items():
-                print(f"    {key}: {value}")
-
-    def train_agent(self, agent_name: str, best_parameters: dict) -> None:
-        """Train agent with best parameters from an optimization study."""
+        cb_list.append(
+            EvalCallback(  # saves best model
+                self.environment,
+                best_model_save_path=f'{self.MODE}/{agent_dir}',
+                log_path=f'{self.MODE}/{agent_dir}',
+                deterministic=False,
+                n_eval_episodes=3,  # TODO: 10 for training?
+                eval_freq=self.checkpoint_frequency,
+                callback_after_eval=stop_train_cb,
+                verbose=1, warn=False)
+        )
+        cb_list.append(
+            PrintExperimentInfoCallback(
+                self.MODE, agent_dir, parameters, self.EPISODES, self.CHECKPOINT_INTERVAL, verbose_level)
+        )
         
-        agent_dir = f'{self.AGENT_NAME}_{uuid.uuid4()}'
-        best_parameters.update(dict(tensorboard_log=f"optimization/{agent_dir}"))
-        print(f"Checkpoint dir: {agent_dir}")
-
-        match agent_name:
-            case "PPO":
-                agent = PPO(**best_parameters)
-            case "SAC":
-                agent = SAC(**best_parameters)
-            case "A2C":
-                agent = A2C(**best_parameters)
-            case "DDPG":
-                agent = DDPG(**best_parameters)
-            case "TD3":
-                agent = TD3(**best_parameters)
+        # verbosity vs logger and callbacks
+        match verbose_level:
+            case 0:
+                sb3_logger = logger.configure(f'{main_dir}/{agent_dir}', ["csv"])
+                
+            case 1 | -1:
+                sb3_logger = logger.configure(f'{main_dir}/{agent_dir}', ["csv", "tensorboard"])
+                cb_list.append(
+                    PlotTrainingProgressCallback(
+                        check_freq=self.checkpoint_frequency,
+                        save_path=f'{main_dir}/{agent_dir}',
+                        name_prefix=f'{self.AGENT_NAME}',
+                        MAX_STROKES=self.MAX_STROKES,
+                        AGENT_NAME=self.AGENT_NAME)
+                )
+                if self.MODE == "training":
+                    cb_list.append(
+                        CheckpointCallback(  # save model every checkpoint interval
+                            save_freq=self.checkpoint_frequency,
+                            save_path=f'checkpoints/{agent_dir}',
+                            name_prefix=f'{self.AGENT_NAME}',
+                            verbose=1)
+                    )               
+            case -2:
+                cb_list = []
+                cb_list.append(
+                    PrintExperimentInfoCallback(
+                        self.MODE, agent_dir, parameters, self.EPISODES, self.CHECKPOINT_INTERVAL, verbose_level)
+                )
+                print("debugging: no progresslogging, no evaluation, no checkpoints")
             case _:
-                raise NotImplementedError()
+                raise ValueError("not a valid verbosity_level")
+        
+        cb_list = CallbackList(cb_list)
+        return cb_list, sb3_logger
 
-        new_logger = logger.configure(f'checkpoints/{agent_dir}', ["csv"])
-        # mode that trains an agent based on previous OPTUNA study
-        checkpoint_callback = CheckpointCallback(save_freq=self.freq,
-                                                 save_path=f'checkpoints/{agent_dir}',
-                                                 name_prefix=f'{self.AGENT_NAME}',
-                                                 verbose=1)
-        custom_callback = PlotTrainingProgressCallback(check_freq=self.freq,
-                                         save_path=f'checkpoints/{agent_dir}',
-                                         name_prefix=f'{self.AGENT_NAME}',
-                                         MAX_STROKES=self.MAX_STROKES,
-                                         AGENT_NAME=self.AGENT_NAME)
-        eval_cb = EvalCallback(self.environment,
-                               best_model_save_path=f'checkpoints/{agent_dir}',
-                               log_path='checkpoints',
-                               deterministic=False,
-                               n_eval_episodes=10,
-                               eval_freq=self.freq,
-                               verbose=1, warn=False)
-
-        # Create the callback list
-        callback = CallbackList([checkpoint_callback, eval_cb,
-                                 custom_callback])
-        # TODO implement callback that logs also environmental training
-        # TODO parameters (broken cutters, n changes per ep etc.)
-        agent.set_logger(new_logger)
-        agent.learn(total_timesteps=self.EPISODES * self.MAX_STROKES,
-                    callback=callback)
-    
 
 def load_best_model(agent_name: str, main_dir: str, agent_dir: str) -> BaseAlgorithm:
     """Load best model from a directory.

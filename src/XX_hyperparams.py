@@ -207,10 +207,10 @@ class Hyperparameters:
         return network_description
 
     def _define_activation_fn(self, activation_fn_name: str): 
-            """Returns a pytorch activation function used on the final fully connected
-            layer output."""
-            functions = {"tanh": nn.Tanh, "relu": nn.ReLU, "leaky_relu": nn.LeakyReLU}
-            return functions[activation_fn_name]
+        """Returns a pytorch activation function used on the final fully connected
+        layer output."""
+        functions = {"tanh": nn.Tanh, "relu": nn.ReLU, "leaky_relu": nn.LeakyReLU}
+        return functions[activation_fn_name]
 
     def _yield_action_noise(self, action_noise: str,
                             n_actions: int) -> NDArray:
@@ -285,15 +285,15 @@ class Hyperparameters:
         else:
             raise ValueError(f"{algorithm} is not a valid algorithm")
 
-        if raw_params_dict["lr_schedule"] == "linear_decrease":
-            learning_rate = self._linear_schedule(raw_params_dict["learning_rate"])
-
         reshaped_dict = {key: val for key, val in raw_params_dict.items() if key not in remove_keys}
+        
+        if raw_params_dict["lr_schedule"] == "linear_decrease":
+            reshaped_dict["learning_rate"] = self._linear_schedule(raw_params_dict["learning_rate"])
+            
         reshaped_dict.update(dict(
             policy='MlpPolicy', 
             env=env, 
-            policy_kwargs=network_description,
-            learning_rate=learning_rate))
+            policy_kwargs=network_description))
 
         return reshaped_dict
     
