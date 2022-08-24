@@ -125,7 +125,7 @@ class Plotter:
 
         ax.grid(which='minor', color='black', linestyle='-', linewidth=1)
         ax.set_xlim(left=-1, right=n_strokes)
-        ax.set_ylim(bottom=-0.5, top=n_c_tot-0.5)
+        ax.set_ylim(bottom=-0.5, top=n_c_tot - 0.5)
         ax.set_yticks
         ax.set_ylabel('cutter states on\ncutter positions')
 
@@ -256,7 +256,7 @@ class Plotter:
         ax3.set_xlabel('episodes')
 
         plt.tight_layout()
-        plt.savefig(Path(f'checkpoints/{name}_progress.svg'))
+        plt.savefig(f'checkpoints/{name}_progress.svg')
         plt.close()
 
     def action_visualization(self, action, n_c_tot, savepath=None,

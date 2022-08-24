@@ -29,15 +29,27 @@ class Hyperparameters:
                                 environment: gym.Env,
                                 steps_episode: int,
                                 num_actions: int) -> dict:
-        """Hyperparameter suggestions for optuna optimization of a chosen
-        RL-architecture.
+        """Hyperparameter suggestions for optuna optimization of a chosen RL-architecture.
+
         Each lookup of algorithm returns a dictionary of parameters for that
         algorithm.
 
         NOTE: Every suggest-function called will add a parameter to the
         trial-object and will be returned from trial.best_params
-        """
 
+        Args:
+            trial (optuna.trial.Trial): optuna trial object
+            algorithm (str): Stable Baselines3 RL algorithm, PPO, DDPG etc.
+            environment (gym.Env): RL environment
+            steps_episode (int): number of steps (TBM strokes) in each episode
+            num_actions (int): number of actions, ie. replacing and moving cutters
+
+        Raises:
+            ValueError: not implemented RL algorithm
+
+        Returns:
+            dict: dictionary of suggested hyperparameters for tuning in Optuna study
+        """
         # suggesting different network architectures
         num_not_shared_layers = trial.suggest_int("n_not_shared_layers", low=1, high=8, step=1)
         num_nodes_not_shared_layer = trial.suggest_categorical("n_nodes_layer", [8, 16, 32, 64, 128, 256, 512, 1024])
@@ -163,15 +175,13 @@ class Hyperparameters:
             case _:
                 raise ValueError(f"{algorithm} is not implemented. These algorithms are implemented: PPO, DDPG, TD3, A2C, SAC")
 
-        # print(f"Training agent with these parameters:\n {params}")
-
         return params
 
     def _define_policy_network(self, algorithm: str = "PPO",
                                num_not_shared_layers: int = 2,
                                num_nodes_layer: int = 64,
                                num_shared_layers: int = 0,
-                               num_nodes_shared_layer: int = 0) -> list:
+                               num_nodes_shared_layer: int = 0) -> list | dict:
         """Setting up a policy network.
 
         Concretely as an input to policy_kwargs{net_arch:<dict>} in the
@@ -190,18 +200,20 @@ class Hyperparameters:
         More info about architecure here: https://github.com/DLR-RM/stable-baselines3/blob/646d6d38b6ba9aac612d4431176493a465ac4758/stable_baselines3/common/policies.py#L379
         And here: https://github.com/DLR-RM/stable-baselines3/blob/646d6d38b6ba9aac612d4431176493a465ac4758/stable_baselines3/common/torch_layers.py#L136
 
+        # TODO in some of the SB3 examples the actor and the critic have different sizes -> should we also do that?
+
         Returns:
-            List: network description
+            List | dict: network description. List for on-policy, dict for off-policy
         """
-        assert algorithm in ["PPO", "A2C", "DDPG", "TD3", "SAC"], f"{algorithm} is not a valid algorithm"
+        policy_network = []
+        value_network = []
 
         if algorithm in ["PPO", "A2C"]:
             network_description = []
+
             for _ in range(num_shared_layers):
                 network_description.append(num_nodes_shared_layer)
 
-            policy_network = []
-            value_network = []
             for _ in range(num_not_shared_layers):
                 policy_network.append(num_nodes_layer)
                 value_network.append(num_nodes_layer)
@@ -209,19 +221,26 @@ class Hyperparameters:
             network_description.append(dict(pi=policy_network, vf=value_network))
 
         elif algorithm in ["DDPG", "TD3", "SAC"]:
-            # TODO in some of the SB3 examples the actor and the critic have different sizes -> should we also do that?
-            policy_network = []
-            value_network = []
             for _ in range(num_not_shared_layers):
                 policy_network.append(num_nodes_layer)
                 value_network.append(num_nodes_layer)
+
             network_description = dict(pi=policy_network, qf=value_network)
+        else:
+            raise ValueError(f"{algorithm} is not a valid algorithm")
 
         return network_description
 
-    def _define_activation_fn(self, activation_fn_name: str):
+    def _define_activation_fn(self, activation_fn_name: str) -> nn.Module:
         """Returns a pytorch activation function used on the final fully
-        connected layer output."""
+        connected layer output.
+
+        Args:
+            activation_fn_name (str): name of Pytorch activation function, eg. tanh, relu
+
+        Returns:
+            nn.Module: Pytorch activation function
+        """
         functions = {"tanh": nn.Tanh, "relu": nn.ReLU,
                      "leaky_relu": nn.LeakyReLU}
         return functions[activation_fn_name]
@@ -251,7 +270,7 @@ class Hyperparameters:
                 noise = None
         return noise
 
-    def _linear_schedule(self, initial_value: float | str) -> Callable[[float], float]:
+    def _linear_schedule(self, initial_value: float) -> Callable[[float], float]:
         """Linear learning rate scheduler.
 
         Args:
@@ -263,8 +282,10 @@ class Hyperparameters:
             """ Progress will decrease from 1 (beginning) to 0.
             Decreases for every epoch.
 
-            :param progress_remaining: (float)
-            :return: (float)
+            Args:
+                param progress_remaining: (float)
+            Returns:
+                (float)
             """
             return progress_remaining * initial_value
 
@@ -311,13 +332,13 @@ class Hyperparameters:
             raise ValueError(f"{algorithm} is not a valid algorithm")
 
         reshaped_dict = {key: val for key, val in raw_params_dict.items() if key not in remove_keys}
-        
+
         if raw_params_dict["lr_schedule"] == "linear_decrease":
             reshaped_dict["learning_rate"] = self._linear_schedule(raw_params_dict["learning_rate"])
-            
+
         reshaped_dict.update(dict(
-            policy='MlpPolicy', 
-            env=env, 
+            policy='MlpPolicy',
+            env=env,
             policy_kwargs=network_description))
 
         if algorithm in ['DDPG', 'SAC', 'TD3']:

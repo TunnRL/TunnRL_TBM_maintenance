@@ -15,9 +15,9 @@ code contributors: Georg H. Erharter, Tom F. Hansen
 """
 
 import uuid
+import warnings
 from pprint import pformat
 from typing import Any
-import warnings
 
 import gym
 import optuna
@@ -81,12 +81,12 @@ class PrintExperimentInfoCallback(BaseCallback):
         - optimization or checkpoint directory
         - NOTE: in callback you have access to self. model, env, globals, locals
     """
-    def __init__(self, 
-                 mode: str, 
-                 agent_dir: str, 
-                 parameters: dict, 
+    def __init__(self,
+                 mode: str,
+                 agent_dir: str,
+                 parameters: dict,
                  n_episodes: int,
-                 checkpoint_interval: int, 
+                 checkpoint_interval: int,
                  verbose: int = 0,
                  ) -> None:
         super().__init__(verbose=verbose)
@@ -103,7 +103,7 @@ class PrintExperimentInfoCallback(BaseCallback):
         console.print(f"Evaluation frequency is every {self.checkpoint_interval} episode / {self.checkpoint_interval * 1000} step")
         if self.verbose > 0:
             console.print(f"\nTraining with these parameters: \n{pformat(self.parameters)}\n")
-            
+
     def _on_step(self) -> bool:
         if self.n_calls < 1:
             # can call self.locals["actions"] to get actions
@@ -116,12 +116,25 @@ class Optimization:
     """Functionality to train (optimize the reward of an agent)
     and hyperparameter tuning of agent parameters using Optuna."""
 
-
     def __init__(self, n_c_tot: int, environment: gym.Env, STUDY: str, EPISODES: int,
                  CHECKPOINT_INTERVAL: int, MODE: str, MAX_STROKES: int,
                  AGENT_NAME: str, DEFAULT_TRIAL: bool, VERBOSE_LEVEL: int,
-
                  MAX_NO_IMPROVEMENT: int) -> None:
+        """Initialize the Optimization object.
+
+        Args:
+            n_c_tot (int): Number of cutters
+            environment (gym.Env): TBM environment with state, actions, reward
+            STUDY (str): Optuna study object
+            EPISODES (int): Number of RL episodes in the optimization
+            CHECKPOINT_INTERVAL (int): Frequency of evaluations in episodes
+            MODE (str): the process mode of the optimization: training, optimization
+            MAX_STROKES (int): Number of TBM strokes (steps) in each episode
+            AGENT_NAME (str): name of RL algorithm, eg. PPO, DDPG ...
+            DEFAULT_TRIAL (bool): If an optimization first should run with default params
+            VERBOSE_LEVEL (int): Directing how much information that is logged and presented
+            MAX_NO_IMPROVEMENT (int): How many episodes without improvement of reward
+        """
 
         self.n_c_tot = n_c_tot
         self.environment = environment
@@ -140,10 +153,10 @@ class Optimization:
         self.checkpoint_frequency = self.MAX_STROKES * self.CHECKPOINT_INTERVAL
         self.hparams = Hyperparameters()
         self.agent_dir: str = ""
-       
+
     def objective(self, trial: optuna.trial.Trial) -> float | list[float]:
-        '''Objective function that drives the optimization of parameter values
-        for the RL-agent.'''
+        """Objective function that drives the optimization of parameter values
+        for the RL-agent."""
 
         if self.DEFAULT_TRIAL:
             parameters = {"policy": "MlpPolicy", "env": self.environment}
@@ -158,7 +171,7 @@ class Optimization:
         self.agent_dir = f'{self.AGENT_NAME}_{uuid.uuid4()}'
         callbacks, new_logger = self._setup_callbacks_and_logger(
             self.VERBOSE_LEVEL, parameters)
-        
+
         if new_logger is not None:
             agent.set_logger(new_logger)
 
@@ -180,13 +193,16 @@ class Optimization:
 
     def optimize(self, n_trials: int) -> None:
         """Optimize-function to be called in parallell process.
-        
+
         Saves parameter-values and corresponding reward to mlflow.
         Start mlflow GUI by calling from optimization-dir:
         >>>mlflow ui
 
         Args:
             n_trials (int): Number of trials in each parallell process.
+
+        Returns:
+            None
         """
         cb_mlflow = MLflowCallback(
             tracking_uri=f"./optimization/{self.AGENT_NAME}/mlruns", metric_name="reward")
@@ -201,7 +217,7 @@ class Optimization:
                 catch=(ValueError,),
                 callbacks=[cb_mlflow]
             )
-            
+
         except KeyboardInterrupt:
             print('Number of finished trials: ', len(study.trials))
             print('Best trial:')
@@ -210,8 +226,8 @@ class Optimization:
             print('  Params: ')
             for key, value in trial.params.items():
                 print(f"    {key}: {value}")
-        
-        finally:
+
+        finally:  # this will always be run
             print("Saving best parameters to a yaml_file")
             with open(f"results/{self.STUDY}_best_params_{study.best_value: .2f}.yaml", "w") as file:
                 yaml.dump(study.best_params, file)
@@ -220,18 +236,18 @@ class Optimization:
         """Train agent with best parameters from an optimization study."""
 
         agent = self._setup_agent(self.AGENT_NAME, best_parameters)
-        
+
         self.agent_dir = f'{self.AGENT_NAME}_{uuid.uuid4()}'
         callbacks, new_logger = self._setup_callbacks_and_logger(
             self.VERBOSE_LEVEL, best_parameters
         )
-        
+
         if new_logger is not None:
             agent.set_logger(new_logger)
 
         agent.learn(total_timesteps=self.EPISODES * self.MAX_STROKES,
                     callback=callbacks)
-        
+
     def _setup_agent(self, agent_name: str, parameters: dict) -> BaseAlgorithm:
         """Instantiating and returning an SB3 agent.
 
@@ -256,7 +272,7 @@ class Optimization:
             case _:
                 raise NotImplementedError(f"{self.AGENT_NAME} not implemented")
         return agent
-        
+
     def _setup_callbacks_and_logger(self,
                                     verbose_level: int,
                                     parameters: dict) -> tuple[list, Any]:
@@ -276,17 +292,17 @@ class Optimization:
         main_dir = ("optimization" if self.MODE == "optimization" else "checkpoints")
         max_no_improvement_evals = (self.MAX_NO_IMPROVEMENT if self.MODE == "optimizing" else 5)
         n_eval_episodes = (3 if self.MODE == "optimization" else 10)
-        
+
         cb_list = []
         sb3_logger = None  # for debugging, ie. don't make dir etc.
         # callback values
-        
+
         # callbacks for all modes
         stop_train_cb = StopTrainingOnNoModelImprovement(  # kicked off by EvalCallback
             max_no_improvement_evals=max_no_improvement_evals,
             min_evals=1,
             verbose=1)
-            
+
         cb_list.append(
             EvalCallback(  # saves best model
                 self.environment,
@@ -302,12 +318,12 @@ class Optimization:
             PrintExperimentInfoCallback(
                 self.MODE, agent_dir, parameters, self.EPISODES, self.CHECKPOINT_INTERVAL, verbose_level)
         )
-        
+
         # verbosity vs logger and callbacks
         match verbose_level:
             case 0:
                 sb3_logger = logger.configure(f'{main_dir}/{agent_dir}', ["csv"])
-                
+
             case 1 | -1:
                 sb3_logger = logger.configure(f'{main_dir}/{agent_dir}', ["csv", "tensorboard"])
                 cb_list.append(
@@ -324,7 +340,7 @@ class Optimization:
                             save_path=f'checkpoints/{agent_dir}',
                             name_prefix=f'{self.AGENT_NAME}',
                             verbose=1)
-                    )               
+                    )
             case -2:
                 cb_list = []
                 cb_list.append(
@@ -334,7 +350,7 @@ class Optimization:
                 print("debugging: no progresslogging, no evaluation, no checkpoints")
             case _:
                 raise ValueError("not a valid verbosity_level")
-        
+
         cb_list = CallbackList(cb_list)
         return cb_list, sb3_logger
 
@@ -345,11 +361,13 @@ def load_best_model(agent_name: str, main_dir: str,
 
     Args:
         agent_name (str): name of RL-architecture (PPO, DDPG ...)
-    """
-    if agent_name == "DDP":
-        agent_name = "DDPG"
+        main_dir (str): main directory for loading, eg. optimization or checkpoints
+        agent_dir (str): name of agent directory in main dir
 
-    path = f'{main_dir}/{agent_dir}/best_model.zip'
+    Returns:
+        Instantiated RL-object
+    """
+    path = f'{main_dir}/{agent_dir}/best_model'
 
     if agent_name == 'PPO':
         agent = PPO.load(path)

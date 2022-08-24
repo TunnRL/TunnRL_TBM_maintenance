@@ -49,7 +49,7 @@ BROKEN_CUTTERS_THRESH = 0.5  # minimum required % of functional cutters
 # new agent is trained with prev. optimized parameters = "Training", or an
 # already trained agent is executed = "Execution"
 
-MODE = "training"  # 'optimization', 'training', 'execution'
+MODE = "execution"  # 'optimization', 'training', 'execution'
 # set to run SB3 environment check function
 # Checks if env is a suitable gym environment
 CHECK_ENV = False
@@ -59,7 +59,7 @@ CHECK_ENV = False
 # name of the study if MODE == 'Optimization' or 'Training'
 # the Study name must start with the name of the agent that needs to be one of
 # 'PPO', 'A2C', 'DDPG', 'SAC', 'TD3'
-STUDY = "PPO_2022_08_22_study"  # DDPG_2022_07_27_study 'PPO_2022_08_03_study'
+STUDY = "TD3_2022_08_24_study"  # DDPG_2022_07_27_study 'PPO_2022_08_03_study'
 # evaluations in optimization and checkpoints in training every X episodes
 CHECKPOINT_INTERVAL = 100
 
@@ -75,17 +75,17 @@ MAX_NO_IMPROVEMENT = 2  # maximum number of evaluations without improvement
 N_SINGLE_RUN_OPTUNA_TRIALS = 2
 # NOTE: memory can be an issue for many parallell processes. Size of neural network and
 # available memory will be limiting factors
-N_CORES_PARALLELL = 2
-N_PARALLELL_PROCESSES = 2
+N_CORES_PARALLELL = -1
+N_PARALLELL_PROCESSES = 3
 
 # TRAINING SPECIAL SETUP
 ######################
 # load best parameters from study object in training. Alternative: load from yaml
-LOAD_PARAMS_FROM_STUDY = False
+LOAD_PARAMS_FROM_STUDY = True
 
 # EXECUTION SPECIAL SETUP
 ######################
-EXECUTION_MODEL = "PPO20220817-115856"
+EXECUTION_MODEL = "DDPG_a3536e69-a501-421d-b6d6-51f152554660"
 NUM_TEST_EPISODES = 3
 
 ###############################################################################
@@ -100,14 +100,19 @@ if DEFAULT_TRIAL is True:
         "Optimization runs are started with default parameter values"
     )
 
-assert N_CORES_PARALLELL >= N_PARALLELL_PROCESSES, "Num cores must be >= num parallell processes."
+assert N_CORES_PARALLELL >= N_PARALLELL_PROCESSES or N_CORES_PARALLELL == -1, "Num cores must be >= num parallell processes."
 if N_PARALLELL_PROCESSES > 1 and (MODE == "training" or MODE == "execution"):
     warnings.warn("No parallellization in training and execution mode")
 
-if LOAD_PARAMS_FROM_STUDY is True:
+if LOAD_PARAMS_FROM_STUDY is True and MODE == "training":
     assert Path(
         f"./results/{STUDY}.db"
     ).exists(), "The study object does not exist"
+
+if LOAD_PARAMS_FROM_STUDY is False and MODE == "training":
+    assert Path(
+        f'results/algorithm_parameters/{STUDY.split("_")[0]}.yaml'
+        ).exists(), "a yaml file with pararameter does not exist."
 
 if MODE == "optimization" and VERBOSE_LEVEL == 1:
     warnings.warn("Verbosity level is set to full training mode logging")
@@ -117,7 +122,9 @@ if VERBOSE_LEVEL == -1:
     EPISODES = 20
     CHECKPOINT_INTERVAL = 10
     MAX_NO_IMPROVEMENT = 1
-    
+if VERBOSE_LEVEL == -2:
+    warnings.warn("Verbosity set to debugging with no logging or datasaving")
+
 ###############################################################################
 # COMPUTED/DERIVED VARIABLES AND INSTANTIATIONS
 ###############################################################################
@@ -198,9 +205,9 @@ elif MODE == 'training':
 
     optim.train_agent(best_parameters=best_params_dict)
 
-elif MODE == 'Execution':
+elif MODE == 'execution':
     agent_name = EXECUTION_MODEL.split('_')[0]
-    agent = load_best_model(agent_name, main_dir="optimization",
+    agent = load_best_model(agent_name, main_dir="checkpoints",
                             agent_dir=EXECUTION_MODEL)
 
     # test agent throughout multiple episodes
@@ -219,7 +226,7 @@ elif MODE == 'Execution':
         # one episode loop
         i = 0
         while not terminal:
-            # print(f"Stroke (step) num: {i}")
+            print(f"Stroke (step) num: {i}")
             # collect number of broken cutters in curr. state
             broken_cutters.append(len(np.where(state == 0)[0]))
             # agent takes an action -> tells which cutters to replace

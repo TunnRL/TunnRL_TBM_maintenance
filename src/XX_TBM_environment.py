@@ -19,12 +19,11 @@ from numpy.typing import NDArray
 
 
 class Maintenance:
-    '''class that contains functions that describe the maintenance effort of
+    """class that contains functions that describe the maintenance effort of
     changing cutters on a TBM's cutterhead. Based on this the reward is
-    computed'''
+    computed"""
 
-    def __init__(self, n_c_tot: int, broken_cutters_thresh: float):
-
+    def __init__(self, n_c_tot: int, broken_cutters_thresh: float) -> None:
         """Setup
 
         Args:
@@ -48,6 +47,14 @@ class Maintenance:
         """Reward function. Drives the agent learning process.
 
         Handle the replacing and moving of cutters.
+
+        Args:
+            replaced_cutters (list): list of replaced cutters
+            moved_cutters (list): list of moved cutters
+            good_cutters (int): list of good cutters
+
+        Returns:
+            float: _description_
         """
         # if good_cutters < self.n_c_tot * 0.5:
         #     r = 0
@@ -62,7 +69,7 @@ class Maintenance:
         # r = max(0, r)
 
         # compute distance between acted on cutters -> encourage series change
-        acted_on_cutters = sorted(replaced_cutters+moved_cutters)
+        acted_on_cutters = sorted(replaced_cutters + moved_cutters)
         dist_cutters = np.sum(np.diff(acted_on_cutters))
 
         if good_cutters < self.n_c_tot * self.broken_cutters_thresh:
@@ -79,7 +86,7 @@ class Maintenance:
             ratio1 = good_cutters / self.n_c_tot
             ratio2 = (np.sum(np.take(weighted_cutters, replaced_cutters)) / np.sum(weighted_cutters)) * self.alpha
             ratio3 = (np.sum(np.take(weighted_cutters, moved_cutters)) / np.sum(weighted_cutters)) * self.beta
-            ratio4 = ((dist_cutters+1) / self.n_c_tot) * self.gamma
+            ratio4 = ((dist_cutters + 1) / self.n_c_tot) * self.gamma
             change_penalty = self.t_i * self.delta
             r = ratio1 - ratio2 - ratio3 - ratio4 - change_penalty
 
@@ -200,7 +207,7 @@ class CustomEnv(gym.Env):
 
         return np.array(x[1:])
 
-    def generate(self, Jv_low: int = 0, Jv_high: int = 22, 
+    def generate(self, Jv_low: int = 0, Jv_high: int = 22,
                  UCS_center: int = 80, UCS_range: int = 30) -> tuple:
         '''Function generates TBM recordings for one episode. Equations and
         models based on Delisio & Zhao (2014) - "A new model for TBM
@@ -243,12 +250,12 @@ class CustomEnv(gym.Env):
                     brokens[stroke, :][selection] = 1
 
         # eq 13, Delisio & Zhao (2014)
-        TF_s = np.squeeze((-523 * np.log(Jv_s) + 2312) * (self.R*2))  # [kN]
+        TF_s = np.squeeze((-523 * np.log(Jv_s) + 2312) * (self.R * 2))  # [kN]
         TF_s = np.where(TF_s > 20_000, 20_000, TF_s)
 
         # eq 7, Delisio & Zhao (2014)
         # TF_s already considers shield friction
-        penetration = (TF_s / (self.R*2)) / FPIblocky_s  # [mm/rot]
+        penetration = (TF_s / (self.R * 2)) / FPIblocky_s  # [mm/rot]
 
         return Jv_s, UCS_s, FPIblocky_s, brokens, TF_s, penetration
 
@@ -289,7 +296,7 @@ if __name__ == "__main__":
         moved_cutters = np.sort(np.random.choice(np.delete(cutters, replaced_cutters),
                                                  n_move, replace=False))
 
-        good_cutters = np.random.randint(n_repl+n_move, n_c_tot)
+        good_cutters = np.random.randint(n_repl + n_move, n_c_tot)
         # print(n_repl, n_move, good_cutters)
 
         r = m.reward(list(replaced_cutters), list(moved_cutters), good_cutters)
