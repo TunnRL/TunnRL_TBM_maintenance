@@ -15,6 +15,7 @@ from pathlib import Path
 
 from joblib import Parallel, delayed
 import numpy as np
+from numpy.typing import NDArray
 import optuna
 from stable_baselines3.common.env_checker import check_env
 import torch.nn as nn  # used in evaluation of yaml file
@@ -49,7 +50,7 @@ BROKEN_CUTTERS_THRESH = 0.5  # minimum required % of functional cutters
 # new agent is trained with prev. optimized parameters = "Training", or an
 # already trained agent is executed = "Execution"
 
-MODE = "execution"  # 'optimization', 'training', 'execution'
+MODE = "optimization"  # 'optimization', 'training', 'execution'
 # set to run SB3 environment check function
 # Checks if env is a suitable gym environment
 CHECK_ENV = False
@@ -59,29 +60,30 @@ CHECK_ENV = False
 # name of the study if MODE == 'Optimization' or 'Training'
 # the Study name must start with the name of the agent that needs to be one of
 # 'PPO', 'A2C', 'DDPG', 'SAC', 'TD3'
-STUDY = "TD3_2022_08_24_study"  # DDPG_2022_07_27_study 'PPO_2022_08_03_study'
+STUDY = "PPO_2022_08_26_study"  # DDPG_2022_07_27_study 'PPO_2022_08_03_study'
 # evaluations in optimization and checkpoints in training every X episodes
 CHECKPOINT_INTERVAL = 100
 
 EPISODES = 12_000  # max episodes to train for
-# -1 for debug, -2 for debug and no logging, 0 mainly for optimization, 1 mainly for training
-VERBOSE_LEVEL = 1
+# -1 for speed debug and full logging, -2 for debug and no logging, 
+# 0 mainly for optimization, 1 mainly for training
+VERBOSE_LEVEL = 0
 
 # OPTIMIZATION SPECIAL SETUP
 ######################
 DEFAULT_TRIAL = False  # first run a trial with default parameters.
 MAX_NO_IMPROVEMENT = 2  # maximum number of evaluations without improvement
 # n optuna trials to run in total (including eventual default trial)
-N_SINGLE_RUN_OPTUNA_TRIALS = 2
+N_SINGLE_RUN_OPTUNA_TRIALS = 3
 # NOTE: memory can be an issue for many parallell processes. Size of neural network and
 # available memory will be limiting factors
 N_CORES_PARALLELL = -1
-N_PARALLELL_PROCESSES = 3
+N_PARALLELL_PROCESSES = 2
 
 # TRAINING SPECIAL SETUP
 ######################
 # load best parameters from study object in training. Alternative: load from yaml
-LOAD_PARAMS_FROM_STUDY = True
+LOAD_PARAMS_FROM_STUDY = False
 
 # EXECUTION SPECIAL SETUP
 ######################
@@ -216,8 +218,8 @@ elif MODE == 'execution':
         state = env.reset()  # reset new environment
         terminal = False  # reset terminal flag
 
-        actions = []  # collect actions per episode
-        states = [state]  # collect states per episode
+        actions: list[NDArray] = []  # collect actions per episode
+        states: list[NDArray] = [state]  # collect states per episode
         rewards = []  # collect rewards per episode
         broken_cutters = []  # collect number of broken cutters per stroke
         replaced_cutters = []  # collect n of replaced cutters per stroke
@@ -240,7 +242,7 @@ elif MODE == 'execution':
             replaced_cutters.append(env.replaced_cutters)
             moved_cutters.append(env.moved_cutters)
             i += 1
-
+        
         plotter.state_action_plot(states, actions, n_strokes=300,
                                   n_c_tot=n_c_tot, show=False,
                                   savepath=f'checkpoints/_sample/{EXECUTION_MODEL}{test_ep_num}_state_action.svg')

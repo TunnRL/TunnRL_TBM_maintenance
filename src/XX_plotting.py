@@ -486,27 +486,37 @@ class Plotter:
     def training_progress_plot(self, df_log: pd.DataFrame,
                                savepath: str = None,
                                show: bool = True) -> None:
-        fig, (ax1, ax2) = plt.subplots(nrows=2, ncols=1, figsize=(10, 8))
+        fig, (ax1, ax2, ax3) = plt.subplots(nrows=3, ncols=1, figsize=(10, 12))
         ax1.plot(df_log['episodes'], df_log[r'rollout/ep_rew_mean'],
                  label=r'rollout/ep_rew_mean')
         try:
             ax1.scatter(df_log['episodes'], df_log['eval/mean_reward'],
                         label=r'eval/mean_reward')
-        except KeyError:
+        except KeyError:  # TODO: keyerror? Should be to raise an Exception?
             pass
         ax1.legend()
         ax1.grid(alpha=0.5)
         ax1.set_ylabel('reward')
 
+        # plotting environment statistics
+        for logged_var in ["avg_replaced_cutters", "avg_moved_cutters",
+                           "avg_broken_cutters", "var_cutter_locations", "avg_penetration"]:
+            ax2.plot(df_log["episodes"], df_log[logged_var], 
+                     label=logged_var)
+        
+        ax2.legend()
+        ax2.grid(alpha=0.5)
+        ax2.set_ylabel("count")
+
         # model specific visualization of loss
         for column in df_log.columns:
             if 'train' in column and 'loss' in column:
-                ax2.plot(df_log['episodes'], df_log[column], label=column)
+                ax3.plot(df_log['episodes'], df_log[column], label=column)
 
-        ax2.legend()
-        ax2.grid(alpha=0.5)
-        ax2.set_xlabel('episodes')
-        ax2.set_ylabel('loss')
+        ax3.legend()
+        ax3.grid(alpha=0.5)
+        ax3.set_xlabel('episodes')
+        ax3.set_ylabel('loss')
 
         plt.tight_layout()
         if savepath is not None:

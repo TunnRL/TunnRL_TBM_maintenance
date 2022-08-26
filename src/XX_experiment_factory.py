@@ -14,12 +14,14 @@ Created on Sat Oct 30 12:57:51 2021
 code contributors: Georg H. Erharter, Tom F. Hansen
 """
 
+from itertools import chain
 import uuid
 import warnings
 from pprint import pformat
 from typing import Any
 
 import gym
+import numpy as np
 import optuna
 import pandas as pd
 import yaml
@@ -50,27 +52,91 @@ class PlotTrainingProgressCallback(BaseCallback):
     progress'''
 
     def __init__(self, check_freq: int, save_path: str, name_prefix: str,
-                 MAX_STROKES: int, verbose: int = 0) -> None:
+                 MAX_STROKES: int, MODE: str, verbose: int = 0) -> None:
         super(PlotTrainingProgressCallback, self).__init__(verbose)
 
         self.check_freq = check_freq  # checking frequency in [steps]
         self.save_path = save_path  # folder to save the plot to
         self.name_prefix = name_prefix  # name prefix for the plot
         self.MAX_STROKES = MAX_STROKES
+        self.MODE = MODE
+
+        # accounting during training
+        self.avg_penetration_episode: list = []
+        self.broken_cutters_episode: list = []
+        self.avg_broken_cutters_episode: list = []
+        self.moved_cutters_episode: list = []
+        self.avg_moved_cutters_episode: list = []
+        self.replaced_cutters_episode: list[int] = []
+        self.avg_replaced_cutters_episode: list[float] = []
+        self.var_replaced_cutters_episode: list[float] = []
+        self.cutter_locations_replaced: list = []
 
         self.pltr = Plotter()
 
     def _on_step(self) -> bool:
-        if self.n_calls % self.check_freq == 0:
+        # TODO: check out a potential row-shift-error due to nan from eval round
+        # returning a list of the cutter numbers replaced in each stroke
+        self.cutter_locations_replaced += self.training_env.get_attr("replaced_cutters")
+        self.replaced_cutters_episode.append(len(self.training_env.get_attr("replaced_cutters")[0]))
+        self.moved_cutters_episode.append(len(self.training_env.get_attr("moved_cutters")[0]))
+        self.broken_cutters_episode.append(len(self.training_env.get_attr("broken_cutters")[0]))
 
+        if self.n_calls % self.MAX_STROKES == 0:  # for every episode
+            avg_replaced_cutters = np.mean(self.replaced_cutters_episode)
+            var_replaced_cutters = np.var(list(chain(*self.cutter_locations_replaced)))
+            # We want the variance of the cutter number to be changed to be big,
+            # thereby replaced cutters all over the cutterhead
+            
+            self.cutter_locations_replaced = list(chain(*self.cutter_locations_replaced))
+            self.var_replaced_cutters_episode.append(var_replaced_cutters)
+            self.avg_replaced_cutters_episode.append(avg_replaced_cutters)
+            self.replaced_cutters_episode = []
+            self.cutter_locations_replaced = []
+
+            avg_moved_cutters = np.mean(self.moved_cutters_episode)
+            self.avg_moved_cutters_episode.append(avg_moved_cutters)
+            self.moved_cutters_episode = []
+
+            avg_broken_cutters = np.mean(self.broken_cutters_episode)
+            self.avg_broken_cutters_episode.append(avg_broken_cutters)
+            self.broken_cutters_episode = []
+            
+            avg_penetration = np.mean(self.training_env.get_attr("penetration")[0])
+            self.avg_penetration_episode.append(avg_penetration)
+
+            if self.MODE == "training" and self.n_calls % (self.MAX_STROKES * 10) == 0:
+                print(f"Avg. #episode. Replaced: {avg_replaced_cutters} | Moved: {avg_moved_cutters} | Broken: {avg_broken_cutters} | Var. replaced: {var_replaced_cutters}")
+
+        if self.n_calls % self.check_freq == 0:
+            # TODO: make a separate dataframe to merge
+            # TODO: save new progress.csv for every checkpoint num, ie remove from _on_training_end
             df_log = pd.read_csv(f'{self.save_path}/progress.csv')
+            rows_new = len(self.avg_replaced_cutters_episode)
+            df_log = df_log.iloc[:rows_new]  # to ensure the same row length
+            
             df_log['episodes'] = df_log[r'time/total_timesteps'] / self.MAX_STROKES
+            df_log['avg_replaced_cutters'] = self.avg_replaced_cutters_episode
+            df_log["var_cutter_locations"] = self.var_replaced_cutters_episode
+            df_log['avg_moved_cutters'] = self.avg_moved_cutters_episode
+            df_log['avg_broken_cutters'] = self.avg_broken_cutters_episode
+            df_log['avg_penetration'] = self.avg_penetration_episode
 
             self.pltr.training_progress_plot(df_log,
                                              savepath=f'{self.save_path}/{self.name_prefix}_training.svg',
                                              show=False)
-
         return True
+
+    def _on_training_end(self) -> None:
+        df_log = pd.read_csv(f'{self.save_path}/progress.csv')
+        rows_new = len(self.avg_replaced_cutters_episode)
+        df_log = df_log.iloc[:rows_new]  # to ensure the same row length
+        df_log['avg_replaced_cutters'] = self.avg_replaced_cutters_episode
+        df_log["var_cutter_locations"] = self.var_replaced_cutters_episode
+        df_log['avg_moved_cutters'] = self.avg_moved_cutters_episode
+        df_log['avg_broken_cutters'] = self.avg_broken_cutters_episode
+        df_log['avg_penetration'] = self.avg_penetration_episode
+        df_log.to_csv(f'{self.save_path}/progress.csv')
 
 
 class PrintExperimentInfoCallback(BaseCallback):
@@ -229,8 +295,8 @@ class Optimization:
 
         finally:  # this will always be run
             print("Saving best parameters to a yaml_file")
-            with open(f"results/{self.STUDY}_best_params_{study.best_value: .2f}.yaml", "w") as file:
-                yaml.dump(study.best_params, file)
+            # with open(f"results/{self.STUDY}_best_params_{study.best_value: .2f}.yaml", "w") as file:
+            yaml.dump(study.best_params, f"results/{self.STUDY}_best_params_{study.best_value: .2f}.yaml")
 
     def train_agent(self, best_parameters: dict) -> None:
         """Train agent with best parameters from an optimization study."""
@@ -331,7 +397,8 @@ class Optimization:
                         check_freq=self.checkpoint_frequency,
                         save_path=f'{main_dir}/{agent_dir}',
                         name_prefix=f'{self.AGENT_NAME}',
-                        MAX_STROKES=self.MAX_STROKES)
+                        MAX_STROKES=self.MAX_STROKES,
+                        MODE=self.MODE)
                 )
                 if self.MODE == "training":
                     cb_list.append(

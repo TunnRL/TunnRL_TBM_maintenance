@@ -51,7 +51,8 @@ class Maintenance:
         Args:
             replaced_cutters (list): list of replaced cutters
             moved_cutters (list): list of moved cutters
-            good_cutters (int): list of good cutters
+            good_cutters (int): number of good cutters, ie. cutters with life over 
+                                broken cutter threshold
 
         Returns:
             float: _description_
@@ -137,6 +138,7 @@ class CustomEnv(gym.Env):
         self.epoch: int
         self.replaced_cutters: list
         self.moved_cutters: list
+        self.good_cutters: NDArray
         self.penetration: NDArray
 
     def step(self, actions: NDArray) -> tuple[NDArray, float, bool, dict]:
@@ -148,9 +150,11 @@ class CustomEnv(gym.Env):
         self.state = self._implement_action(actions, self.state)
 
         # compute reward
-        good_cutters = len(np.where(self.state > 0)[0])
+        self.broken_cutters = np.where(self.state == 0)[0] # for statistics
+        self.good_cutters = np.where(self.state > 0)[0]
+        n_good_cutters = len(self.good_cutters)
         reward = self.m.reward(self.replaced_cutters, self.moved_cutters,
-                               good_cutters)
+                               n_good_cutters)
 
         # update cutter life based on how much wear occurs
         p = self.penetration[self.epoch] / 1000  # [m/rot]
@@ -177,7 +181,7 @@ class CustomEnv(gym.Env):
 
         for i in range(self.n_c_tot):
             cutter = action[i * self.n_c_tot: i * self.n_c_tot + self.n_c_tot]
-            if np.max(cutter) < 0.9:
+            if np.max(cutter) < 0.9:  # TODO: explain this value
                 # cutter is not acted on
                 pass
             elif np.argmax(cutter) == i:
