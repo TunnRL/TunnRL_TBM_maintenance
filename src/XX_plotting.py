@@ -449,8 +449,8 @@ class Plotter:
         for trial in trials:
             try:
                 df_log = pd.read_csv(f'{folder}/{trial}/progress.csv')
-                if df_log[r'eval/mean_reward'].max() > 800:
-                    print(trial)
+                # if df_log[r'eval/mean_reward'].max() > 800:
+                #     print(trial)
                 n_strokes = df_log[r'rollout/ep_len_mean'].median()
                 df_log['episodes'] = df_log[r'time/total_timesteps'] / n_strokes
 
@@ -484,6 +484,7 @@ class Plotter:
             plt.close()
 
     def training_progress_plot(self, df_log: pd.DataFrame,
+                               df_env_log: pd.DataFrame,
                                savepath: str = None,
                                show: bool = True) -> None:
         fig, (ax1, ax2, ax3) = plt.subplots(nrows=3, ncols=1, figsize=(10, 12))
@@ -500,10 +501,10 @@ class Plotter:
 
         # plotting environment statistics
         for logged_var in ["avg_replaced_cutters", "avg_moved_cutters",
-                           "avg_broken_cutters", "var_cutter_locations", "avg_penetration"]:
-            ax2.plot(df_log["episodes"], df_log[logged_var], 
+                           "avg_broken_cutters"]:  # , "var_cutter_locations"]:
+            ax2.plot(df_env_log["episodes"], df_env_log[logged_var],
                      label=logged_var)
-        
+
         ax2.legend()
         ax2.grid(alpha=0.5)
         ax2.set_ylabel("count")

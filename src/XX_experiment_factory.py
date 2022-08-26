@@ -67,29 +67,29 @@ class PlotTrainingProgressCallback(BaseCallback):
         self.replaced_cutters_episode: list[int] = []
         self.avg_replaced_cutters_episode: list[float] = []
         self.var_replaced_cutters_episode: list[float] = []
-        self.cutter_locations_replaced: list = []
+        # self.cutter_locations_replaced: list = []
 
         self.pltr = Plotter()
 
     def _on_step(self) -> bool:
         # TODO: check out a potential row-shift-error due to nan from eval round
         # returning a list of the cutter numbers replaced in each stroke
-        self.cutter_locations_replaced += self.training_env.get_attr("replaced_cutters")
+        # self.cutter_locations_replaced += self.training_env.get_attr("replaced_cutters")
         self.replaced_cutters_episode.append(len(self.training_env.get_attr("replaced_cutters")[0]))
         self.moved_cutters_episode.append(len(self.training_env.get_attr("moved_cutters")[0]))
         self.broken_cutters_episode.append(len(self.training_env.get_attr("broken_cutters")[0]))
 
         if self.n_calls % self.MAX_STROKES == 0:  # for every episode
             avg_replaced_cutters = np.mean(self.replaced_cutters_episode)
-            var_replaced_cutters = np.var(list(chain(*self.cutter_locations_replaced)))
+            # var_replaced_cutters = np.nanvar(list(chain(*self.cutter_locations_replaced)))
             # We want the variance of the cutter number to be changed to be big,
             # thereby replaced cutters all over the cutterhead
 
-            self.cutter_locations_replaced = list(chain(*self.cutter_locations_replaced))
-            self.var_replaced_cutters_episode.append(var_replaced_cutters)
+            # self.cutter_locations_replaced = list(chain(*self.cutter_locations_replaced))
+            # self.var_replaced_cutters_episode.append(var_replaced_cutters)
             self.avg_replaced_cutters_episode.append(avg_replaced_cutters)
             self.replaced_cutters_episode = []
-            self.cutter_locations_replaced = []
+            # self.cutter_locations_replaced = []
 
             avg_moved_cutters = np.mean(self.moved_cutters_episode)
             self.avg_moved_cutters_episode.append(avg_moved_cutters)
@@ -106,34 +106,23 @@ class PlotTrainingProgressCallback(BaseCallback):
                 print(f"Avg. #episode. Replaced: {avg_replaced_cutters} | Moved: {avg_moved_cutters} | Broken: {avg_broken_cutters} | Var. replaced: {var_replaced_cutters}")
 
         if self.n_calls % self.check_freq == 0:
-            # TODO: make a separate dataframe to merge
-            # TODO: save new progress.csv for every checkpoint num, ie remove from _on_training_end
             df_log = pd.read_csv(f'{self.save_path}/progress.csv')
             rows_new = len(self.avg_replaced_cutters_episode)
-            df_log = df_log.iloc[:rows_new]  # to ensure the same row length
+
+            df_env_log = pd.DataFrame({'episodes': np.arange(rows_new),
+                                       'avg_replaced_cutters': self.avg_replaced_cutters_episode,
+                                       # 'var_cutter_locations': self.var_replaced_cutters_episode,
+                                       'avg_moved_cutters': self.avg_moved_cutters_episode,
+                                       'avg_broken_cutters': self.avg_broken_cutters_episode,
+                                       'avg_penetration': self.avg_penetration_episode})
+            df_env_log.to_csv(f'{self.save_path}/progress_env.csv')
 
             df_log['episodes'] = df_log[r'time/total_timesteps'] / self.MAX_STROKES
-            df_log['avg_replaced_cutters'] = self.avg_replaced_cutters_episode
-            df_log["var_cutter_locations"] = self.var_replaced_cutters_episode
-            df_log['avg_moved_cutters'] = self.avg_moved_cutters_episode
-            df_log['avg_broken_cutters'] = self.avg_broken_cutters_episode
-            df_log['avg_penetration'] = self.avg_penetration_episode
 
-            self.pltr.training_progress_plot(df_log,
+            self.pltr.training_progress_plot(df_log, df_env_log,
                                              savepath=f'{self.save_path}/{self.name_prefix}_training.svg',
                                              show=False)
         return True
-
-    def _on_training_end(self) -> None:
-        df_log = pd.read_csv(f'{self.save_path}/progress.csv')
-        rows_new = len(self.avg_replaced_cutters_episode)
-        df_log = df_log.iloc[:rows_new]  # to ensure the same row length
-        df_log['avg_replaced_cutters'] = self.avg_replaced_cutters_episode
-        df_log["var_cutter_locations"] = self.var_replaced_cutters_episode
-        df_log['avg_moved_cutters'] = self.avg_moved_cutters_episode
-        df_log['avg_broken_cutters'] = self.avg_broken_cutters_episode
-        df_log['avg_penetration'] = self.avg_penetration_episode
-        df_log.to_csv(f'{self.save_path}/progress.csv')
 
 
 class PrintExperimentInfoCallback(BaseCallback):
@@ -142,8 +131,10 @@ class PrintExperimentInfoCallback(BaseCallback):
         - input to environment
         - agent name
         - optimization or checkpoint directory
-        - NOTE: in callback you have access to self. model, env, globals, locals
+        - NOTE: in callback you have access to self. model, env, globals,
+            locals
     """
+
     def __init__(self,
                  mode: str,
                  agent_dir: str,
