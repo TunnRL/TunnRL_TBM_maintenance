@@ -374,7 +374,7 @@ class Optimization:
             cb_list.append(
                 EvalCallback(  # saves best model
                     self.environment,
-                    best_model_save_path=f'checkpoints"/{agent_dir}',
+                    best_model_save_path=f'checkpoints/{agent_dir}',
                     log_path=f'checkpoints/{agent_dir}',
                     deterministic=False,
                     n_eval_episodes=10,
