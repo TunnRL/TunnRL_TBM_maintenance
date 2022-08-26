@@ -17,7 +17,6 @@ code contributors: Georg H. Erharter, Tom F. Hansen
 from itertools import chain
 import uuid
 import warnings
-from pprint import pformat
 from typing import Any
 
 import gym
@@ -25,8 +24,6 @@ import numpy as np
 import optuna
 import pandas as pd
 import yaml
-from optuna.integration.mlflow import MLflowCallback
-from rich.console import Console
 from stable_baselines3 import A2C, DDPG, PPO, SAC, TD3
 from stable_baselines3.common import logger
 from stable_baselines3.common.base_class import BaseAlgorithm
@@ -87,7 +84,7 @@ class PlotTrainingProgressCallback(BaseCallback):
             var_replaced_cutters = np.var(list(chain(*self.cutter_locations_replaced)))
             # We want the variance of the cutter number to be changed to be big,
             # thereby replaced cutters all over the cutterhead
-            
+
             self.cutter_locations_replaced = list(chain(*self.cutter_locations_replaced))
             self.var_replaced_cutters_episode.append(var_replaced_cutters)
             self.avg_replaced_cutters_episode.append(avg_replaced_cutters)
@@ -101,7 +98,7 @@ class PlotTrainingProgressCallback(BaseCallback):
             avg_broken_cutters = np.mean(self.broken_cutters_episode)
             self.avg_broken_cutters_episode.append(avg_broken_cutters)
             self.broken_cutters_episode = []
-            
+
             avg_penetration = np.mean(self.training_env.get_attr("penetration")[0])
             self.avg_penetration_episode.append(avg_penetration)
 
@@ -114,7 +111,7 @@ class PlotTrainingProgressCallback(BaseCallback):
             df_log = pd.read_csv(f'{self.save_path}/progress.csv')
             rows_new = len(self.avg_replaced_cutters_episode)
             df_log = df_log.iloc[:rows_new]  # to ensure the same row length
-            
+
             df_log['episodes'] = df_log[r'time/total_timesteps'] / self.MAX_STROKES
             df_log['avg_replaced_cutters'] = self.avg_replaced_cutters_episode
             df_log["var_cutter_locations"] = self.var_replaced_cutters_episode
@@ -159,23 +156,16 @@ class PrintExperimentInfoCallback(BaseCallback):
         self.mode = mode
         self.agent_dir = agent_dir
         self.parameters = parameters
-        self.verbose = verbose
         self.n_episodes = n_episodes
         self.checkpoint_interval = checkpoint_interval
 
     def _on_training_start(self) -> None:
-        console = Console()
-        console.print(f'\n{self.mode} agent in dir: {self.agent_dir} | Num episodes: {self.n_episodes}')
-        console.print(f"Evaluation frequency is every {self.checkpoint_interval} episode / {self.checkpoint_interval * 1000} step")
-        if self.verbose > 0:
-            console.print(f"\nTraining with these parameters: \n{pformat(self.parameters)}\n")
+        print(f'\n{self.mode} agent in dir: {self.agent_dir} | Num episodes: {self.n_episodes}')
+        print(f"Evaluation frequency is every {self.checkpoint_interval} episode / {self.checkpoint_interval * 1000} step")
+        print(f"\nTraining with these parameters: \n{self.parameters}\n")
 
     def _on_step(self) -> bool:
-        if self.n_calls < 1:
-            # can call self.locals["actions"] to get actions
-            # TODO: try to print the value, not only the scheduler object
-            print("Learning rate: ", self.model.learning_rate)
-            return True
+        return super()._on_step()
 
 
 class Optimization:
@@ -184,7 +174,7 @@ class Optimization:
 
     def __init__(self, n_c_tot: int, environment: gym.Env, STUDY: str, EPISODES: int,
                  CHECKPOINT_INTERVAL: int, MODE: str, MAX_STROKES: int,
-                 AGENT_NAME: str, DEFAULT_TRIAL: bool, VERBOSE_LEVEL: int,
+                 AGENT_NAME: str, DEFAULT_TRIAL: bool,
                  MAX_NO_IMPROVEMENT: int) -> None:
         """Initialize the Optimization object.
 
@@ -210,7 +200,6 @@ class Optimization:
         self.MAX_STROKES = MAX_STROKES
         self.AGENT_NAME = AGENT_NAME
         self.DEFAULT_TRIAL = DEFAULT_TRIAL
-        self.VERBOSE_LEVEL = VERBOSE_LEVEL
         self.MAX_NO_IMPROVEMENT = MAX_NO_IMPROVEMENT
         self.MODE = MODE
 
@@ -235,8 +224,7 @@ class Optimization:
         agent = self._setup_agent(self.AGENT_NAME, parameters)
 
         self.agent_dir = f'{self.AGENT_NAME}_{uuid.uuid4()}'
-        callbacks, new_logger = self._setup_callbacks_and_logger(
-            self.VERBOSE_LEVEL, parameters)
+        callbacks, new_logger = self._setup_callbacks_and_logger(parameters)
 
         if new_logger is not None:
             agent.set_logger(new_logger)
@@ -270,8 +258,6 @@ class Optimization:
         Returns:
             None
         """
-        cb_mlflow = MLflowCallback(
-            tracking_uri=f"./optimization/{self.AGENT_NAME}/mlruns", metric_name="reward")
         db_path = f"results/{self.STUDY}.db"
         db_file = f"sqlite:///{db_path}"
         study = optuna.load_study(study_name=self.STUDY, storage=db_file)
@@ -280,18 +266,10 @@ class Optimization:
             study.optimize(
                 self.objective,
                 n_trials=n_trials,
-                catch=(ValueError,),
-                callbacks=[cb_mlflow]
+                catch=(ValueError,)
             )
-
         except KeyboardInterrupt:
-            print('Number of finished trials: ', len(study.trials))
-            print('Best trial:')
-            trial = study.best_trial
-            print('  Value: ', trial.value)
-            print('  Params: ')
-            for key, value in trial.params.items():
-                print(f"    {key}: {value}")
+            pass
 
         finally:  # this will always be run
             print("Saving best parameters to a yaml_file")
@@ -304,9 +282,7 @@ class Optimization:
         agent = self._setup_agent(self.AGENT_NAME, best_parameters)
 
         self.agent_dir = f'{self.AGENT_NAME}_{uuid.uuid4()}'
-        callbacks, new_logger = self._setup_callbacks_and_logger(
-            self.VERBOSE_LEVEL, best_parameters
-        )
+        callbacks, new_logger = self._setup_callbacks_and_logger(best_parameters)
 
         if new_logger is not None:
             agent.set_logger(new_logger)
@@ -339,84 +315,87 @@ class Optimization:
                 raise NotImplementedError(f"{self.AGENT_NAME} not implemented")
         return agent
 
-    def _setup_callbacks_and_logger(self,
-                                    verbose_level: int,
-                                    parameters: dict) -> tuple[list, Any]:
+    def _setup_callbacks_and_logger(self, parameters: dict) -> tuple[list, Any]:
         """Defining callbacks and logger used in training and optimizing an RL agent.
 
         Different setups for different training/optimization modes.
 
         Args:
-            mode (str): training or optimization
-            verbosity_level (int): setting the information level for logging
             parameters (dict): parameters for agent in experiment
 
         Returns:
             tuple[list, Any, str]: callbacklist, SB3-logger
+
         """
         agent_dir = self.agent_dir
-        main_dir = ("optimization" if self.MODE == "optimization" else "checkpoints")
-        max_no_improvement_evals = (self.MAX_NO_IMPROVEMENT if self.MODE == "optimizing" else 5)
-        n_eval_episodes = (3 if self.MODE == "optimization" else 10)
-
         cb_list = []
         sb3_logger = None  # for debugging, ie. don't make dir etc.
         # callback values
 
-        # callbacks for all modes
-        stop_train_cb = StopTrainingOnNoModelImprovement(  # kicked off by EvalCallback
-            max_no_improvement_evals=max_no_improvement_evals,
-            min_evals=1,
-            verbose=1)
+        if self.MODE == "optimization":
+            stop_train_cb = StopTrainingOnNoModelImprovement(  # kicked off by EvalCallback
+                max_no_improvement_evals=self.MAX_NO_IMPROVEMENT,
+                min_evals=1,
+                verbose=1)
 
-        cb_list.append(
-            EvalCallback(  # saves best model
-                self.environment,
-                best_model_save_path=f'{main_dir}/{agent_dir}',
-                log_path=f'{main_dir}/{agent_dir}',
-                deterministic=False,
-                n_eval_episodes=n_eval_episodes,
-                eval_freq=self.checkpoint_frequency,
-                callback_after_eval=stop_train_cb,
-                verbose=1, warn=False)
-        )
-        cb_list.append(
-            PrintExperimentInfoCallback(
-                self.MODE, agent_dir, parameters, self.EPISODES, self.CHECKPOINT_INTERVAL, verbose_level)
-        )
+            cb_list.append(
+                EvalCallback(  # saves best model
+                    self.environment,
+                    best_model_save_path=f'optimization/{agent_dir}',
+                    log_path=f'optimization/{agent_dir}',
+                    deterministic=False,
+                    n_eval_episodes=3,
+                    eval_freq=self.checkpoint_frequency,
+                    callback_after_eval=stop_train_cb,
+                    verbose=1, warn=False)
+            )
+            cb_list.append(
+                PlotTrainingProgressCallback(
+                    check_freq=self.checkpoint_frequency,
+                    save_path=f'optimization/{agent_dir}',
+                    name_prefix=f'{self.AGENT_NAME}',
+                    MAX_STROKES=self.MAX_STROKES,
+                    MODE=self.MODE)
+            )
+            cb_list.append(
+                PrintExperimentInfoCallback(
+                    self.MODE, agent_dir, parameters, self.EPISODES, self.CHECKPOINT_INTERVAL)
+            )
+            sb3_logger = logger.configure(f'optimization/{agent_dir}', ["csv"])
 
-        # verbosity vs logger and callbacks
-        match verbose_level:
-            case 0:
-                sb3_logger = logger.configure(f'{main_dir}/{agent_dir}', ["csv"])
-
-            case 1 | -1:
-                sb3_logger = logger.configure(f'{main_dir}/{agent_dir}', ["csv", "tensorboard"])
-                cb_list.append(
-                    PlotTrainingProgressCallback(
-                        check_freq=self.checkpoint_frequency,
-                        save_path=f'{main_dir}/{agent_dir}',
-                        name_prefix=f'{self.AGENT_NAME}',
-                        MAX_STROKES=self.MAX_STROKES,
-                        MODE=self.MODE)
-                )
-                if self.MODE == "training":
-                    cb_list.append(
-                        CheckpointCallback(  # save model every checkpoint interval
-                            save_freq=self.checkpoint_frequency,
-                            save_path=f'checkpoints/{agent_dir}',
-                            name_prefix=f'{self.AGENT_NAME}',
-                            verbose=1)
-                    )
-            case -2:
-                cb_list = []
-                cb_list.append(
-                    PrintExperimentInfoCallback(
-                        self.MODE, agent_dir, parameters, self.EPISODES, self.CHECKPOINT_INTERVAL, verbose_level)
-                )
-                print("debugging: no progresslogging, no evaluation, no checkpoints")
-            case _:
-                raise ValueError("not a valid verbosity_level")
+        elif self.MODE == "training":
+            cb_list.append(
+                CheckpointCallback(  # save model every checkpoint interval
+                    save_freq=self.checkpoint_frequency,
+                    save_path=f'checkpoints/{agent_dir}',
+                    name_prefix=f'{self.AGENT_NAME}',
+                    verbose=1)
+            )
+            cb_list.append(
+                EvalCallback(  # saves best model
+                    self.environment,
+                    best_model_save_path=f'checkpoints"/{agent_dir}',
+                    log_path=f'checkpoints/{agent_dir}',
+                    deterministic=False,
+                    n_eval_episodes=10,
+                    eval_freq=self.checkpoint_frequency,
+                    verbose=1, warn=False)
+            )
+            cb_list.append(
+                PlotTrainingProgressCallback(
+                    check_freq=self.checkpoint_frequency,
+                    save_path=f'checkpoints/{agent_dir}',
+                    name_prefix=f'{self.AGENT_NAME}',
+                    MAX_STROKES=self.MAX_STROKES,
+                    MODE=self.MODE)
+            )
+            cb_list.append(
+                PrintExperimentInfoCallback(
+                    self.MODE, agent_dir, parameters, self.EPISODES, self.CHECKPOINT_INTERVAL)
+            )
+            sb3_logger = logger.configure(f'checkpoints/{agent_dir}', ["csv"])
+        else:
+            raise ValueError("not a valid mode")
 
         cb_list = CallbackList(cb_list)
         return cb_list, sb3_logger
