@@ -10,7 +10,7 @@ dependencies:
 - pandas
 - pip
 - scikit-learn=1.1.1
-- spyder-kernels=2.1
+- spyder-kernels=2.3
 - pip:
   - optuna==2.10.1
   - stable-baselines3==1.6
