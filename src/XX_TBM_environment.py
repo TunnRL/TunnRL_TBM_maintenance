@@ -57,17 +57,6 @@ class Maintenance:
         Returns:
             float: _description_
         """
-        # if good_cutters < self.n_c_tot * 0.5:
-        #     r = 0
-        # elif good_cutters == self.n_c_tot and replaced_cutters + moved_cutters == 0:
-        #     r = 1
-        # else:
-        #     ratio1 = good_cutters / self.n_c_tot
-        #     ratio2 = (moved_cutters / self.n_c_tot) * 1.05
-        #     ratio3 = (replaced_cutters / self.n_c_tot) * 0.9
-        #     r = ratio1 - ratio2 - ratio3
-
-        # r = max(0, r)
 
         # compute distance between acted on cutters -> encourage series change
         acted_on_cutters = sorted(replaced_cutters + moved_cutters)
