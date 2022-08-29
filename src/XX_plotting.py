@@ -449,8 +449,6 @@ class Plotter:
         for trial in trials:
             try:
                 df_log = pd.read_csv(f'{folder}/{trial}/progress.csv')
-                # if df_log[r'eval/mean_reward'].max() > 800:
-                #     print(trial)
                 n_strokes = df_log[r'rollout/ep_len_mean'].median()
                 df_log['episodes'] = df_log[r'time/total_timesteps'] / n_strokes
 
@@ -462,6 +460,8 @@ class Plotter:
                         df_log.dropna(axis=0,
                                       subset=['eval/mean_reward'],
                                       inplace=True)
+                        if df_log[r'eval/mean_reward'].max() > 870:
+                            print(trial)
                         ax.plot(df_log['episodes'],
                                 df_log[r'eval/mean_reward'],
                                 alpha=0.3, color='black')

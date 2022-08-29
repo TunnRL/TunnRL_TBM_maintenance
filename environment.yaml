@@ -14,3 +14,4 @@ dependencies:
 - pip:
   - optuna==2.10.1
   - stable-baselines3==1.6
+  - plotly
