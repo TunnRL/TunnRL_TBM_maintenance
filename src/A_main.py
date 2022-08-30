@@ -32,12 +32,20 @@ from XX_TBM_environment import CustomEnv
 
 # TBM EXCAVATION PARAMETERS
 ######################
-CUTTERHEAD_RADIUS = 3  # cutterhead radius [m]
-TRACK_SPACING = 0.11  # cutter track spacing [m]
+CUTTERHEAD_RADIUS = 4  # cutterhead radius [m]
+TRACK_SPACING = 0.1  # cutter track spacing [m]
 LIFE = 400000  # theoretical durability of one cutter [m]
 STROKE_LENGTH = 1.8  # length of one stroke [m]
 MAX_STROKES = 1000  # number of strokes per episode
-BROKEN_CUTTERS_THRESH = 0.5  # minimum required % of functional cutters
+
+# REWARD FUNCTION PARAMETERS
+######################
+BROKEN_CUTTERS_THRESH = 0.85  # minimum required % of functional cutters
+ALPHA = 0.2  # weighting factor for replacing cutters
+BETA = 0.3  # weighting factor for moving cutters
+GAMMA = 0.25  # weighting factor for cutter distance
+DELTA = 0.25  # weighting factor for entering cutterhead
+CHECK_BEARING_FAILURE = True  # if True should check cutter bearing failures
 
 # MAIN EXPERIMENT INFO
 ######################
@@ -55,21 +63,21 @@ DEBUG = False  # sets test values for quicker response
 # name of the study if MODE == 'Optimization' or 'Training'
 # the Study name must start with the name of the agent that needs to be one of
 # 'PPO', 'A2C', 'DDPG', 'SAC', 'TD3'
-STUDY = "TD3_2022_08_26_study"  # DDPG_2022_07_27_study 'PPO_2022_08_03_study'
+STUDY = "TD3_2022_08_30_study"  # DDPG_2022_07_27_study 'PPO_2022_08_03_study'
 # evaluations in optimization and checkpoints in training every X episodes
-CHECKPOINT_INTERVAL = 100
+CHECKPOINT_INTERVAL = 50
 EPISODES = 12_000  # max episodes to train for
 
 # OPTIMIZATION SPECIAL SETUP
 ######################
 DEFAULT_TRIAL = False  # first run a trial with default parameters.
-MAX_NO_IMPROVEMENT = 2  # maximum number of evaluations without improvement
+MAX_NO_IMPROVEMENT = 3  # maximum number of evaluations without improvement
 # n optuna trials to run in total (including eventual default trial)
-N_SINGLE_RUN_OPTUNA_TRIALS = 3
-# NOTE: memory can be an issue for many parallell processes. Size of neural network and
-# available memory will be limiting factors
-N_CORES_PARALLELL = 2
-N_PARALLELL_PROCESSES = 2
+N_SINGLE_RUN_OPTUNA_TRIALS = 150
+# NOTE: memory can be an issue for many parallell processes. Size of neural
+# network and available memory will be limiting factors
+N_CORES_PARALLELL = -1
+N_PARALLELL_PROCESSES = 4
 
 # TRAINING SPECIAL SETUP
 ######################
@@ -78,7 +86,7 @@ LOAD_PARAMS_FROM_STUDY = False
 
 # EXECUTION SPECIAL SETUP
 ######################
-EXECUTION_MODEL = "DDPG_a3536e69-a501-421d-b6d6-51f152554660"
+EXECUTION_MODEL = "TD3_11bd6ce5-92d5-4b95-befb-e82d23eae32e"
 NUM_TEST_EPISODES = 3
 
 ###############################################################################
@@ -136,6 +144,8 @@ env = CustomEnv(
     cutter_pathlenghts,
     CUTTERHEAD_RADIUS,
     BROKEN_CUTTERS_THRESH,
+    ALPHA, BETA, GAMMA, DELTA,
+    CHECK_BEARING_FAILURE
 )
 if CHECK_ENV:
     check_env(env)
@@ -195,7 +205,7 @@ elif MODE == 'training':
 
 elif MODE == 'execution':
     agent_name = EXECUTION_MODEL.split('_')[0]
-    agent = load_best_model(agent_name, main_dir="checkpoints",
+    agent = load_best_model(agent_name, main_dir="optimization",
                             agent_dir=EXECUTION_MODEL)
 
     # test agent throughout multiple episodes

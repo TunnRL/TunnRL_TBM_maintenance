@@ -64,6 +64,10 @@ class PlotTrainingProgressCallback(BaseCallback):
         self.avg_broken_cutters_episode: list = []
         self.moved_cutters_episode: list = []
         self.avg_moved_cutters_episode: list = []
+        self.inwards_moved_cutters_episode: list = []
+        self.avg_inwards_moved_cutters_episode: list = []
+        self.wrong_moved_cutters_episode: list = []
+        self.avg_wrong_moved_cutters_episode: list = []
         self.replaced_cutters_episode: list[int] = []
         self.avg_replaced_cutters_episode: list[float] = []
         self.var_replaced_cutters_episode: list[float] = []
@@ -77,6 +81,8 @@ class PlotTrainingProgressCallback(BaseCallback):
         # self.cutter_locations_replaced += self.training_env.get_attr("replaced_cutters")
         self.replaced_cutters_episode.append(len(self.training_env.get_attr("replaced_cutters")[0]))
         self.moved_cutters_episode.append(len(self.training_env.get_attr("moved_cutters")[0]))
+        self.inwards_moved_cutters_episode.append(len(self.training_env.get_attr("inwards_moved_cutters")[0]))
+        self.wrong_moved_cutters_episode.append(len(self.training_env.get_attr("wrong_moved_cutters")[0]))
         self.broken_cutters_episode.append(len(self.training_env.get_attr("broken_cutters")[0]))
 
         if self.n_calls % self.MAX_STROKES == 0:  # for every episode
@@ -94,6 +100,14 @@ class PlotTrainingProgressCallback(BaseCallback):
             avg_moved_cutters = np.mean(self.moved_cutters_episode)
             self.avg_moved_cutters_episode.append(avg_moved_cutters)
             self.moved_cutters_episode = []
+
+            avg_inwards_moved_cutters = np.mean(self.inwards_moved_cutters_episode)
+            self.avg_inwards_moved_cutters_episode.append(avg_inwards_moved_cutters)
+            self.inwards_moved_cutters_episode = []
+
+            avg_wrong_moved_cutters = np.mean(self.wrong_moved_cutters_episode)
+            self.avg_wrong_moved_cutters_episode.append(avg_wrong_moved_cutters)
+            self.wrong_moved_cutters_episode = []
 
             avg_broken_cutters = np.mean(self.broken_cutters_episode)
             self.avg_broken_cutters_episode.append(avg_broken_cutters)
@@ -113,6 +127,8 @@ class PlotTrainingProgressCallback(BaseCallback):
                                        'avg_replaced_cutters': self.avg_replaced_cutters_episode,
                                        # 'var_cutter_locations': self.var_replaced_cutters_episode,
                                        'avg_moved_cutters': self.avg_moved_cutters_episode,
+                                       'avg_inwards_moved_cutters': self.avg_inwards_moved_cutters_episode,
+                                       'avg_wrong_moved_cutters': self.avg_wrong_moved_cutters_episode,
                                        'avg_broken_cutters': self.avg_broken_cutters_episode,
                                        'avg_penetration': self.avg_penetration_episode})
             df_env_log.to_csv(f'{self.save_path}/progress_env.csv')

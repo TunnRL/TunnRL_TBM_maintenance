@@ -501,6 +501,8 @@ class Plotter:
 
         # plotting environment statistics
         for logged_var in ["avg_replaced_cutters", "avg_moved_cutters",
+                           'avg_inwards_moved_cutters',
+                           'avg_wrong_moved_cutters',
                            "avg_broken_cutters"]:  # , "var_cutter_locations"]:
             ax2.plot(df_env_log["episodes"], df_env_log[logged_var],
                      label=logged_var)

@@ -23,27 +23,34 @@ class Maintenance:
     changing cutters on a TBM's cutterhead. Based on this the reward is
     computed"""
 
-    def __init__(self, n_c_tot: int, broken_cutters_thresh: float) -> None:
+    def __init__(self, n_c_tot: int, broken_cutters_thresh: float,
+                 alpha: float, beta: float, gamma: float,
+                 delta: float) -> None:
         """Setup
 
         Args:
             n_c_tot (int): total number of cutters
             broken_cutters_thresh (float): minimum required percentage of
                 functional cutters
+            alpha (float): weighting factor for replacing cutters
+            beta (float): weighting factor for moving cutters
+            gamma (float): weighting factor for cutter distance
+            delta (float): weighting factor for entering cutterhead
         """
         self.n_c_tot = n_c_tot
         self.broken_cutters_thresh = broken_cutters_thresh
         self.t_i = 1  # cost of entering the cutterhead for maintenance
-        self.alpha = 0.2  # weighting factor for replacing cutters
-        self.beta = 0.3  # weighting factor for moving cutters
-        self.gamma = 0.25  # weighting factor for cutter distance
-        self.delta = 0.25  # weighting factor for entering cutterhead
+        self.alpha = alpha
+        self.beta = beta
+        self.gamma = gamma
+        self.delta = delta
 
         if self.alpha + self.beta + self.gamma + self.delta != 1:
             raise ValueError('reward weighting factors do not sum up to 1!')
 
     def reward(self, replaced_cutters: list, moved_cutters: list,
-               good_cutters: int) -> float:
+               good_cutters: int, damaged_bearing: bool,
+               check_bearing_failure: bool) -> float:
         """Reward function. Drives the agent learning process.
 
         Handle the replacing and moving of cutters.
@@ -51,8 +58,13 @@ class Maintenance:
         Args:
             replaced_cutters (list): list of replaced cutters
             moved_cutters (list): list of moved cutters
-            good_cutters (int): number of good cutters, ie. cutters with life over 
-                                broken cutter threshold
+            good_cutters (int): number of good cutters, ie. cutters with life
+                greater than 0
+            damaged_bearing (bool): if at least one cutter bearing fails due to
+                blockyness damage to the cutter and no subsequent repair. Only
+                effective if check_bearing_failure == True
+            check_bearing_failure (bool): if the reward function should check
+                for / consider cutter bearing failures or not
 
         Returns:
             float: _description_
@@ -64,6 +76,9 @@ class Maintenance:
 
         if good_cutters < self.n_c_tot * self.broken_cutters_thresh:
             # if more than threshhold number of cutters are broken
+            r = -1
+        elif check_bearing_failure is True and damaged_bearing is True:
+            # if check for bearing failures is set and bearing failure occurs
             r = -1
         elif len(acted_on_cutters) == 0:
             # if no cutters are acted on
@@ -94,7 +109,12 @@ class CustomEnv(gym.Env):
                  STROKE_LENGTH: float,
                  cutter_pathlenghts: float,
                  CUTTERHEAD_RADIUS: float,
-                 broken_cutters_thresh: float) -> None:
+                 broken_cutters_thresh: float,
+                 alpha: float,
+                 beta: float,
+                 gamma: float,
+                 delta: float,
+                 check_bearing_failure: bool) -> None:
         """Initializing custom environment for a TBM cutter operation.
 
         Args:
@@ -106,6 +126,12 @@ class CustomEnv(gym.Env):
             CUTTERHEAD_RADIUS (float): radius of cutterhead
             broken_cutters_thresh (float): minimum required percentage of
                 functional cutters
+            alpha (float): weighting factor for replacing cutters
+            beta (float): weighting factor for moving cutters
+            gamma (float): weighting factor for cutter distance
+            delta (float): weighting factor for entering cutterhead
+            check_bearing_failure (bool): if the reward function should check
+                for / consider cutter bearing failures or not
         """
         super(CustomEnv, self).__init__()
         self.action_space = spaces.Box(low=-1, high=1,
@@ -118,9 +144,11 @@ class CustomEnv(gym.Env):
         self.STROKE_LENGTH = STROKE_LENGTH
         self.cutter_pathlenghts = cutter_pathlenghts
         self.R = CUTTERHEAD_RADIUS
+        self.check_bearing_failure = check_bearing_failure
 
         # instantiated state variables
-        self.m = Maintenance(n_c_tot, broken_cutters_thresh)
+        self.m = Maintenance(n_c_tot, broken_cutters_thresh, alpha, beta,
+                             gamma, delta)
 
         # state variables assigned in class methods:
         self.state: NDArray
@@ -138,12 +166,26 @@ class CustomEnv(gym.Env):
         # replace cutters based on action of agent
         self.state = self._implement_action(actions, self.state)
 
-        # compute reward
-        self.broken_cutters = np.where(self.state == 0)[0] # for statistics
+        # compute inputs to reward and reward
+        self.broken_cutters = np.where(self.state == 0)[0]  # for statistics
         self.good_cutters = np.where(self.state > 0)[0]
         n_good_cutters = len(self.good_cutters)
+        self.moved_cutters = sorted(self.inwards_moved_cutters + self.wrong_moved_cutters)
+        # check if cutters broke due to blockyness in prev. stroke and have not
+        # yet been replaced and create a bearing failure subsequently
+        # if state at indizes of broken cutters due to blockyness of prev. stroke == 0
+        # potential issue: damaged bearing only gets punished once
+        prev_blocky_failure_ids = np.where(self.brokens[self.epoch, :] == 1)[0]
+        if len(prev_blocky_failure_ids) > 0:
+            if min(self.state[prev_blocky_failure_ids]) == 0:
+                damaged_bearing = True
+            else:
+                damaged_bearing = False
+        else:
+            damaged_bearing = False
         reward = self.m.reward(self.replaced_cutters, self.moved_cutters,
-                               n_good_cutters)
+                               n_good_cutters, damaged_bearing,
+                               self.check_bearing_failure)
 
         # update cutter life based on how much wear occurs
         p = self.penetration[self.epoch] / 1000  # [m/rot]
@@ -166,9 +208,10 @@ class CustomEnv(gym.Env):
         '''Function that interprets the "raw action" and modifies the state.'''
         state_new = state_before
         self.replaced_cutters = []
-        self.moved_cutters = []
-
-        for i in range(self.n_c_tot):
+        self.inwards_moved_cutters = []
+        self.wrong_moved_cutters = []
+        # iterate through cutters starting from outside
+        for i in np.arange(self.n_c_tot)[::-1]:
             cutter = action[i * self.n_c_tot: i * self.n_c_tot + self.n_c_tot]
             if np.max(cutter) < 0.9:  # TODO: explain this value
                 # cutter is not acted on
@@ -178,10 +221,13 @@ class CustomEnv(gym.Env):
                 state_new[i] = 1
                 self.replaced_cutters.append(i)
             else:
-                # cutter is moved from original position to somewhere else
-                state_new[np.argmax(cutter)] = state_new[i]
-                state_new[i] = 1
-                self.moved_cutters.append(i)
+                # cutter is moved from original position towards center
+                if np.argmax(cutter) < i:
+                    state_new[np.argmax(cutter)] = state_new[i]
+                    state_new[i] = 1
+                    self.inwards_moved_cutters.append(i)
+                else:
+                    self.wrong_moved_cutters.append(i)
 
         return state_new
 
