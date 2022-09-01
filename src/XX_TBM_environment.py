@@ -11,71 +11,72 @@ Created on Sat Oct 30 12:57:51 2021
 code contributors: Georg H. Erharter, Tom F. Hansen
 """
 
+from typing import Callable
 import gym
 import matplotlib.pyplot as plt
 import numpy as np
 from gym import spaces
 from numpy.typing import NDArray
+from dataclasses import dataclass
 
 
-class Maintenance:
+@dataclass
+class Reward:
     """class that contains functions that describe the maintenance effort of
     changing cutters on a TBM's cutterhead. Based on this the reward is
-    computed"""
+    computed
+    Args:
+        n_c_tot (int): total number of cutters
+        broken_cutters_thresh (float): minimum required percentage of functional cutters
+        CHECK_BEARING_FAILURE (bool): if True should check cutter bearing failures
+        T_I (int): cost of entering the cutterhead for maintenance
+        ALPHA (float): weighting factor for replacing cutters
+        BETA (float): weighting factor for moving cutters
+        GAMMA (float): weighting factor for cutter distance
+        DELTA (float): weighting factor for entering cutterhead
+    """
 
-    def __init__(self, n_c_tot: int, broken_cutters_thresh: float) -> None:
+    n_c_tot: int
+    BROKEN_CUTTERS_THRESH: float
+    CHECK_BEARING_FAILURE: bool
+    T_I: float = 1
+    ALPHA: float = 0.2
+    BETA: float = 0.3
+    GAMMA: float = 0.25
+    DELTA: float = 0.25
+
+    assert (
+        ALPHA + BETA + GAMMA + DELTA == 1
+    ), "reward weighting factors do not sum up to 1!"
+
+    def __call__(
+        self,
+        replaced_cutters: list,
+        moved_cutters: list,
+        good_cutters: int,
+        damaged_bearing: bool,
+    ) -> float:
         """Setup
-
-        Args:
-            n_c_tot (int): total number of cutters
-            broken_cutters_thresh (float): minimum required percentage of
-                functional cutters
-        """
-        self.n_c_tot = n_c_tot
-        self.broken_cutters_thresh = broken_cutters_thresh
-        self.t_i = 1  # cost of entering the cutterhead for maintenance
-        self.alpha = 0.2  # weighting factor for replacing cutters
-        self.beta = 0.3  # weighting factor for moving cutters
-        self.gamma = 0.25  # weighting factor for cutter distance
-        self.delta = 0.25  # weighting factor for entering cutterhead
-
-        if self.alpha + self.beta + self.gamma + self.delta != 1:
-            raise ValueError('reward weighting factors do not sum up to 1!')
-
-    def reward(self, replaced_cutters: list, moved_cutters: list,
-               good_cutters: int) -> float:
-        """Reward function. Drives the agent learning process.
-
-        Handle the replacing and moving of cutters.
 
         Args:
             replaced_cutters (list): list of replaced cutters
             moved_cutters (list): list of moved cutters
-            good_cutters (int): number of good cutters, ie. cutters with life over 
-                                broken cutter threshold
-
-        Returns:
-            float: _description_
+            good_cutters (int): number of good cutters, ie. cutters with life
+                greater than 0
+            damaged_bearing (bool): if at least one cutter bearing fails due to
+                blockyness damage to the cutter and no subsequent repair. Only
+                effective if check_bearing_failure == True
         """
-        # if good_cutters < self.n_c_tot * 0.5:
-        #     r = 0
-        # elif good_cutters == self.n_c_tot and replaced_cutters + moved_cutters == 0:
-        #     r = 1
-        # else:
-        #     ratio1 = good_cutters / self.n_c_tot
-        #     ratio2 = (moved_cutters / self.n_c_tot) * 1.05
-        #     ratio3 = (replaced_cutters / self.n_c_tot) * 0.9
-        #     r = ratio1 - ratio2 - ratio3
-
-        # r = max(0, r)
-
-        # compute distance between acted on cutters -> encourage series change
         acted_on_cutters = sorted(replaced_cutters + moved_cutters)
         dist_cutters = np.sum(np.diff(acted_on_cutters))
 
-        if good_cutters < self.n_c_tot * self.broken_cutters_thresh:
+        if good_cutters < self.n_c_tot * self.BROKEN_CUTTERS_THRESH:
             # if more than threshhold number of cutters are broken
             r = -1
+        elif self.CHECK_BEARING_FAILURE is True and damaged_bearing is True:
+            # if check for bearing failures is set and bearing failure occurs
+            r = -1
+
         elif len(acted_on_cutters) == 0:
             # if no cutters are acted on
             r = good_cutters / self.n_c_tot
@@ -85,27 +86,36 @@ class Maintenance:
             weighted_cutters = np.linspace(1, 2, num=self.n_c_tot)
 
             ratio1 = good_cutters / self.n_c_tot
-            ratio2 = (np.sum(np.take(weighted_cutters, replaced_cutters)) / np.sum(weighted_cutters)) * self.alpha
-            ratio3 = (np.sum(np.take(weighted_cutters, moved_cutters)) / np.sum(weighted_cutters)) * self.beta
-            ratio4 = ((dist_cutters + 1) / self.n_c_tot) * self.gamma
-            change_penalty = self.t_i * self.delta
+            ratio2 = (
+                np.sum(np.take(weighted_cutters, replaced_cutters))
+                / np.sum(weighted_cutters)
+            ) * self.ALPHA
+            ratio3 = (
+                np.sum(np.take(weighted_cutters, moved_cutters))
+                / np.sum(weighted_cutters)
+            ) * self.BETA
+            ratio4 = ((dist_cutters + 1) / self.n_c_tot) * self.GAMMA
+            change_penalty = self.T_I * self.DELTA
             r = ratio1 - ratio2 - ratio3 - ratio4 - change_penalty
 
         return r
 
 
 class CustomEnv(gym.Env):
-    '''Implementation of the custom environment that simulates the cutter wear
+    """Implementation of the custom environment that simulates the cutter wear
     and provides the agent with a state and reward signal.
-    '''
-    def __init__(self,
-                 n_c_tot: int,
-                 LIFE: int,
-                 MAX_STROKES: int,
-                 STROKE_LENGTH: float,
-                 cutter_pathlenghts: float,
-                 CUTTERHEAD_RADIUS: float,
-                 broken_cutters_thresh: float) -> None:
+    """
+
+    def __init__(
+        self,
+        n_c_tot: int,
+        LIFE: int,
+        MAX_STROKES: int,
+        STROKE_LENGTH: float,
+        cutter_pathlenghts: float,
+        CUTTERHEAD_RADIUS: float,
+        reward_fn: Callable,
+    ) -> None:
         """Initializing custom environment for a TBM cutter operation.
 
         Args:
@@ -115,12 +125,9 @@ class CustomEnv(gym.Env):
             STROKE_LENGTH (float): length of one stroke [m]
             cutter_pathlenghts (float): rolling lengths [m]
             CUTTERHEAD_RADIUS (float): radius of cutterhead
-            broken_cutters_thresh (float): minimum required percentage of
-                functional cutters
         """
         super(CustomEnv, self).__init__()
-        self.action_space = spaces.Box(low=-1, high=1,
-                                       shape=(n_c_tot * n_c_tot,))
+        self.action_space = spaces.Box(low=-1, high=1, shape=(n_c_tot * n_c_tot,))
         self.observation_space = spaces.Box(low=0, high=1, shape=(n_c_tot,))
 
         self.n_c_tot = n_c_tot
@@ -129,9 +136,7 @@ class CustomEnv(gym.Env):
         self.STROKE_LENGTH = STROKE_LENGTH
         self.cutter_pathlenghts = cutter_pathlenghts
         self.R = CUTTERHEAD_RADIUS
-
-        # instantiated state variables
-        self.m = Maintenance(n_c_tot, broken_cutters_thresh)
+        self.reward_fn = reward_fn
 
         # state variables assigned in class methods:
         self.state: NDArray
@@ -139,22 +144,41 @@ class CustomEnv(gym.Env):
         self.replaced_cutters: list
         self.moved_cutters: list
         self.good_cutters: NDArray
+        self.inwards_moved_cutters: list
+        self.wrong_moved_cutters: list
         self.penetration: NDArray
 
     def step(self, actions: NDArray) -> tuple[NDArray, float, bool, dict]:
-        '''Main function that moves the environment one step further.
-            - Updates the state and reward.
-            - Checks if the terminal state is reached.
-        '''
+        """Main function that moves the environment one step further.
+        - Updates the state and reward.
+        - Checks if the terminal state is reached.
+        """
         # replace cutters based on action of agent
         self.state = self._implement_action(actions, self.state)
 
         # compute reward
-        self.broken_cutters = np.where(self.state == 0)[0] # for statistics
+        self.broken_cutters = np.where(self.state == 0)[0]  # for statistics
         self.good_cutters = np.where(self.state > 0)[0]
         n_good_cutters = len(self.good_cutters)
-        reward = self.m.reward(self.replaced_cutters, self.moved_cutters,
-                               n_good_cutters)
+        self.moved_cutters = sorted(
+            self.inwards_moved_cutters + self.wrong_moved_cutters
+        )
+        # check if cutters broke due to blockyness in prev. stroke and have not
+        # yet been replaced and create a bearing failure subsequently
+        # if state at indizes of broken cutters due to blockyness of prev. stroke == 0
+        # potential issue: damaged bearing only gets punished once
+        prev_blocky_failure_ids = np.where(self.brokens[self.epoch, :] == 1)[0]
+        if len(prev_blocky_failure_ids) > 0:
+            if min(self.state[prev_blocky_failure_ids]) == 0:
+                damaged_bearing = True
+            else:
+                damaged_bearing = False
+        else:
+            damaged_bearing = False
+
+        reward = self.reward_fn(
+            self.replaced_cutters, self.moved_cutters, n_good_cutters, damaged_bearing
+        )
 
         # update cutter life based on how much wear occurs
         p = self.penetration[self.epoch] / 1000  # [m/rot]
@@ -174,13 +198,14 @@ class CustomEnv(gym.Env):
         return self.state, reward, terminal, {}
 
     def _implement_action(self, action: NDArray, state_before: NDArray) -> NDArray:
-        '''Function that interprets the "raw action" and modifies the state.'''
+        """Function that interprets the "raw action" and modifies the state."""
         state_new = state_before
         self.replaced_cutters = []
-        self.moved_cutters = []
-
-        for i in range(self.n_c_tot):
-            cutter = action[i * self.n_c_tot: i * self.n_c_tot + self.n_c_tot]
+        self.inwards_moved_cutters = []
+        self.wrong_moved_cutters = []
+        # iterate through cutters starting from outside
+        for i in np.arange(self.n_c_tot)[::-1]:
+            cutter = action[i * self.n_c_tot : i * self.n_c_tot + self.n_c_tot]
             if np.max(cutter) < 0.9:  # TODO: explain this value
                 # cutter is not acted on
                 pass
@@ -189,16 +214,19 @@ class CustomEnv(gym.Env):
                 state_new[i] = 1
                 self.replaced_cutters.append(i)
             else:
-                # cutter is moved from original position to somewhere else
-                state_new[np.argmax(cutter)] = state_new[i]
-                state_new[i] = 1
-                self.moved_cutters.append(i)
+                # cutter is moved from original position towards center
+                if np.argmax(cutter) < i:
+                    state_new[np.argmax(cutter)] = state_new[i]
+                    state_new[i] = 1
+                    self.inwards_moved_cutters.append(i)
+                else:
+                    self.wrong_moved_cutters.append(i)
 
         return state_new
 
     def rand_walk_with_bounds(self, n_dp: int) -> NDArray:
-        '''function generates a random walk within the limits 0 and 1'''
-        bounds = .05
+        """function generates a random walk within the limits 0 and 1"""
+        bounds = 0.05
 
         x = [np.random.uniform(low=0, high=1, size=1)]
 
@@ -211,15 +239,24 @@ class CustomEnv(gym.Env):
 
         return np.array(x[1:])
 
-    def generate(self, Jv_low: int = 0, Jv_high: int = 22,
-                 UCS_center: int = 80, UCS_range: int = 30) -> tuple:
-        '''Function generates TBM recordings for one episode. Equations and
+    def generate(
+        self,
+        Jv_low: int = 0,
+        Jv_high: int = 22,
+        UCS_center: int = 80,
+        UCS_range: int = 30,
+    ) -> tuple:
+        """Function generates TBM recordings for one episode. Equations and
         models based on Delisio & Zhao (2014) - "A new model for TBM
         performance prediction in blocky rock conditions",
-        http://dx.doi.org/10.1016/j.tust.2014.06.004'''
+        http://dx.doi.org/10.1016/j.tust.2014.06.004"""
 
-        Jv_s = self.rand_walk_with_bounds(self.MAX_STROKES) * (Jv_high - Jv_low) + Jv_low  # [joints / m3]
-        UCS_s = UCS_center + self.rand_walk_with_bounds(self.MAX_STROKES) * UCS_range  # [MPa]
+        Jv_s = (
+            self.rand_walk_with_bounds(self.MAX_STROKES) * (Jv_high - Jv_low) + Jv_low
+        )  # [joints / m3]
+        UCS_s = (
+            UCS_center + self.rand_walk_with_bounds(self.MAX_STROKES) * UCS_range
+        )  # [MPa]
 
         # eq 9, Delisio & Zhao (2014) - [kN/m/mm/rot]
         FPIblocky_s = np.squeeze(np.exp(6) * Jv_s**-0.82 * UCS_s**0.17)
@@ -231,26 +268,30 @@ class CustomEnv(gym.Env):
             if FPIblocky_s[stroke] > 200 and FPIblocky_s[stroke] <= 300:
                 if np.random.randint(0, 100) == 0:
                     size = np.random.randint(1, 4)
-                    selection = np.random.choice(np.arange(self.n_c_tot),
-                                                 replace=False, size=size)
+                    selection = np.random.choice(
+                        np.arange(self.n_c_tot), replace=False, size=size
+                    )
                     brokens[stroke, :][selection] = 1
             elif FPIblocky_s[stroke] > 100 and FPIblocky_s[stroke] <= 200:
                 if np.random.randint(0, 50) == 0:
                     size = np.random.randint(1, 4)
-                    selection = np.random.choice(np.arange(self.n_c_tot),
-                                                 replace=False, size=size)
+                    selection = np.random.choice(
+                        np.arange(self.n_c_tot), replace=False, size=size
+                    )
                     brokens[stroke, :][selection] = 1
             elif FPIblocky_s[stroke] >= 50 and FPIblocky_s[stroke] <= 100:
                 if np.random.randint(0, 10) == 0:
                     size = np.random.randint(1, 4)
-                    selection = np.random.choice(np.arange(self.n_c_tot),
-                                                 replace=False, size=size)
+                    selection = np.random.choice(
+                        np.arange(self.n_c_tot), replace=False, size=size
+                    )
                     brokens[stroke, :][selection] = 1
             elif FPIblocky_s[stroke] < 50:
                 if np.random.randint(0, 100) == 0:
                     size = np.random.randint(1, 4)
-                    selection = np.random.choice(np.arange(self.n_c_tot),
-                                                 replace=False, size=size)
+                    selection = np.random.choice(
+                        np.arange(self.n_c_tot), replace=False, size=size
+                    )
                     brokens[stroke, :][selection] = 1
 
         # eq 13, Delisio & Zhao (2014)
@@ -264,11 +305,18 @@ class CustomEnv(gym.Env):
         return Jv_s, UCS_s, FPIblocky_s, brokens, TF_s, penetration
 
     def reset(self) -> NDArray:
-        '''reset an environment to its initial state'''
+        """reset an environment to its initial state"""
         self.state = np.full((self.n_c_tot), 1)  # start with new cutters
         self.epoch = 0  # reset epoch counter
         # generate new TBM data for episode
-        self.Jv_s, self.UCS_s, self.FPIblocky_s, self.brokens, self.TF_s, self.penetration = self.generate()
+        (
+            self.Jv_s,
+            self.UCS_s,
+            self.FPIblocky_s,
+            self.brokens,
+            self.TF_s,
+            self.penetration,
+        ) = self.generate()
         return self.state
 
     def render(self):
@@ -297,8 +345,9 @@ if __name__ == "__main__":
         n_repl = np.random.randint(0, n_c_tot)
         replaced_cutters = np.sort(np.random.choice(cutters, n_repl, replace=False))
         n_move = np.random.randint(0, n_c_tot - n_repl)
-        moved_cutters = np.sort(np.random.choice(np.delete(cutters, replaced_cutters),
-                                                 n_move, replace=False))
+        moved_cutters = np.sort(
+            np.random.choice(np.delete(cutters, replaced_cutters), n_move, replace=False)
+        )
 
         good_cutters = np.random.randint(n_repl + n_move, n_c_tot)
         # print(n_repl, n_move, good_cutters)

@@ -23,9 +23,16 @@ delete_graphics:
 move_results:
 	@echo move study.db's, trained agents, graphics to common storage
 
+delete_all:
+	@echo delete all experiment and result files
+	rm -rf optimization/*
+	rm -rf results/*.db
+	rm -rf graphics/*.svg
+	rm -rf checkpoints/*
 
-# all_delete:
-# 	delete_checkpoints
-# 	delete_optimization_dirs
-# 	delete_results
-# 	delete_graphics
+# init:
+# 	@echo initialize the environment and tab completion in hydra
+# 	poetry shell
+
+# hydra:
+# 	eval "python src/A_main_hydra.py -sc install=bash"

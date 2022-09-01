@@ -16,6 +16,10 @@ importlib-resources = "^5.9.0"
 pysqlite3 = "^0.4.7"
 mlflow = "^1.28.0"
 tensorboard = "^2.10.0"
+hydra-core = "^1.2.0"
+plotly = "^5.10.0"
+pydantic = "^1.10.0"
+ipykernel = "^6.15.2"
 
 [tool.poetry.dev-dependencies]
 mypy = "^0.971"
@@ -27,6 +31,7 @@ flake8-annotations = "^2.9.1"
 ipdb = "^0.13.9"
 black = "^22.6.0"
 pyupgrade = "^2.37.3"
+pre-commit = "^2.20.0"
 
 [build-system]
 requires = ["poetry-core>=1.0.0"]
@@ -42,7 +47,7 @@ force_single_line = false
 lines_after_imports = 2
 
 [tool.black]
-line-length = 79
+line-length = 89
 
 [tool.mypy]
 strict = false

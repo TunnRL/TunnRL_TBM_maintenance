@@ -28,8 +28,6 @@ FILETYPE_TO_LOAD = "db"
 ###############################################################################
 # processing
 
-pltr = Plotter()
-
 # load data from completed OPTUNA study
 if FILETYPE_TO_LOAD == "db":
     db_path = f"results/{STUDY}.db"
@@ -72,18 +70,18 @@ if agent == 'SAC' or agent == 'DDPG' or agent == 'TD3':
 ###############################################################################
 # different visualizations of OPTUNA optimization
 
-pltr.custom_parallel_coordinate_plot(df_study, params, le_activation,
+Plotter.custom_parallel_coordinate_plot(df_study, params, le_activation,
                                      savepath=f'graphics/{STUDY}_parallel_plot.svg')
 
 # plot that shows the progress of the optimization over the individual trials
-pltr.custom_optimization_history_plot(df_study,
+Plotter.custom_optimization_history_plot(df_study,
                                       savepath=f'graphics/{STUDY}_optimization_progress.svg')
 
 # scatterplot of indivdual hyperparameters vs. reward
-pltr.custom_slice_plot(df_study, params, le_activation=le_activation,
+Plotter.custom_slice_plot(df_study, params, le_activation=le_activation,
                        le_noise=le_noise,
                        savepath=f'graphics/{STUDY}_optimization_scatter.svg')
 
 # plot intermediate steps of the training paths
-pltr.custom_intermediate_values_plot(agent, folder='optimization',
+Plotter.custom_intermediate_values_plot(agent, folder='optimization',
                                      savepath=f'graphics/{STUDY}_optimization_interms.svg')

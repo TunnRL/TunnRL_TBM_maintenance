@@ -14,6 +14,4 @@ SAVEPATH = None  # 'graphics/PPO_trainings_default.svg'
 VIS_MODE = 'rollout'  # 'rollout' 'eval'
 
 if __name__ == "__main__":
-
-    pltr = Plotter()
-    pltr.custom_intermediate_values_plot(AGENT, folder=FOLDER, mode=VIS_MODE)
+    Plotter.custom_intermediate_values_plot(AGENT, folder=FOLDER, mode=VIS_MODE)

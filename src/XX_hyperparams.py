@@ -6,7 +6,7 @@ Created on Sun Jul 24 16:19:57 2022
 code contributors: Georg H. Erharter, Tom F. Hansen
 """
 
-from typing import Callable
+from typing import Callable, Tuple
 
 import gym
 import numpy as np
@@ -21,14 +21,15 @@ from stable_baselines3.common.noise import (
 
 class Hyperparameters:
     """Class that bundle functionality to return a dictionary of suggested
-    hyperparameters in Optuna trials."""
+    hyperparameters in Optuna trials and to remake parameters for a training run
+    on the right format for SB3 algorithm."""
 
     def suggest_hyperparameters(self,
                                 trial: optuna.trial.Trial,
                                 algorithm: str,
                                 environment: gym.Env,
                                 steps_episode: int,
-                                num_actions: int) -> dict:
+                                num_actions: int) -> Tuple[dict, dict]:
         """Hyperparameter suggestions for optuna optimization of a chosen RL-architecture.
 
         Each lookup of algorithm returns a dictionary of parameters for that
@@ -50,10 +51,15 @@ class Hyperparameters:
         Returns:
             dict: dictionary of suggested hyperparameters for tuning in Optuna study
         """
+        sub_params = {}  # not a direct part of params to algorithm
+        
         # suggesting different network architectures
         num_not_shared_layers = trial.suggest_int("n_not_shared_layers", low=1, high=8, step=1)
         num_nodes_not_shared_layer = trial.suggest_categorical("n_nodes_layer", [8, 16, 32, 64, 128, 256, 512, 1024])
         suggest_activation_fn = trial.suggest_categorical("activation_fn", ["tanh", "relu", "leaky_relu"])
+        sub_params.update(
+            dict(n_layers=num_not_shared_layers, n_nodes=num_nodes_not_shared_layer, 
+                 activation=suggest_activation_fn))
 
         # learning rate scheduler
         lr_schedule = trial.suggest_categorical('lr_schedule', ['linear_decrease', 'constant'])
@@ -61,10 +67,13 @@ class Hyperparameters:
         if lr_schedule == "linear_decrease" or lr_schedule == "fun":
             learning_rate: Callable = self._linear_schedule(learning_rate)
 
+        sub_params.update(dict(lr_schedule=lr_schedule))
+
         # logic for special parameters for different architetures
         if algorithm in ["PPO", "A2C"]:
             num_shared_layers = trial.suggest_int("n_shared_layers", low=0, high=6, step=1)
             num_nodes_shared_layer = trial.suggest_categorical("n_nodes_shared_layer", [8, 16, 32, 64, 128, 256, 512, 1024])
+            sub_params.update(dict(n_s_layers=num_shared_layers, n_nodes_s_layers=num_nodes_shared_layer))
             # prerocessing suggestions to the right input format for SB3 algorithms
             network_architecture = self._define_policy_network(algorithm,
                                                                num_not_shared_layers,
@@ -75,6 +84,7 @@ class Hyperparameters:
         if algorithm in ['DDPG', 'SAC', 'TD3']:
             action_noise = trial.suggest_categorical('action_noise', [None, 'NormalActionNoise', "OrnsteinUhlenbeckActionNoise"])
             action_noise = self._yield_action_noise(action_noise, num_actions)
+            sub_params.update(dict(action_noise=action_noise))
             # prerocessing suggestions to the right input format for SB3 algorithms
             network_architecture = self._define_policy_network(algorithm,
                                                                num_not_shared_layers,
@@ -82,7 +92,6 @@ class Hyperparameters:
 
         activation_fn = self._define_activation_fn(suggest_activation_fn)
 
-        # TODO: also change learning rate code in other algorithms than PPO
         match algorithm:
             case "PPO":
                 params = dict(
@@ -175,7 +184,7 @@ class Hyperparameters:
             case _:
                 raise ValueError(f"{algorithm} is not implemented. These algorithms are implemented: PPO, DDPG, TD3, A2C, SAC")
 
-        return params
+        return params, sub_params
 
     def _define_policy_network(self, algorithm: str = "PPO",
                                num_not_shared_layers: int = 2,

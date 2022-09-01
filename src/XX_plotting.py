@@ -22,10 +22,11 @@ from mpl_toolkits.axes_grid1 import make_axes_locatable
 
 
 class Plotter:
-    '''class that contains functions to visualzie the progress of the
+    '''class that contains functions to visualize the progress of the
     training and / or individual samples of it'''
 
-    def sample_ep_plot(self, states, actions, rewards, ep, savepath,
+    @staticmethod
+    def sample_ep_plot(states, actions, rewards, ep, savepath,
                        replaced_cutters, moved_cutters):
         '''plot of different recordings of one exemplary episode'''
 
@@ -105,7 +106,8 @@ class Plotter:
         plt.savefig(savepath)
         plt.close()
 
-    def state_action_plot(self, states: list, actions: list, n_strokes: int,
+    @staticmethod
+    def state_action_plot(states: list, actions: list, n_strokes: int,
                           n_c_tot: int, savepath: str = None,
                           show: bool = True) -> None:
         '''plot that shows combinations of states and actions for the first
@@ -168,7 +170,8 @@ class Plotter:
         if show is False:
             plt.close()
 
-    def environment_parameter_plot(self, ep, env, savepath: str = None,
+    @staticmethod
+    def environment_parameter_plot(ep, env, savepath: str = None,
                                    show: bool = True) -> None:
         '''plot that shows the generated TBM parameters of the episode'''
         x = np.arange(len(env.Jv_s))  # strokes
@@ -223,7 +226,8 @@ class Plotter:
         if show is False:
             plt.close()
 
-    def trainingprogress_plot(self, df, summed_actions, name):
+    @staticmethod
+    def trainingprogress_plot(df, summed_actions, name):
         '''plot of different metrices of the whole training progress so far'''
         fig, (ax0, ax1, ax2, ax3) = plt.subplots(nrows=4, ncols=1,
                                                  figsize=(7.126, 5))  # 12, 9
@@ -259,7 +263,8 @@ class Plotter:
         plt.savefig(f'checkpoints/{name}_progress.svg')
         plt.close()
 
-    def action_visualization(self, action, n_c_tot, savepath=None,
+    @staticmethod
+    def action_visualization(action, n_c_tot, savepath=None,
                              binary=False):
         '''plot that visualizes a single action'''
         if binary is True:
@@ -281,7 +286,8 @@ class Plotter:
             plt.savefig(savepath)
             plt.close()
 
-    def custom_parallel_coordinate_plot(self, df_study: pd.DataFrame,
+    @staticmethod
+    def custom_parallel_coordinate_plot(df_study: pd.DataFrame,
                                         params: list,
                                         le_activation: LabelEncoder,
                                         savepath: str = None,
@@ -363,7 +369,8 @@ class Plotter:
         if show is False:
             plt.close()
 
-    def custom_optimization_history_plot(self, df_study: pd.DataFrame,
+    @staticmethod
+    def custom_optimization_history_plot(df_study: pd.DataFrame,
                                          savepath: str = None,
                                          show: bool = True) -> None:
 
@@ -396,7 +403,8 @@ class Plotter:
         if show is False:
             plt.close()
 
-    def custom_slice_plot(self, df_study: pd.DataFrame, params: list,
+    @staticmethod
+    def custom_slice_plot(df_study: pd.DataFrame, params: list,
                           le_noise: LabelEncoder = None,
                           le_activation: LabelEncoder = None,
                           savepath: str = None,
@@ -436,7 +444,8 @@ class Plotter:
         if show is False:
             plt.close()
 
-    def custom_intermediate_values_plot(self, agent: str, folder: str,
+    @staticmethod
+    def custom_intermediate_values_plot(agent: str, folder: str,
                                         mode: str = 'rollout',
                                         savepath: str = None,
                                         show: bool = True) -> None:
@@ -449,8 +458,8 @@ class Plotter:
         for trial in trials:
             try:
                 df_log = pd.read_csv(f'{folder}/{trial}/progress.csv')
-                if df_log[r'eval/mean_reward'].max() > 800:
-                    print(trial)
+                # if df_log[r'eval/mean_reward'].max() > 800:
+                #     print(trial)
                 n_strokes = df_log[r'rollout/ep_len_mean'].median()
                 df_log['episodes'] = df_log[r'time/total_timesteps'] / n_strokes
 
@@ -462,6 +471,8 @@ class Plotter:
                         df_log.dropna(axis=0,
                                       subset=['eval/mean_reward'],
                                       inplace=True)
+                        if df_log[r'eval/mean_reward'].max() > 870:
+                            print(trial)
                         ax.plot(df_log['episodes'],
                                 df_log[r'eval/mean_reward'],
                                 alpha=0.3, color='black')
@@ -483,7 +494,9 @@ class Plotter:
         if show is False:
             plt.close()
 
-    def training_progress_plot(self, df_log: pd.DataFrame,
+    @staticmethod
+    def training_progress_plot(df_log: pd.DataFrame,
+                               df_env_log: pd.DataFrame,
                                savepath: str = None,
                                show: bool = True) -> None:
         fig, (ax1, ax2, ax3) = plt.subplots(nrows=3, ncols=1, figsize=(10, 12))
@@ -500,10 +513,11 @@ class Plotter:
 
         # plotting environment statistics
         for logged_var in ["avg_replaced_cutters", "avg_moved_cutters",
-                           "avg_broken_cutters", "var_cutter_locations", "avg_penetration"]:
-            ax2.plot(df_log["episodes"], df_log[logged_var], 
+                           "avg_broken_cutters", "var_cutter_locations",
+                           'avg_inwards_moved_cutters',
+                           'avg_wrong_moved_cutters',]:
+            ax2.plot(df_env_log["episodes"], df_env_log[logged_var],
                      label=logged_var)
-        
         ax2.legend()
         ax2.grid(alpha=0.5)
         ax2.set_ylabel("count")

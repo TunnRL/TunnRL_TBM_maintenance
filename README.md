@@ -107,3 +107,11 @@ epochs (eg 10 epochs) in order to minimize the loss-function.
 2. Train an agent for a number of episodes for a certain architecture and parameters given from an Optuna optimization for that architecture.
    - Metrics are saved into the `checkpoint`directory.
 3. Execute to execute the actions for a trained agent.
+
+
+## Hydra functionality
+Invoke tab completion with hydra by running:
+
+```bash
+python src/A_main_hydra.py -sc install=bash
+```
