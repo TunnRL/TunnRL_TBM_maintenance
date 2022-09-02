@@ -24,14 +24,16 @@ class Maintenance:
     computed"""
 
     def __init__(self, n_c_tot: int, broken_cutters_thresh: float,
-                 alpha: float, beta: float, gamma: float,
-                 delta: float) -> None:
+                 check_bearing_failure: bool, alpha: float, beta: float,
+                 gamma: float, delta: float) -> None:
         """Setup
 
         Args:
             n_c_tot (int): total number of cutters
             broken_cutters_thresh (float): minimum required percentage of
                 functional cutters
+            check_bearing_failure (bool): if the reward function should check
+                for / consider cutter bearing failures or not
             alpha (float): weighting factor for replacing cutters
             beta (float): weighting factor for moving cutters
             gamma (float): weighting factor for cutter distance
@@ -39,6 +41,7 @@ class Maintenance:
         """
         self.n_c_tot = n_c_tot
         self.broken_cutters_thresh = broken_cutters_thresh
+        self.check_bearing_failure = check_bearing_failure
         self.t_i = 1  # cost of entering the cutterhead for maintenance
         self.alpha = alpha
         self.beta = beta
@@ -49,8 +52,7 @@ class Maintenance:
             raise ValueError('reward weighting factors do not sum up to 1!')
 
     def reward(self, replaced_cutters: list, moved_cutters: list,
-               good_cutters: int, damaged_bearing: bool,
-               check_bearing_failure: bool) -> float:
+               good_cutters: int, damaged_bearing: bool) -> float:
         """Reward function. Drives the agent learning process.
 
         Handle the replacing and moving of cutters.
@@ -63,13 +65,10 @@ class Maintenance:
             damaged_bearing (bool): if at least one cutter bearing fails due to
                 blockyness damage to the cutter and no subsequent repair. Only
                 effective if check_bearing_failure == True
-            check_bearing_failure (bool): if the reward function should check
-                for / consider cutter bearing failures or not
 
         Returns:
-            float: _description_
+            float: computed reward for a certain state.
         """
-
         # compute distance between acted on cutters -> encourage series change
         acted_on_cutters = sorted(replaced_cutters + moved_cutters)
         dist_cutters = np.sum(np.diff(acted_on_cutters))
@@ -77,7 +76,7 @@ class Maintenance:
         if good_cutters < self.n_c_tot * self.broken_cutters_thresh:
             # if more than threshhold number of cutters are broken
             r = -1
-        elif check_bearing_failure is True and damaged_bearing is True:
+        elif self.check_bearing_failure is True and damaged_bearing is True:
             # if check for bearing failures is set and bearing failure occurs
             r = -1
         elif len(acted_on_cutters) == 0:
@@ -147,7 +146,7 @@ class CustomEnv(gym.Env):
         self.check_bearing_failure = check_bearing_failure
 
         # instantiated state variables
-        self.m = Maintenance(n_c_tot, broken_cutters_thresh, alpha, beta,
+        self.m = Maintenance(n_c_tot, broken_cutters_thresh, check_bearing_failure, alpha, beta,
                              gamma, delta)
 
         # state variables assigned in class methods:
@@ -184,8 +183,7 @@ class CustomEnv(gym.Env):
         else:
             damaged_bearing = False
         reward = self.m.reward(self.replaced_cutters, self.moved_cutters,
-                               n_good_cutters, damaged_bearing,
-                               self.check_bearing_failure)
+                               n_good_cutters, damaged_bearing)
 
         # update cutter life based on how much wear occurs
         p = self.penetration[self.epoch] / 1000  # [m/rot]
