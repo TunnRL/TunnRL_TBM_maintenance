@@ -229,7 +229,7 @@ class CustomEnv(gym.Env):
 
         return state_new
 
-    def rand_walk_with_bounds(self, n_dp: int) -> NDArray:
+    def _rand_walk_with_bounds(self, n_dp: int) -> NDArray:
         '''function generates a random walk within the limits 0 and 1'''
         bounds = .05
 
@@ -245,14 +245,15 @@ class CustomEnv(gym.Env):
         return np.array(x[1:])
 
     def generate(self, Jv_low: int = 0, Jv_high: int = 22,
-                 UCS_center: int = 80, UCS_range: int = 30) -> tuple:
+                 UCS_center: int = 80, UCS_range: int = 30
+                 ) -> tuple[NDArray, NDArray, NDArray, NDArray]:
         '''Function generates TBM recordings for one episode. Equations and
         models based on Delisio & Zhao (2014) - "A new model for TBM
         performance prediction in blocky rock conditions",
         http://dx.doi.org/10.1016/j.tust.2014.06.004'''
 
-        Jv_s = self.rand_walk_with_bounds(self.MAX_STROKES) * (Jv_high - Jv_low) + Jv_low  # [joints / m3]
-        UCS_s = UCS_center + self.rand_walk_with_bounds(self.MAX_STROKES) * UCS_range  # [MPa]
+        Jv_s = self._rand_walk_with_bounds(self.MAX_STROKES) * (Jv_high - Jv_low) + Jv_low  # [joints / m3]
+        UCS_s = UCS_center + self._rand_walk_with_bounds(self.MAX_STROKES) * UCS_range  # [MPa]
 
         # eq 9, Delisio & Zhao (2014) - [kN/m/mm/rot]
         FPIblocky_s = np.squeeze(np.exp(6) * Jv_s**-0.82 * UCS_s**0.17)

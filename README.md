@@ -92,6 +92,10 @@ logging metrics, early stopping etc.
 4. Train the agent by looping over episodes, thereby making new actions and changin the state, each time with a new version of the 
 environment. This functionality is wrapped into the learn function in Stable Baselines3.
 `agent.learn(total_timesteps=self.EPISODES * self.MAX_STROKES, callback=callback)`.
+For every episode the `reset`method in the Gym environment is called to:
+
+1. Setup the environment, laying out an array of penetration values for the episode.
+2. Define a state vector of the cutter life for all cutters, assigned with max life of 1's
 
 In every episode (say 10 000 episodes), the agent takes (loops over) a number of steps
 (which is TBM-strokes in this environment, eg. 1000 strokes of 1.8 meter). In each step a MLP-neural network is trained to match the best actions to the given state, ie. that maximize the reward.

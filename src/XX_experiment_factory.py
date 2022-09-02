@@ -410,7 +410,7 @@ class Optimization:
 
 def load_best_model(agent_name: str, main_dir: str,
                     agent_dir: str) -> BaseAlgorithm:
-    """Load best model from a directory.
+    """Load best model from a zip-file on the format: best_model.zip
 
     Args:
         agent_name (str): name of RL-architecture (PPO, DDPG ...)
