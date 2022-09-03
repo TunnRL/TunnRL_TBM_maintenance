@@ -13,9 +13,9 @@ Custom library that contains different classes for:
 code contributors: Georg H. Erharter, Tom F. Hansen
 """
 
-from dataclasses import dataclass
 import uuid
 import warnings
+from dataclasses import dataclass
 from pprint import pformat
 from typing import Any
 
@@ -53,7 +53,7 @@ warnings.filterwarnings("ignore", category=optuna.exceptions.ExperimentalWarning
 class Optimization:
     """Functionality to train (optimize the reward of an agent)
     and hyperparameter tuning of agent parameters using Optuna.
-    
+
     Args:
         n_c_tot (int): Number of cutters
         environment (gym.Env): TBM environment with state, actions, reward
@@ -65,6 +65,7 @@ class Optimization:
         DEFAULT_TRIAL (bool): If an optimization first should run with default params
         cb_cfg (dict): callback config
     """
+
     n_c_tot: int
     environment: gym.Env
     AGENT_NAME: str
@@ -195,7 +196,6 @@ class Optimization:
         callbacks, SB3_logger = self._setup_callbacks_and_logger(
             best_parameters, sub_parameters
         )
-
         if SB3_logger is not None:
             agent.set_logger(SB3_logger)
 
@@ -209,7 +209,6 @@ class Optimization:
             exp_agent=self.AGENT_NAME,
             exp_hydra_dir=self.hydra_dir,
         )
-
         mlflow_log_experiment(
             experiment_info=experiment_info,
             main_dir="checkpoints",
@@ -248,6 +247,7 @@ class Optimization:
     ) -> tuple[list, Any]:
         """Defining callbacks and logger used in training and optimizing an RL agent.
         Different setups for different training/optimization modes.
+        TODO: this is a function which takes second most time. Look for improvements.
 
         Args:
             parameters (dict): parameters for agent in experiment
@@ -362,8 +362,8 @@ class Optimization:
 
 def get_hydra_experiment_tag(hydra_path: str) -> str:
     """Returns hydra experiment tag."""
-    exp_parts = hydra_path.split("/")
-    hydra_tag = exp_parts[-2] + "_" + exp_parts[-1]
+    # exp_parts = hydra_path.split("/")
+    # hydra_tag = exp_parts[-2] + "_" + exp_parts[-1]
     return hydra_path  # hydra_tag
 
 
@@ -485,8 +485,12 @@ class TrainingProgressCallback(BaseCallback):
         self.moved_cutters_episode.append(
             len(self.training_env.get_attr("moved_cutters")[0])
         )
-        self.inwards_moved_cutters_episode.append(len(self.training_env.get_attr("inwards_moved_cutters")[0]))
-        self.wrong_moved_cutters_episode.append(len(self.training_env.get_attr("wrong_moved_cutters")[0]))
+        self.inwards_moved_cutters_episode.append(
+            len(self.training_env.get_attr("inwards_moved_cutters")[0])
+        )
+        self.wrong_moved_cutters_episode.append(
+            len(self.training_env.get_attr("wrong_moved_cutters")[0])
+        )
         self.broken_cutters_episode.append(
             len(self.training_env.get_attr("broken_cutters")[0])
         )
@@ -537,8 +541,8 @@ class TrainingProgressCallback(BaseCallback):
                     "avg_replaced_cutters": self.avg_replaced_cutters_episode,
                     "var_cutter_locations": self.var_replaced_cutters_episode,
                     "avg_moved_cutters": self.avg_moved_cutters_episode,
-                    'avg_inwards_moved_cutters': self.avg_inwards_moved_cutters_episode,
-                    'avg_wrong_moved_cutters': self.avg_wrong_moved_cutters_episode,
+                    "avg_inwards_moved_cutters": self.avg_inwards_moved_cutters_episode,
+                    "avg_wrong_moved_cutters": self.avg_wrong_moved_cutters_episode,
                     "avg_broken_cutters": self.avg_broken_cutters_episode,
                     "avg_penetration": self.avg_penetration_episode,
                 }
@@ -588,7 +592,9 @@ class PrintExperimentInfoCallback(BaseCallback):
 
     def _on_training_start(self) -> None:
         r_console = self.r_console
-        r_console.print(f"\n{self.mode} agent in dir: {self.agent_dir} | Num episodes: {self.n_episodes}")
+        r_console.print(
+            f"\n{self.mode} agent in dir: {self.agent_dir} | Num episodes: {self.n_episodes}"
+        )
         r_console.print(f"Config values in: {self.hydra_dir}")
         r_console.print(
             f"Evaluation frequency is every {self.checkpoint_interval} episode / {self.checkpoint_interval * 1000} step"
@@ -614,7 +620,7 @@ class MlflowLoggingCallback(BaseCallback):
         agent_dir: str,
         save_path: str,
         verbose: int = 0,
-    ):
+    ) -> None:
         super().__init__(verbose)
         self.mode = mode
         self.agent_name = agent_name

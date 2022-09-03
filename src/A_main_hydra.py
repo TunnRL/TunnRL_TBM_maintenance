@@ -8,6 +8,7 @@ Main code that either runs a hyperparameter optimization study with OPTUNA or a
 
 Created on Sat Oct 30 12:46:42 2021
 code contributors: Georg H. Erharter, Tom F. Hansen
+
 """
 
 import warnings
@@ -39,6 +40,7 @@ def run_optimization(
     STUDY: str,
     N_SINGLE_RUN_OPTUNA_TRIALS: int,
     N_PARALLELL_PROCESSES: int,
+    N_CORES_PARALLELL: int,
     optim: Optimization,
 ) -> None:
     """Optimize the hyperparameters for SB3 algorithm using Optuna.
@@ -64,7 +66,7 @@ def run_optimization(
     optim.optimize(study, N_SINGLE_RUN_OPTUNA_TRIALS)
 
     # Parallel(n_jobs=N_CORES_PARALLELL, verbose=10, backend="loky")(
-    #     delayed(optim.optimize)(N_SINGLE_RUN_OPTUNA_TRIALS) for _ in range(N_PARALLELL_PROCESSES))
+    # delayed(optim.optimize)(study, N_SINGLE_RUN_OPTUNA_TRIALS) for _ in range(N_PARALLELL_PROCESSES))
 
 
 def run_training(
@@ -298,7 +300,7 @@ def main(cfg: DictConfig) -> None:
         cfg.EXP.DEBUG,
         cfg.TBM.MAX_STROKES,
         cfg.OPT.DEFAULT_TRIAL,
-        cb_cfg
+        cb_cfg,
     )
 
     ###############################################################################
@@ -310,6 +312,7 @@ def main(cfg: DictConfig) -> None:
                 cfg.EXP.STUDY,
                 cfg.OPT.N_SINGLE_RUN_OPTUNA_TRIALS,
                 cfg.OPT.N_PARALLELL_PROCESSES,
+                cfg.OPT.N_CORES_PARALLELL,
                 optim,
             )
 

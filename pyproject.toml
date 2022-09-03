@@ -2,8 +2,10 @@
 name = "tunnrl_tbm_maintenance"
 version = "0.1.0"
 description = "Functionality to train, optimize and execute reinforcement learning models controlling the maintenance of cutter discs for a Tunnel Boring Machine (TBM). A simulated TBM environment is defined."
-authors = ["geograz <->", "tfha <tom.frode.hansen@gmail.com>"]
+authors = ["Georg H. Erharter <erharter@tugraz.at>", "Tom F. Hansen <tom.frode.hansen@gmail.com>"]
 license = "MIT"
+readme = "README.md"
+repository = "https://github.com/TunnRL/TunnRL_TBM_maintenance"
 
 [tool.poetry.dependencies]
 python = ">=3.10.5,<3.12"
@@ -48,6 +50,18 @@ lines_after_imports = 2
 
 [tool.black]
 line-length = 89
+exclude = '''
+/(
+	\.git
+| \.hg
+| \.mypy_cache
+| \.tox
+| \.venv
+| _build
+| buck-out
+| build
+)/
+'''
 
 [tool.mypy]
 strict = false

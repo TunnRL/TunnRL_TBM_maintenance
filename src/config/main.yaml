@@ -1,13 +1,13 @@
-# CONFIG VALUES FOR RL FRAMEWORK. 
+# CONFIG VALUES FOR RL FRAMEWORK.
 ##########################
-# Contains all config values except hyperparameters for algorithms which 
+# Contains all config values except hyperparameters for algorithms which
 # is logged in the directories experiments (mlflow) and results
 
 # Benefits of hydra logging
 # - Make experiments reproducible by saving exact config values for each experiment
 #   in an organized way.
 # - Change values in user friendly terminal setup (tab completion) without touching the code
-# - One organized place to change all config values, without the need to traverse the code 
+# - One organized place to change all config values, without the need to traverse the code
 #   for hard coded values. This makes code use easier for team
 # - Change a config value one place and not in a number of scripts (where you hopefully find all)
 # - Remove several lines of comments in the code.
@@ -22,11 +22,11 @@ hydra:
 # TBM EXCAVATION PARAMETERS
 ###########################
 TBM:
-  CUTTERHEAD_RADIUS: 4  # cutterhead radius [m]
-  TRACK_SPACING: 0.1  # cutter track spacing [m]
-  LIFE: 400000  # theoretical durability of one cutter [m]
-  STROKE_LENGTH: 1.8  # length of one stroke [m]
-  MAX_STROKES: 1000  # number of strokes per episode
+  CUTTERHEAD_RADIUS: 4 # cutterhead radius [m]
+  TRACK_SPACING: 0.1 # cutter track spacing [m]
+  LIFE: 400000 # theoretical durability of one cutter [m]
+  STROKE_LENGTH: 1.8 # length of one stroke [m]
+  MAX_STROKES: 1000 # number of strokes per episode
 
 # MAIN EXPERIMENT INFO AND GENERAL PARAMETERS
 ######################
@@ -34,7 +34,7 @@ EXP:
   # MODE determines if either an optimization should run = "Optimization", or a
   # new agent is trained with prev. optimized parameters = "Training", or an
   # already trained agent is executed = "Execution"
-  MODE: "training"  # 'optimization', 'training', 'execution'
+  MODE: "training" # 'optimization', 'training', 'execution'
   # set to run SB3 environment check function
   # Checks if env is a suitable gym environment
   CHECK_ENV: False
@@ -42,26 +42,26 @@ EXP:
   # name of the study if MODE == 'Optimization' or 'Training'
   # the Study name must start with the name of the agent that needs to be one of
   # 'PPO', 'A2C', 'DDPG', 'SAC', 'TD3'
-  STUDY: "PPO_2022_08_27_study"  # DDPG_2022_07_27_study 'PPO_2022_08_03_study'
+  STUDY: "PPO_2022_09_03_study" # DDPG_2022_07_27_study 'PPO_2022_08_03_study'
   # evaluations in optimization and checkpoints in training every X episodes
   CHECKPOINT_INTERVAL: 100
-  EPISODES: 12_000  # max episodes to train for
-  PLOT_PROGRESS: True  # wether to make progress plots during training or not. Plotting takes time
-  DETERMINISTIC: False  # fixed environment used in evaluation or not
+  EPISODES: 12_000 # max episodes to train for
+  PLOT_PROGRESS: True # wether to make progress plots during training or not. Plotting takes time
+  DETERMINISTIC: False # fixed environment used in evaluation or not
 
 # OPTIMIZATION SPECIAL SETUP
 ######################
 OPT:
-  DEFAULT_TRIAL: False  # first run a trial with default parameters.
-  MAX_NO_IMPROVEMENT_EVALS: 3  # maximum number of evaluations without improvement
+  DEFAULT_TRIAL: False # first run a trial with default parameters.
+  MAX_NO_IMPROVEMENT_EVALS: 3 # maximum number of evaluations without improvement
   # n optuna trials to run in total (including eventual default trial)
   N_SINGLE_RUN_OPTUNA_TRIALS: 2
   # NOTE: memory can be an issue for many parallell processes. Size of neural network and
   # available memory will be limiting factors
   N_CORES_PARALLELL: -1
   N_PARALLELL_PROCESSES: 5
-  N_EVAL_EPISODES_OPTIMIZATION: 3  # n eval episodes in stop training cb
-  N_EVAL_EPISODES_REWARD: 10  # n eval episodes for computing mean reward in end of training
+  N_EVAL_EPISODES_OPTIMIZATION: 3 # n eval episodes in stop training cb
+  N_EVAL_EPISODES_REWARD: 10 # n eval episodes for computing mean reward in end of training
 
 # TRAINING SPECIAL SETUP
 ######################
@@ -79,10 +79,10 @@ EXECUTE:
 # REWARD
 ######################
 REWARD:
-  BROKEN_CUTTERS_THRESH: 0.85  # minimum required % of functional cutters
+  BROKEN_CUTTERS_THRESH: 0.85 # minimum required % of functional cutters
   T_I: 1
   ALPHA: 0.2
   BETA: 0.3
   GAMMA: 0.25
   DELTA: 0.25
-  CHECK_BEARING_FAILURE: True  # if True should check cutter bearing failures
+  CHECK_BEARING_FAILURE: True # if True should check cutter bearing failures

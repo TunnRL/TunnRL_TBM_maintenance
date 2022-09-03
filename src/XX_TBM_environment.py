@@ -11,13 +11,14 @@ Created on Sat Oct 30 12:57:51 2021
 code contributors: Georg H. Erharter, Tom F. Hansen
 """
 
+from dataclasses import dataclass
 from typing import Callable
+
 import gym
 import matplotlib.pyplot as plt
 import numpy as np
 from gym import spaces
 from numpy.typing import NDArray
-from dataclasses import dataclass
 
 
 @dataclass
@@ -198,7 +199,9 @@ class CustomEnv(gym.Env):
         return self.state, reward, terminal, {}
 
     def _implement_action(self, action: NDArray, state_before: NDArray) -> NDArray:
-        """Function that interprets the "raw action" and modifies the state."""
+        """Function that interprets the "raw action" and modifies the state.
+        TODO: this is a function which takes most time. Look for improvements.
+        """
         state_new = state_before
         self.replaced_cutters = []
         self.inwards_moved_cutters = []
@@ -224,7 +227,7 @@ class CustomEnv(gym.Env):
 
         return state_new
 
-    def rand_walk_with_bounds(self, n_dp: int) -> NDArray:
+    def _rand_walk_with_bounds(self, n_dp: int) -> NDArray:
         """function generates a random walk within the limits 0 and 1"""
         bounds = 0.05
 
@@ -252,10 +255,10 @@ class CustomEnv(gym.Env):
         http://dx.doi.org/10.1016/j.tust.2014.06.004"""
 
         Jv_s = (
-            self.rand_walk_with_bounds(self.MAX_STROKES) * (Jv_high - Jv_low) + Jv_low
+            self._rand_walk_with_bounds(self.MAX_STROKES) * (Jv_high - Jv_low) + Jv_low
         )  # [joints / m3]
         UCS_s = (
-            UCS_center + self.rand_walk_with_bounds(self.MAX_STROKES) * UCS_range
+            UCS_center + self._rand_walk_with_bounds(self.MAX_STROKES) * UCS_range
         )  # [MPa]
 
         # eq 9, Delisio & Zhao (2014) - [kN/m/mm/rot]
@@ -319,10 +322,10 @@ class CustomEnv(gym.Env):
         ) = self.generate()
         return self.state
 
-    def render(self):
+    def render(self) -> None:
         pass
 
-    def close(self):
+    def close(self) -> None:
         pass
 
 
@@ -331,8 +334,9 @@ if __name__ == "__main__":
     # visualization of all possible reward states
     n_c_tot = 28  # total number of cutters
     broken_cutters_thresh = 0.5
+    check_bearing_failure = False
 
-    m = Maintenance(n_c_tot, broken_cutters_thresh)
+    reward_fn = Reward(n_c_tot, broken_cutters_thresh, check_bearing_failure)
 
     cutters = np.arange(n_c_tot)
 
@@ -352,7 +356,7 @@ if __name__ == "__main__":
         good_cutters = np.random.randint(n_repl + n_move, n_c_tot)
         # print(n_repl, n_move, good_cutters)
 
-        r = m.reward(list(replaced_cutters), list(moved_cutters), good_cutters)
+        r = reward_fn(list(replaced_cutters), list(moved_cutters), good_cutters, False)
         n_repls.append(n_repl)
         n_moves.append(n_move)
         n_good_cutters.append(good_cutters)
