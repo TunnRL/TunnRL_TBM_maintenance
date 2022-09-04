@@ -24,6 +24,7 @@ import numpy as np
 import optuna
 import pandas as pd
 import yaml
+from sklearn.manifold import TSNE
 from stable_baselines3 import A2C, DDPG, PPO, SAC, TD3
 from stable_baselines3.common import logger
 from stable_baselines3.common.base_class import BaseAlgorithm
@@ -406,6 +407,37 @@ class Optimization:
 
         cb_list = CallbackList(cb_list)
         return cb_list, sb3_logger
+
+
+class ExperimentAnalysis:
+
+    def dimensionality_reduction(self, all_actions: list, all_states: list,
+                                 all_rewards: list, all_broken_cutters: list,
+                                 all_replaced_cutters: list,
+                                 all_moved_cutters: list,
+                                 perplexity=float) -> pd.DataFrame:
+        # flatten all episode lists
+        all_actions = [item for sublist in all_actions for item in sublist]
+        all_states = [item for sublist in all_states for item in sublist]
+        all_rewards = [item for sublist in all_rewards for item in sublist]
+        all_broken_cutters = [item for sublist in all_broken_cutters for item in sublist]
+        all_replaced_cutters = [item for sublist in all_replaced_cutters for item in sublist]
+        all_moved_cutters = [item for sublist in all_moved_cutters for item in sublist]
+
+        # apply TSNE
+        reducer = TSNE(n_components=2, perplexity=perplexity, init='random',
+                       learning_rate='auto', verbose=1, n_jobs=-1)
+        all_actions_reduced_2D = reducer.fit_transform(np.array(all_actions))
+        print('TSNE reduced actions to 2D')
+
+        # collect results in dataframe and return
+        df = pd.DataFrame({'x': all_actions_reduced_2D[:, 0],
+                           'y': all_actions_reduced_2D[:, 1],
+                           'broken cutters': all_broken_cutters,
+                           'replaced cutters': all_replaced_cutters,
+                           'moved cutters': all_moved_cutters,
+                           'state': [np.round(s, 1) for s in all_states]})
+        return df
 
 
 def load_best_model(agent_name: str, main_dir: str,

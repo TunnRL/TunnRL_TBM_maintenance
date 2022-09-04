@@ -21,7 +21,7 @@ from stable_baselines3.common.env_checker import check_env
 import torch.nn as nn  # used in evaluation of yaml file
 import yaml
 
-from XX_experiment_factory import Optimization, load_best_model
+from XX_experiment_factory import Optimization, load_best_model, ExperimentAnalysis
 from XX_hyperparams import Hyperparameters
 from XX_plotting import Plotter
 from XX_TBM_environment import CustomEnv
@@ -41,10 +41,10 @@ MAX_STROKES = 1000  # number of strokes per episode
 # REWARD FUNCTION PARAMETERS
 ######################
 BROKEN_CUTTERS_THRESH = 0.85  # minimum required % of functional cutters
-ALPHA = 0.2  # weighting factor for replacing cutters
-BETA = 0.3  # weighting factor for moving cutters
-GAMMA = 0.25  # weighting factor for cutter distance
-DELTA = 0.25  # weighting factor for entering cutterhead
+ALPHA = 0.18  # weighting factor for replacing cutters
+BETA = 0.38  # weighting factor for moving cutters
+GAMMA = 0.26  # weighting factor for cutter distance
+DELTA = 0.18  # weighting factor for entering cutterhead
 CHECK_BEARING_FAILURE = True  # if True should check cutter bearing failures
 
 # MAIN EXPERIMENT INFO
@@ -52,7 +52,7 @@ CHECK_BEARING_FAILURE = True  # if True should check cutter bearing failures
 # MODE determines if either an optimization should run = "optimization", or a
 # new agent is trained with prev. optimized parameters = "training", or an
 # already trained agent is executed = "execution"
-MODE = "optimization"  # 'optimization', 'training', 'execution'
+MODE = "execution"  # 'optimization', 'training', 'execution'
 # set to run SB3 environment check function
 # Checks if env is a suitable gym environment
 CHECK_ENV = False
@@ -63,7 +63,7 @@ DEBUG = False  # sets test values for quicker response
 # name of the study if MODE == 'Optimization' or 'Training'
 # the Study name must start with the name of the agent that needs to be one of
 # 'PPO', 'A2C', 'DDPG', 'SAC', 'TD3'
-STUDY = "TD3_2022_08_30_study"  # DDPG_2022_07_27_study 'PPO_2022_08_03_study'
+STUDY = "TD3_2022_09_03_study"
 # evaluations in optimization and checkpoints in training every X episodes
 CHECKPOINT_INTERVAL = 50
 EPISODES = 12_000  # max episodes to train for
@@ -73,7 +73,7 @@ EPISODES = 12_000  # max episodes to train for
 DEFAULT_TRIAL = False  # first run a trial with default parameters.
 MAX_NO_IMPROVEMENT = 3  # maximum number of evaluations without improvement
 # n optuna trials to run in total (including eventual default trial)
-N_SINGLE_RUN_OPTUNA_TRIALS = 150
+N_SINGLE_RUN_OPTUNA_TRIALS = 30
 # NOTE: memory can be an issue for many parallell processes. Size of neural
 # network and available memory will be limiting factors
 N_CORES_PARALLELL = -1
@@ -86,14 +86,15 @@ LOAD_PARAMS_FROM_STUDY = False
 
 # EXECUTION SPECIAL SETUP
 ######################
-EXECUTION_MODEL = "TD3_11bd6ce5-92d5-4b95-befb-e82d23eae32e"
-NUM_TEST_EPISODES = 3
+EXECUTION_MODEL = "TD3_58c8ef65-de89-4b64-ab26-c5ddae4f0d06"
+NUM_TEST_EPISODES = 10
+VISUALIZE_EPISODES = False  # if the episodes should be visualized or not
 
 ###############################################################################
 # WARNINGS AND ERROR CHECKING INPUT VARIABLES
 ###############################################################################
 
-if DEBUG:
+if DEBUG is True:
     EPISODES = 20
     CHECKPOINT_INTERVAL = 10
     N_PARALLELL_PROCESSES = 1
@@ -157,6 +158,7 @@ optim = Optimization(n_c_tot, env, STUDY, EPISODES, CHECKPOINT_INTERVAL, MODE,
                      MAX_STROKES, agent_name, DEFAULT_TRIAL,
                      MAX_NO_IMPROVEMENT)
 
+ea = ExperimentAnalysis()
 hparams = Hyperparameters()
 plotter = Plotter()
 
@@ -208,6 +210,13 @@ elif MODE == 'execution':
     agent = load_best_model(agent_name, main_dir="optimization",
                             agent_dir=EXECUTION_MODEL)
 
+    all_actions = []
+    all_states = []
+    all_rewards = []
+    all_broken_cutters = []
+    all_replaced_cutters = []
+    all_moved_cutters = []
+
     # test agent throughout multiple episodes
     for test_ep_num in range(NUM_TEST_EPISODES):
         print(f"Episode num: {test_ep_num}")
@@ -224,7 +233,7 @@ elif MODE == 'execution':
         # one episode loop
         i = 0
         while not terminal:
-            print(f"Stroke (step) num: {i}")
+            # print(f"Stroke (step) num: {i}")
             # collect number of broken cutters in curr. state
             broken_cutters.append(len(np.where(state == 0)[0]))
             # agent takes an action -> tells which cutters to replace
@@ -239,15 +248,39 @@ elif MODE == 'execution':
             moved_cutters.append(env.moved_cutters)
             i += 1
 
-        plotter.state_action_plot(states, actions, n_strokes=300,
-                                  n_c_tot=n_c_tot, show=False,
-                                  savepath=f'checkpoints/_sample/{EXECUTION_MODEL}{test_ep_num}_state_action.svg')
-        plotter.environment_parameter_plot(test_ep_num, env, show=False,
-                                           savepath=f'checkpoints/_sample/{EXECUTION_MODEL}{test_ep_num}_episode.svg')
-        plotter.sample_ep_plot(states, actions, rewards, ep=test_ep_num,
-                               savepath=f'checkpoints/_sample/{EXECUTION_MODEL}{test_ep_num}_sample.svg',
-                               replaced_cutters=replaced_cutters,
-                               moved_cutters=moved_cutters)
+        all_actions.append(actions)
+        all_states.append(states[:-1])
+        all_rewards.append(rewards)
+        all_broken_cutters.append(broken_cutters)
+        all_replaced_cutters.append([len(c) for c in replaced_cutters])
+        all_moved_cutters.append([len(c) for c in moved_cutters])
+
+        if VISUALIZE_EPISODES is True:
+            plotter.state_action_plot(states, actions, n_strokes=300,
+                                      rewards=rewards, n_c_tot=n_c_tot,
+                                      show=False,
+                                      savepath=f'checkpoints/_sample/{EXECUTION_MODEL}{test_ep_num}_state_action.svg')
+            plotter.environment_parameter_plot(test_ep_num, env, show=False,
+                                               savepath=f'checkpoints/_sample/{EXECUTION_MODEL}{test_ep_num}_episode.svg')
+            plotter.sample_ep_plot(states, actions, rewards,
+                                   replaced_cutters=replaced_cutters,
+                                   moved_cutters=moved_cutters,
+                                   n_cutters=n_c_tot, show=False,
+                                   savepath=f'checkpoints/_sample/{EXECUTION_MODEL}{test_ep_num}_sample.svg')
+
+    df_reduced = ea.dimensionality_reduction(all_actions,
+                                             all_states,
+                                             all_rewards,
+                                             all_broken_cutters,
+                                             all_replaced_cutters,
+                                             all_moved_cutters,
+                                             perplexity=200)
+
+    plotter.action_analysis_scatter_plotly(df_reduced,
+                                           savepath=f"checkpoints/_sample/{EXECUTION_MODEL}_TSNE_scatter_plotly.html")
+
+    plotter.action_analysis_scatter(df_reduced,
+                                    savepath=f'checkpoints/_sample/{EXECUTION_MODEL}_TSNE_scatter.svg')
 
 else:
     raise ValueError(f"{MODE} is not a valid mode")
