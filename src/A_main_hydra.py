@@ -63,10 +63,10 @@ def run_optimization(
         load_if_exists=True,
         sampler=sampler,
     )
-    optim.optimize(study, N_SINGLE_RUN_OPTUNA_TRIALS)
+    optim.optimize(N_SINGLE_RUN_OPTUNA_TRIALS)
 
     # Parallel(n_jobs=N_CORES_PARALLELL, verbose=10, backend="loky")(
-    # delayed(optim.optimize)(study, N_SINGLE_RUN_OPTUNA_TRIALS) for _ in range(N_PARALLELL_PROCESSES))
+    #     delayed(optim.optimize)(N_SINGLE_RUN_OPTUNA_TRIALS) for _ in range(N_PARALLELL_PROCESSES))
 
 
 def run_training(
@@ -278,7 +278,7 @@ def main(cfg: DictConfig) -> None:
         "TD3",
     ], f"{agent_name} is not a valid agent."
 
-    cb_cfg = dict(
+    callbacks_cfg = dict(
         MAX_STROKES=cfg.TBM.MAX_STROKES,
         CHECKPOINT_INTERVAL=cfg.EXP.CHECKPOINT_INTERVAL,
         PLOT_PROGRESS=cfg.EXP.PLOT_PROGRESS,
@@ -300,7 +300,7 @@ def main(cfg: DictConfig) -> None:
         cfg.EXP.DEBUG,
         cfg.TBM.MAX_STROKES,
         cfg.OPT.DEFAULT_TRIAL,
-        cb_cfg,
+        callbacks_cfg,
     )
 
     ###############################################################################

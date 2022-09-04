@@ -151,7 +151,7 @@ class Optimization:
 
         return final_reward
 
-    def optimize(self, study: optuna.Study, n_trials: int) -> None:
+    def optimize(self, n_trials: int) -> None:
         """Optimize-function to be called in parallell process.
 
         Saves parameter-values and corresponding reward to mlflow.
@@ -164,6 +164,10 @@ class Optimization:
         Returns:
             None
         """
+        db_path = f"results/{self.STUDY}.db"
+        db_file = f"sqlite:///{db_path}"
+        study = optuna.load_study(study_name=self.STUDY, storage=db_file)
+
         try:
             study.optimize(
                 self.objective,
