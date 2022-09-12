@@ -6,6 +6,7 @@ src/optimization/
 src/checkpoints/
 src/graphics/
 src/results/
+src/A_main.py
 
 experiments/*
 checkpoints/*

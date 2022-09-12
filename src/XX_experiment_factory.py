@@ -28,6 +28,7 @@ import yaml
 from hydra.core.hydra_config import HydraConfig
 from rich.console import Console
 from rich.traceback import install
+from sklearn.manifold import TSNE
 from stable_baselines3 import A2C, DDPG, PPO, SAC, TD3
 from stable_baselines3.common import logger
 from stable_baselines3.common.base_class import BaseAlgorithm
@@ -379,19 +380,72 @@ def load_best_model(agent_name: str, main_dir: str, agent_dir: str) -> BaseAlgor
         Instantiated RL-object
     """
     path = f"{main_dir}/{agent_dir}/best_model"
+    agent = None
 
-    if agent_name == "PPO":
-        agent = PPO.load(path)
-    elif agent_name == "A2C":
-        agent = A2C.load(path)
-    elif agent_name == "DDPG":
-        agent = DDPG.load(path)
-    elif agent_name == "SAC":
-        agent = SAC.load(path)
-    elif agent_name == "TD3":
-        agent = TD3.load(path)
+    try:
+        if agent_name == "PPO":
+            agent = PPO.load(path)
+        elif agent_name == "A2C":
+            agent = A2C.load(path)
+        elif agent_name == "DDPG":
+            agent = DDPG.load(path)
+        elif agent_name == "SAC":
+            agent = SAC.load(path)
+        elif agent_name == "TD3":
+            agent = TD3.load(path)
+        else:
+            raise ValueError("not a valid agent")
+    except FileNotFoundError:
+        print(f"{path} is not existing")
 
     return agent
+
+
+class ExperimentAnalysis:
+    @staticmethod
+    def dimensionality_reduction(
+        all_actions: list,
+        all_states: list,
+        all_rewards: list,
+        all_broken_cutters: list,
+        all_replaced_cutters: list,
+        all_moved_cutters: list,
+        perplexity: float,
+    ) -> pd.DataFrame:
+        # flatten all episode lists. TODO: do this smarter with itertools or the utility python pacakage I don't remember.
+        all_actions = [item for sublist in all_actions for item in sublist]
+        all_states = [item for sublist in all_states for item in sublist]
+        all_rewards = [item for sublist in all_rewards for item in sublist]
+        all_broken_cutters = [item for sublist in all_broken_cutters for item in sublist]
+        all_replaced_cutters = [
+            item for sublist in all_replaced_cutters for item in sublist
+        ]
+        all_moved_cutters = [item for sublist in all_moved_cutters for item in sublist]
+
+        # apply TSNE
+        reducer = TSNE(
+            n_components=2,
+            perplexity=perplexity,
+            init="random",
+            learning_rate="auto",
+            verbose=1,
+            n_jobs=-1,
+        )
+        all_actions_reduced_2D = reducer.fit_transform(np.array(all_actions))
+        print("TSNE reduced actions to 2D")
+
+        # collect results in dataframe and return
+        df = pd.DataFrame(
+            {
+                "x": all_actions_reduced_2D[:, 0],
+                "y": all_actions_reduced_2D[:, 1],
+                "broken cutters": all_broken_cutters,
+                "replaced cutters": all_replaced_cutters,
+                "moved cutters": all_moved_cutters,
+                "state": [np.round(s, 1) for s in all_states],
+            }
+        )
+        return df
 
 
 def mlflow_log_experiment(

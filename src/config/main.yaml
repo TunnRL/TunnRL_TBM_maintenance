@@ -12,6 +12,9 @@
 # - Change a config value one place and not in a number of scripts (where you hopefully find all)
 # - Remove several lines of comments in the code.
 
+defaults: # sub-configs
+  - agent: ppo.yaml
+
 hydra:
   run:
     dir: ./experiments/hydra_outputs/${now:%Y-%m-%d}/${now:%H-%M-%S}
@@ -34,7 +37,7 @@ EXP:
   # MODE determines if either an optimization should run = "Optimization", or a
   # new agent is trained with prev. optimized parameters = "Training", or an
   # already trained agent is executed = "Execution"
-  MODE: "training" # 'optimization', 'training', 'execution'
+  MODE: "optimization" # 'optimization', 'training', 'execution'
   # set to run SB3 environment check function
   # Checks if env is a suitable gym environment
   CHECK_ENV: False
@@ -42,9 +45,9 @@ EXP:
   # name of the study if MODE == 'Optimization' or 'Training'
   # the Study name must start with the name of the agent that needs to be one of
   # 'PPO', 'A2C', 'DDPG', 'SAC', 'TD3'
-  STUDY: "PPO_2022_09_03_study" # DDPG_2022_07_27_study 'PPO_2022_08_03_study'
+  STUDY: "PPO_2022_09_03_study" # name of study object
   # evaluations in optimization and checkpoints in training every X episodes
-  CHECKPOINT_INTERVAL: 100
+  CHECKPOINT_INTERVAL: ${agent.CHECKPOINT_INTERVAL} # different for each agent
   EPISODES: 12_000 # max episodes to train for
   PLOT_PROGRESS: True # wether to make progress plots during training or not. Plotting takes time
   DETERMINISTIC: False # fixed environment used in evaluation or not
@@ -53,13 +56,13 @@ EXP:
 ######################
 OPT:
   DEFAULT_TRIAL: False # first run a trial with default parameters.
-  MAX_NO_IMPROVEMENT_EVALS: 3 # maximum number of evaluations without improvement
+  MAX_NO_IMPROVEMENT_EVALS: ${agent.MAX_NO_IMPROVEMENT_EVALS} # maximum number of evaluations without improvement
   # n optuna trials to run in total (including eventual default trial)
   N_SINGLE_RUN_OPTUNA_TRIALS: 2
   # NOTE: memory can be an issue for many parallell processes. Size of neural network and
   # available memory will be limiting factors
   N_CORES_PARALLELL: -1
-  N_PARALLELL_PROCESSES: 5
+  N_PARALLELL_PROCESSES: 1
   N_EVAL_EPISODES_OPTIMIZATION: 3 # n eval episodes in stop training cb
   N_EVAL_EPISODES_REWARD: 10 # n eval episodes for computing mean reward in end of training
 
@@ -73,16 +76,17 @@ TRAIN:
 # EXECUTION SPECIAL SETUP
 ######################
 EXECUTE:
-  EXECUTION_MODEL: "DDPG_a3536e69-a501-421d-b6d6-51f152554660"
+  EXECUTION_MODEL: "" # directory name with saved model in checkpoints or optimization
   NUM_TEST_EPISODES: 3
+  VISUALIZE_EPISODES: False
 
-# REWARD
+# REWARD COMPUTATION
 ######################
 REWARD:
   BROKEN_CUTTERS_THRESH: 0.85 # minimum required % of functional cutters
   T_I: 1
-  ALPHA: 0.2
-  BETA: 0.3
-  GAMMA: 0.25
-  DELTA: 0.25
+  ALPHA: 0.18
+  BETA: 0.38
+  GAMMA: 0.26
+  DELTA: 0.18
   CHECK_BEARING_FAILURE: True # if True should check cutter bearing failures

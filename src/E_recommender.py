@@ -25,6 +25,7 @@ from XX_experiment_factory import load_best_model
     "-dp",
     "--data_path",
     default="results/cutter_states.csv",
+    show_default=True,
     type=click.Path(exists=True, readable=True, dir_okay=True),
     help="Path to data file with TBM cutter life data",
 )
@@ -32,12 +33,14 @@ from XX_experiment_factory import load_best_model
     "-a",
     "--agent_name",
     default="PPO",
+    show_default=True,
     type=click.Choice(["PPO", "DDPG", "A2C", "TD3", "SAC"], case_sensitive=False),
 )
 @click.option(
     "-ap",
     "--agent_path",
     default="checkpoints/PPO_f7169560-3771-44b6-95f0-8456e45e23f6",
+    show_default=True,
     type=click.Path(exists=True),
     help="Path to trained agent",
 )
@@ -45,10 +48,13 @@ from XX_experiment_factory import load_best_model
     "-sd",
     "--save_dir",
     default="graphics",
+    show_default=True,
     type=click.Path(exists=True),
     help="Dir to save heatmap of actions",
 )
-def recommend(n_c_tot, data_path, agent_name, agent_path, save_dir) -> NDArray:
+def recommend(
+    n_c_tot: int, data_path: str, agent_name: str, agent_path: str, save_dir: str
+) -> NDArray:
     """Reading a state vector for the TBM-cutters from a csv-file and
     recommend the next actions.
     Saves a heatmap. Returns an array of actions"""

@@ -54,15 +54,15 @@ class Reward:
         self,
         replaced_cutters: list,
         moved_cutters: list,
-        good_cutters: int,
+        n_good_cutters: int,
         damaged_bearing: bool,
-    ) -> float:
+    ) -> float | int:
         """Setup
 
         Args:
             replaced_cutters (list): list of replaced cutters
             moved_cutters (list): list of moved cutters
-            good_cutters (int): number of good cutters, ie. cutters with life
+            n_good_cutters (int): number of good cutters, ie. cutters with life
                 greater than 0
             damaged_bearing (bool): if at least one cutter bearing fails due to
                 blockyness damage to the cutter and no subsequent repair. Only
@@ -71,7 +71,7 @@ class Reward:
         acted_on_cutters = sorted(replaced_cutters + moved_cutters)
         dist_cutters = np.sum(np.diff(acted_on_cutters))
 
-        if good_cutters < self.n_c_tot * self.BROKEN_CUTTERS_THRESH:
+        if n_good_cutters < self.n_c_tot * self.BROKEN_CUTTERS_THRESH:
             # if more than threshhold number of cutters are broken
             r = -1
         elif self.CHECK_BEARING_FAILURE is True and damaged_bearing is True:
@@ -80,13 +80,13 @@ class Reward:
 
         elif len(acted_on_cutters) == 0:
             # if no cutters are acted on
-            r = good_cutters / self.n_c_tot
+            r = n_good_cutters / self.n_c_tot
         else:
             # weighted representation of cutters to penalize changing of outer
             # cutters more than inner cutters
             weighted_cutters = np.linspace(1, 2, num=self.n_c_tot)
 
-            ratio1 = good_cutters / self.n_c_tot
+            ratio1 = n_good_cutters / self.n_c_tot
             ratio2 = (
                 np.sum(np.take(weighted_cutters, replaced_cutters))
                 / np.sum(weighted_cutters)

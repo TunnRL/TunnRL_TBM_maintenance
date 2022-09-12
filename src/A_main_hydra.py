@@ -27,13 +27,13 @@ from rich.console import Console
 from rich.traceback import install
 from stable_baselines3.common.env_checker import check_env
 
-from XX_experiment_factory import Optimization, load_best_model
+from XX_experiment_factory import ExperimentAnalysis, Optimization, load_best_model
 from XX_hyperparams import Hyperparameters
 from XX_plotting import Plotter
 from XX_TBM_environment import CustomEnv, Reward
 
 
-install()
+# install()
 
 
 def run_optimization(
@@ -49,9 +49,6 @@ def run_optimization(
         STUDY (str): names the algorithm to optimize and the saved optimizing db object
         N_SINGLE_RUN_OPTUNA_TRIALS (int): n optuna trials
     """
-    print(
-        f"{N_SINGLE_RUN_OPTUNA_TRIALS * N_PARALLELL_PROCESSES} optuna trials are processed in {N_PARALLELL_PROCESSES} processes.\n"
-    )
 
     db_path = f"results/{STUDY}.db"
     db_file = f"sqlite:///{db_path}"
@@ -63,10 +60,16 @@ def run_optimization(
         load_if_exists=True,
         sampler=sampler,
     )
-    optim.optimize(study, N_SINGLE_RUN_OPTUNA_TRIALS)
-
-    # Parallel(n_jobs=N_CORES_PARALLELL, verbose=10, backend="loky")(
-    # delayed(optim.optimize)(study, N_SINGLE_RUN_OPTUNA_TRIALS) for _ in range(N_PARALLELL_PROCESSES))
+    if N_PARALLELL_PROCESSES <= 1:
+        optim.optimize(study, N_SINGLE_RUN_OPTUNA_TRIALS)
+    else:
+        print(
+            f"{N_SINGLE_RUN_OPTUNA_TRIALS * N_PARALLELL_PROCESSES} optuna trials are processed in {N_PARALLELL_PROCESSES} processes.\n"
+        )
+        Parallel(n_jobs=N_CORES_PARALLELL, verbose=10, backend="loky")(
+            delayed(optim.optimize)(study, N_SINGLE_RUN_OPTUNA_TRIALS)
+            for _ in range(N_PARALLELL_PROCESSES)
+        )
 
 
 def run_training(
@@ -78,7 +81,7 @@ def run_training(
     env: gym.Env,
     optim: Optimization,
 ) -> None:
-    """Run a full training of an RL agent.
+    """Run a full training run of an RL agent.
 
     Args:
         STUDY (str): study description
@@ -129,6 +132,7 @@ def run_execution(
     DETERMINISTIC: bool,
     EXECUTION_MODEL: str,
     NUM_TEST_EPISODES: int,
+    VISUALIZE_EPISODES: bool,
     env: gym.Env,
     n_c_tot: int,
 ) -> None:
@@ -145,6 +149,12 @@ def run_execution(
     agent = load_best_model(
         agent_name, main_dir="checkpoints", agent_dir=EXECUTION_MODEL
     )
+    all_actions = []
+    all_states = []
+    all_rewards = []
+    all_broken_cutters = []
+    all_replaced_cutters = []
+    all_moved_cutters = []
 
     # test agent throughout multiple episodes
     for test_ep_num in range(NUM_TEST_EPISODES):
@@ -177,29 +187,58 @@ def run_execution(
             moved_cutters.append(env.moved_cutters)
             i += 1
 
-        Plotter.state_action_plot(
-            states,
-            actions,
-            n_strokes=300,
-            n_c_tot=n_c_tot,
-            show=False,
-            savepath=f"checkpoints/_sample/{EXECUTION_MODEL}{test_ep_num}_state_action.svg",
-        )
-        Plotter.environment_parameter_plot(
-            test_ep_num,
-            env,
-            show=False,
-            savepath=f"checkpoints/_sample/{EXECUTION_MODEL}{test_ep_num}_episode.svg",
-        )
-        Plotter.sample_ep_plot(
-            states,
-            actions,
-            rewards,
-            ep=test_ep_num,
-            savepath=f"checkpoints/_sample/{EXECUTION_MODEL}{test_ep_num}_sample.svg",
-            replaced_cutters=replaced_cutters,
-            moved_cutters=moved_cutters,
-        )
+        all_actions.append(actions)
+        all_states.append(states[:-1])
+        all_rewards.append(rewards)
+        all_broken_cutters.append(broken_cutters)
+        all_replaced_cutters.append([len(c) for c in replaced_cutters])
+        all_moved_cutters.append([len(c) for c in moved_cutters])
+
+        if VISUALIZE_EPISODES:
+            Plotter.state_action_plot(
+                states,
+                actions,
+                n_strokes=300,
+                rewards=rewards,
+                n_c_tot=n_c_tot,
+                show=False,
+                savepath=f"checkpoints/_sample/{EXECUTION_MODEL}{test_ep_num}_state_action.svg",
+            )
+            Plotter.environment_parameter_plot(
+                test_ep_num,
+                env,
+                show=False,
+                savepath=f"checkpoints/_sample/{EXECUTION_MODEL}{test_ep_num}_episode.svg",
+            )
+            Plotter.sample_ep_plot(
+                states,
+                actions,
+                rewards,
+                replaced_cutters=replaced_cutters,
+                moved_cutters=moved_cutters,
+                n_cutters=n_c_tot,
+                show=False,
+                savepath=f"checkpoints/_sample/{EXECUTION_MODEL}{test_ep_num}_sample.svg",
+            )
+
+    df_reduced = ExperimentAnalysis.dimensionality_reduction(
+        all_actions,
+        all_states,
+        all_rewards,
+        all_broken_cutters,
+        all_replaced_cutters,
+        all_moved_cutters,
+        perplexity=200,
+    )
+
+    Plotter.action_analysis_scatter_plotly(
+        df_reduced,
+        savepath=f"checkpoints/_sample/{EXECUTION_MODEL}_TSNE_scatter_plotly.html",
+    )
+
+    Plotter.action_analysis_scatter(
+        df_reduced, savepath=f"checkpoints/_sample/{EXECUTION_MODEL}_TSNE_scatter.svg"
+    )
 
 
 @hydra.main(config_path="config", config_name="main", version_base="1.2")
@@ -211,7 +250,7 @@ def main(cfg: DictConfig) -> None:
     if cfg.EXP.DEBUG:
         cfg.EXP.EPISODES = 20
         cfg.EXP.CHECKPOINT_INTERVAL = 6
-        cfg.OPT.N_PARALLELL_PROCESSES = 2
+        cfg.OPT.N_PARALLELL_PROCESSES = 1
         cfg.OPT.N_CORES_PARALLELL = 2
 
     warnings.filterwarnings("ignore", category=optuna.exceptions.ExperimentalWarning)
@@ -332,6 +371,7 @@ def main(cfg: DictConfig) -> None:
                 cfg.EXP.DETERMINISTIC,
                 cfg.EXECUTE.EXECUTION_MODEL,
                 cfg.EXECUTE.NUM_TEST_EPISODES,
+                cfg.EXECUTE.VISUALIZE_EPISODES,
                 env,
                 n_c_tot,
             )

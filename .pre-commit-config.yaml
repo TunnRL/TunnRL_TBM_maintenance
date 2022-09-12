@@ -56,11 +56,11 @@ repos:
   #     args: [--in-place, --wrap-summaries, "99", --wrap-descriptions, "92"]
 
   # yaml formatting
-  - repo: https://github.com/pre-commit/mirrors-prettier
-    rev: v3.0.0-alpha.0
-    hooks:
-      - id: prettier
-        types: [yaml]
+  # - repo: https://github.com/pre-commit/mirrors-prettier
+  #   rev: v3.0.0-alpha.0
+  #   hooks:
+  #     - id: prettier
+  #       types: [yaml]
 
   # update python syntax to newer versions of python
   - repo: https://github.com/asottile/pyupgrade

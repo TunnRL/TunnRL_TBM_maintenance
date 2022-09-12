@@ -1,17 +1,69 @@
-# -*- coding: utf-8 -*-
 """
 Created on Tue Jul 26 13:32:03 2022
 
-@author: GEr
+@author: Georg Erharter, Tom F. Hansen
 """
+
+import click
 
 from XX_plotting import Plotter
 
 
-AGENT = 'SAC'  # 'PPO' 'A2C' 'DDPG' 'TD3' 'SAC'
-FOLDER = 'optimization'  # 'checkpoints' 'optimization'
-SAVEPATH = None  # 'graphics/PPO_trainings_default.svg'
-VIS_MODE = 'rollout'  # 'rollout' 'eval'
+@click.command()
+@click.option(
+    "-a",
+    "--agent_name",
+    default="PPO",
+    show_default=True,
+    type=click.Choice(["PPO", "DDPG", "A2C", "TD3", "SAC"], case_sensitive=False),
+)
+@click.option(
+    "-f",
+    "--folder",
+    default="checkpoints",
+    show_default=True,
+    type=click.Path(exists=True),
+    help="Directory with training documentation. Values: training, optimization",
+)
+@click.option(
+    "-sd",
+    "--save_dir",
+    default=None,
+    show_default=True,
+    type=click.Path(exists=True),
+    help="Dir to save the graphic, eg: graphics/PPO_trainings_default.svg",
+)
+@click.option(
+    "-vm",
+    "--visualization_mode",
+    default="eval",
+    show_default=True,
+    type=click.Choice(["eval", "rollout"], case_sensitive=True),
+)
+@click.option(
+    "-t",
+    "--print_threshold",
+    default=900,
+    show_default=True,
+    type=int,
+    help="reward threshold to print trial name in VIS_MODE 'eval'",
+)
+def main(
+    agent_name: str,
+    folder: str,
+    save_dir: str,
+    visualization_mode: str,
+    print_threshold: int,
+) -> None:
+    """Plot the training paths of all the trained models in a directory."""
+    Plotter.custom_intermediate_values_plot(
+        agent=agent_name,
+        folder=folder,
+        mode=visualization_mode,
+        print_thresh=print_threshold,
+        savepath=save_dir,
+    )
+
 
 if __name__ == "__main__":
-    Plotter.custom_intermediate_values_plot(AGENT, folder=FOLDER, mode=VIS_MODE)
+    main()

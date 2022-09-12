@@ -1,5 +1,7 @@
 # Tunnel automation with Reinforcement Learning - TunnRL-TBM
 
+[![codestyle](https://img.shields.io/badge/code%20style-black-000000.svg)](https://github.com/psf/black)
+
 This repository contains code for the ongoing project to use RL for optimization of cutter maintenance in hardrock tunnel boring machines.
 
 The first paper on this will be:
