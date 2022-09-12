@@ -58,7 +58,7 @@ OPT:
   DEFAULT_TRIAL: False # first run a trial with default parameters.
   MAX_NO_IMPROVEMENT_EVALS: ${agent.MAX_NO_IMPROVEMENT_EVALS} # maximum number of evaluations without improvement
   # n optuna trials to run in total (including eventual default trial)
-  N_SINGLE_RUN_OPTUNA_TRIALS: 2
+  N_SINGLE_RUN_OPTUNA_TRIALS: 5
   # NOTE: memory can be an issue for many parallell processes. Size of neural network and
   # available memory will be limiting factors
   N_CORES_PARALLELL: -1

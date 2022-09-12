@@ -165,6 +165,10 @@ class Optimization:
         Returns:
             None
         """
+        # db_path = f"results/{self.STUDY}.db"
+        # db_file = f"sqlite:///{db_path}"
+        # study = optuna.load_study(study_name=self.STUDY, storage=db_file)
+
         try:
             study.optimize(
                 self.objective,

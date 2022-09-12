@@ -19,10 +19,12 @@ delete_graphics:
 	@echo deleting svg graphics
 	rm graphics/*.svg
 
-# include som scp from odin, just to remember the code
+# Run from dir where the files should be moved
 move_results:
 	@echo move study.db's, trained agents, graphics to common storage
-
+	scp tfh@odin.oslo.ngi.no:/home/tfh/data/projects/TunnRL_TBM_maintenance/graphics/PPO_2022_08_15_study_optimization_progress.svg .
+	scp tfh@odin.oslo.ngi.no:/home/tfh/data/projects/TunnRL_TBM_maintenance/results/*.db .
+	
 delete_all:
 	@echo delete all experiment and result files
 	rm -rf optimization/*
