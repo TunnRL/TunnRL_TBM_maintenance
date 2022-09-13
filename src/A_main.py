@@ -46,6 +46,7 @@ BETA = 0.38  # weighting factor for moving cutters
 GAMMA = 0.26  # weighting factor for cutter distance
 DELTA = 0.18  # weighting factor for entering cutterhead
 CHECK_BEARING_FAILURE = True  # if True should check cutter bearing failures
+BEARING_FAILURE_PENALTY = -1
 
 # MAIN EXPERIMENT INFO
 ######################
@@ -146,7 +147,8 @@ env = CustomEnv(
     CUTTERHEAD_RADIUS,
     BROKEN_CUTTERS_THRESH,
     ALPHA, BETA, GAMMA, DELTA,
-    CHECK_BEARING_FAILURE
+    CHECK_BEARING_FAILURE,
+    BEARING_FAILURE_PENALTY
 )
 if CHECK_ENV:
     check_env(env)

@@ -24,7 +24,7 @@ class Maintenance:
     computed"""
 
     def __init__(self, n_c_tot: int, broken_cutters_thresh: float,
-                 check_bearing_failure: bool, alpha: float, beta: float,
+                 check_bearing_failure: bool, bearing_failure_penalty: bool, alpha: float, beta: float,
                  gamma: float, delta: float) -> None:
         """Setup
 
@@ -42,6 +42,7 @@ class Maintenance:
         self.n_c_tot = n_c_tot
         self.broken_cutters_thresh = broken_cutters_thresh
         self.check_bearing_failure = check_bearing_failure
+        self.bearing_failure_penalty = bearing_failure_penalty
         self.t_i = 1  # cost of entering the cutterhead for maintenance
         self.alpha = alpha
         self.beta = beta
@@ -78,7 +79,7 @@ class Maintenance:
             r = -1
         elif self.check_bearing_failure is True and damaged_bearing is True:
             # if check for bearing failures is set and bearing failure occurs
-            r = -1
+            r = self.bearing_failure_penalty
         elif len(acted_on_cutters) == 0:
             # if no cutters are acted on
             r = good_cutters / self.n_c_tot
@@ -113,7 +114,8 @@ class CustomEnv(gym.Env):
                  beta: float,
                  gamma: float,
                  delta: float,
-                 check_bearing_failure: bool) -> None:
+                 check_bearing_failure: bool,
+                 bearing_failur_penalty: bool) -> None:
         """Initializing custom environment for a TBM cutter operation.
 
         Args:
@@ -144,10 +146,11 @@ class CustomEnv(gym.Env):
         self.cutter_pathlenghts = cutter_pathlenghts
         self.R = CUTTERHEAD_RADIUS
         self.check_bearing_failure = check_bearing_failure
+        self.bearing_failure_penalty = bearing_failur_penalty
 
         # instantiated state variables
-        self.m = Maintenance(n_c_tot, broken_cutters_thresh, check_bearing_failure, alpha, beta,
-                             gamma, delta)
+        self.m = Maintenance(n_c_tot, broken_cutters_thresh, check_bearing_failure,
+                             bearing_failur_penalty, alpha, beta, gamma, delta)
 
         # state variables assigned in class methods:
         self.state: NDArray
