@@ -15,6 +15,9 @@ import pandas as pd
 from sklearn.preprocessing import LabelEncoder
 
 from XX_plotting import Plotter
+from rich.traceback import install
+
+install()
 
 
 def process_optuna_data(study_name: str, agent: str) -> tuple:
@@ -61,26 +64,27 @@ def process_optuna_data(study_name: str, agent: str) -> tuple:
 
 @click.command()
 @click.option(
-    "--STUDY",
+    "-sn",
+    "--study_name",
     default="A2C_2022_08_21_study",
     help="Optuna study object with experiment information",
 )
-def main(STUDY: str) -> None:
+def main(study_name: str) -> None:
     """Preprocessing and plotting optuna optimization data."""
-    agent = STUDY.split("_")[0]
+    agent = study_name.split("_")[0]
 
-    df_study, params, le_activation, le_noise = process_optuna_data(STUDY, agent)
+    df_study, params, le_activation, le_noise = process_optuna_data(study_name, agent)
 
     ###############################################################################
     # different visualizations of OPTUNA optimization
 
     Plotter.custom_parallel_coordinate_plot(
-        df_study, params, le_activation, savepath=f"graphics/{STUDY}_parallel_plot.svg"
+        df_study, params, le_activation, savepath=f"graphics/{study_name}_parallel_plot.svg"
     )
 
     # plot that shows the progress of the optimization over the individual trials
     Plotter.custom_optimization_history_plot(
-        df_study, savepath=f"graphics/{STUDY}_optimization_progress.svg"
+        df_study, savepath=f"graphics/{study_name}_optimization_progress.svg"
     )
 
     # scatterplot of indivdual hyperparameters vs. reward
@@ -89,14 +93,14 @@ def main(STUDY: str) -> None:
         params,
         le_activation=le_activation,
         le_noise=le_noise,
-        savepath=f"graphics/{STUDY}_optimization_scatter.svg",
+        savepath=f"graphics/{study_name}_optimization_scatter.svg",
     )
 
     # plot intermediate steps of the training paths
     Plotter.custom_intermediate_values_plot(
         agent,
         folder="optimization",
-        savepath=f"graphics/{STUDY}_optimization_interms.svg",
+        savepath=f"graphics/{study_name}_optimization_interms.svg",
     )
 
 

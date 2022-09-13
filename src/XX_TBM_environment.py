@@ -36,10 +36,10 @@ class Reward:
         GAMMA (float): weighting factor for cutter distance
         DELTA (float): weighting factor for entering cutterhead
     """
-
     n_c_tot: int
     BROKEN_CUTTERS_THRESH: float
     CHECK_BEARING_FAILURE: bool
+    BEARING_FAILURE_PENALTY: bool
     T_I: float = 1
     ALPHA: float = 0.2
     BETA: float = 0.3
@@ -76,7 +76,7 @@ class Reward:
             r = -1
         elif self.CHECK_BEARING_FAILURE is True and damaged_bearing is True:
             # if check for bearing failures is set and bearing failure occurs
-            r = -1
+            r = self.BEARING_FAILURE_PENALTY
 
         elif len(acted_on_cutters) == 0:
             # if no cutters are acted on

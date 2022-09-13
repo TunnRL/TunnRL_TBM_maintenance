@@ -1,2 +1,4 @@
+# TODO: the agent hyperparameters should most likely also be a part of this file
+NAME: PPO
 CHECKPOINT_INTERVAL: 100
 MAX_NO_IMPROVEMENT_EVALS: 1

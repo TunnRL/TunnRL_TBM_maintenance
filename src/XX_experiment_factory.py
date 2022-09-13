@@ -309,7 +309,7 @@ class Optimization:
                     self.rich_console,
                 )
             )
-            sb3_logger = logger.configure(f"optimization/{agent_dir}", ["csv"])
+            sb3_logger = logger.configure(f"optimization/{agent_dir}", ["csv", "tensorboard"])
 
         elif self.MODE == "training":
             cb_list.append(

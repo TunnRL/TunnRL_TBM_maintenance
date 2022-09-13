@@ -11,9 +11,13 @@
 #   for hard coded values. This makes code use easier for team
 # - Change a config value one place and not in a number of scripts (where you hopefully find all)
 # - Remove several lines of comments in the code.
+# - A hierachical configuration make it possible to easy change different parameters
+#   for different agents and reward-experiments
 
 defaults: # sub-configs
-  - agent: ppo.yaml
+  - agent: a2c.yaml
+  - REWARD: experiment_1.yaml # different setups for different sites and experiments
+  - _self_ # main overrides sub-cfg in case of duplicates
 
 hydra:
   run:
@@ -41,11 +45,8 @@ EXP:
   # set to run SB3 environment check function
   # Checks if env is a suitable gym environment
   CHECK_ENV: False
-  DEBUG: True
-  # name of the study if MODE == 'Optimization' or 'Training'
-  # the Study name must start with the name of the agent that needs to be one of
-  # 'PPO', 'A2C', 'DDPG', 'SAC', 'TD3'
-  STUDY: "PPO_2022_09_03_study" # name of study object
+  DEBUG: False
+  STUDY: ${agent.NAME}_${now:%Y-%m-%d}_study # name of optuna study object.
   # evaluations in optimization and checkpoints in training every X episodes
   CHECKPOINT_INTERVAL: ${agent.CHECKPOINT_INTERVAL} # different for each agent
   EPISODES: 12_000 # max episodes to train for
@@ -58,7 +59,7 @@ OPT:
   DEFAULT_TRIAL: False # first run a trial with default parameters.
   MAX_NO_IMPROVEMENT_EVALS: ${agent.MAX_NO_IMPROVEMENT_EVALS} # maximum number of evaluations without improvement
   # n optuna trials to run in total (including eventual default trial)
-  N_SINGLE_RUN_OPTUNA_TRIALS: 5
+  N_SINGLE_RUN_OPTUNA_TRIALS: 100
   # NOTE: memory can be an issue for many parallell processes. Size of neural network and
   # available memory will be limiting factors
   N_CORES_PARALLELL: -1
@@ -79,14 +80,3 @@ EXECUTE:
   EXECUTION_MODEL: "" # directory name with saved model in checkpoints or optimization
   NUM_TEST_EPISODES: 3
   VISUALIZE_EPISODES: False
-
-# REWARD COMPUTATION
-######################
-REWARD:
-  BROKEN_CUTTERS_THRESH: 0.85 # minimum required % of functional cutters
-  T_I: 1
-  ALPHA: 0.18
-  BETA: 0.38
-  GAMMA: 0.26
-  DELTA: 0.18
-  CHECK_BEARING_FAILURE: True # if True should check cutter bearing failures

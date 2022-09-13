@@ -26,11 +26,17 @@ move_results:
 	scp tfh@odin.oslo.ngi.no:/home/tfh/data/projects/TunnRL_TBM_maintenance/results/*.db .
 	
 delete_all:
-	@echo delete all experiment and result files
+	@echo delete all experiments, checkpoints, graphics, optimization files
 	rm -rf optimization/*
-	rm -rf results/*.db
 	rm -rf graphics/*.svg
-	rm -rf checkpoints/*
+	rm -rf checkpoints/PPO*
+	rm -rf checkpoints/DDPG*
+	rm -rf checkpoints/TD3*
+	rm -rf checkpoints/A2C*
+	rm -rf checkpoints/SAC*
+	rm -rf experiments/*
+	rm -rf results/*.db
+	rm -rf results/*.yaml
 
 # init:
 # 	@echo initialize the environment and tab completion in hydra

@@ -1,0 +1,10 @@
+# REWARD COMPUTATION - different setups for different goals
+######################
+BROKEN_CUTTERS_THRESH: 0.85 # minimum required % of functional cutters
+T_I: 1
+ALPHA: 0.1
+BETA: 0.65
+GAMMA: 0.1
+DELTA: 0.15
+CHECK_BEARING_FAILURE: True # if True should check cutter bearing failures
+BEARING_FAILURE_PENALTY: 0

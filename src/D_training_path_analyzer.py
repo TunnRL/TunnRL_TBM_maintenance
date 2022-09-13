@@ -30,13 +30,13 @@ from XX_plotting import Plotter
     "--save_dir",
     default=None,
     show_default=True,
-    type=click.Path(exists=True),
+    type=click.Path(exists=False),
     help="Dir to save the graphic, eg: graphics/PPO_trainings_default.svg",
 )
 @click.option(
     "-vm",
     "--visualization_mode",
-    default="eval",
+    default="rollout",
     show_default=True,
     type=click.Choice(["eval", "rollout"], case_sensitive=True),
 )

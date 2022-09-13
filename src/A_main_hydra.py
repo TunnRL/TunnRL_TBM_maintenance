@@ -277,6 +277,8 @@ def main(cfg: DictConfig) -> None:
             f'results/algorithm_parameters/{cfg.EXP.STUDY.split("_")[0]}.yaml'
         ).exists(), "a yaml file with pararameter does not exist."
 
+    assert cfg.agent.NAME == (cfg.EXP.STUDY).split("_")[0], "Agent name and study name must be similar"
+
     ###############################################################################
     # COMPUTED/DERIVED VARIABLES AND INSTANTIATIONS
     ###############################################################################
