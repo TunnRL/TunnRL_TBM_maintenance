@@ -48,6 +48,9 @@ We have organized 2 ways of setting up the environment, downloading and installi
 
 1. The recommended way is to use the `poetry` system set up the environment and install all dependencies. Poetry is stricter on depedencies than conda and define all depedencies in a human readable way through the categorized `pyproject.toml`file.
 
+   Make sure you have installed `pyenv` to control your python version. Install the python version and continue
+   with poetry installation. Guidelines for pyenv can be found here: https://www.liquidweb.com/kb/how-to-install-pyenv-on-ubuntu-18-04/
+
    Set up environment and install all depedencies:
    
    ```bash

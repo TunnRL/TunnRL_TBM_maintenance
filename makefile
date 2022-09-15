@@ -38,9 +38,16 @@ delete_all:
 	rm -rf results/*.db
 	rm -rf results/*.yaml
 
-# init:
-# 	@echo initialize the environment and tab completion in hydra
-# 	poetry shell
+
+init:
+	@echo checks and initialize the environment
+	poetry check
+	poetry install
+	poetry shell
+
+setup_dirs:
+	@echo setup directory structure
+	mkdir checkpoints optimization results graphics experiments
 
 # hydra:
 # 	eval "python src/A_main_hydra.py -sc install=bash"
