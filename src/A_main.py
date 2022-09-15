@@ -41,19 +41,19 @@ MAX_STROKES = 1000  # number of strokes per episode
 # REWARD FUNCTION PARAMETERS
 ######################
 BROKEN_CUTTERS_THRESH = 0.85  # minimum required % of functional cutters
-ALPHA = 0.18  # weighting factor for replacing cutters
-BETA = 0.38  # weighting factor for moving cutters
-GAMMA = 0.26  # weighting factor for cutter distance
-DELTA = 0.18  # weighting factor for entering cutterhead
+ALPHA = 0.1  # weighting factor for replacing cutters
+BETA = 0.65  # weighting factor for moving cutters
+GAMMA = 0.1  # weighting factor for cutter distance
+DELTA = 0.15  # weighting factor for entering cutterhead
 CHECK_BEARING_FAILURE = True  # if True should check cutter bearing failures
-BEARING_FAILURE_PENALTY = -1
+BEARING_FAILURE_PENALTY = 0
 
 # MAIN EXPERIMENT INFO
 ######################
 # MODE determines if either an optimization should run = "optimization", or a
 # new agent is trained with prev. optimized parameters = "training", or an
 # already trained agent is executed = "execution"
-MODE = "execution"  # 'optimization', 'training', 'execution'
+MODE = "optimization"  # 'optimization', 'training', 'execution'
 # set to run SB3 environment check function
 # Checks if env is a suitable gym environment
 CHECK_ENV = False
@@ -64,7 +64,7 @@ DEBUG = False  # sets test values for quicker response
 # name of the study if MODE == 'Optimization' or 'Training'
 # the Study name must start with the name of the agent that needs to be one of
 # 'PPO', 'A2C', 'DDPG', 'SAC', 'TD3'
-STUDY = "TD3_2022_09_03_study"
+STUDY = "SAC_2022_09_15_study"
 # evaluations in optimization and checkpoints in training every X episodes
 CHECKPOINT_INTERVAL = 50
 EPISODES = 12_000  # max episodes to train for
@@ -74,7 +74,7 @@ EPISODES = 12_000  # max episodes to train for
 DEFAULT_TRIAL = False  # first run a trial with default parameters.
 MAX_NO_IMPROVEMENT = 3  # maximum number of evaluations without improvement
 # n optuna trials to run in total (including eventual default trial)
-N_SINGLE_RUN_OPTUNA_TRIALS = 30
+N_SINGLE_RUN_OPTUNA_TRIALS = 100
 # NOTE: memory can be an issue for many parallell processes. Size of neural
 # network and available memory will be limiting factors
 N_CORES_PARALLELL = -1
