@@ -17,6 +17,7 @@ DOI: XXXXXXXXXXXXXXXXXXXXXXXX
 ## Directory structure
 
 The code framework depends on a certain folder structure. The python files should be placed in the main directory. The set up should be done in the following way:
+
 ```
 TunnRL_TBM_maintenance
 ├── checkpoints
@@ -24,13 +25,17 @@ TunnRL_TBM_maintenance
 ├── optimization
 ├── results
 ├── src
-│   ├── A_main.py
+│   ├── A_main_hydra.py
 │   ├── B_optimization_analyzer.py
-│   ├── C_action_analyzer.py
 │   ├── D_training_path_analyzer.py
+│   ├── E_recommender.py
+│   ├── XX_experiment_factory.py
 │   ├── XX_hyperparams.py
-│   ├── XX_maintenance_lib.py
+│   ├── XX_plotting.py
+│   ├── XX_TBM_environment.py
+│   ├── config
 ├── .gitignore
+├── makefile
 ├── poetry.lock
 ├── pyproject.toml
 ├── README.md
@@ -48,8 +53,32 @@ We have organized 2 ways of setting up the environment, downloading and installi
 
 1. The recommended way is to use the `poetry` system set up the environment and install all dependencies. Poetry is stricter on depedencies than conda and define all depedencies in a human readable way through the categorized `pyproject.toml`file.
 
-   Make sure you have installed `pyenv` to control your python version. Install the python version and continue
-   with poetry installation. Guidelines for pyenv can be found here: https://www.liquidweb.com/kb/how-to-install-pyenv-on-ubuntu-18-04/
+   Make sure you have installed `pyenv` to control your python version. Install the python version and continue. We have made bash-scripts for you, that install pyenv
+   and poetry in your linux system if you don't have it already. Run these scripts
+   in your terminal:
+
+   ```bash
+   install_pyenv.sh
+   install_poetry.sh
+   ```
+
+   Install the Python version used in this environment. This will take some time:
+
+   ```bash
+   pyenv install -v 3.10.5
+   ```
+
+   cd into your project dir and activate the Python version:
+
+   ```bash
+   pyenv local 3.10.5
+   ```
+
+   Check your python version:
+
+   ```bash
+   python -V
+   ```
 
    Set up environment and install all depedencies:
    
@@ -64,6 +93,9 @@ We have organized 2 ways of setting up the environment, downloading and installi
    ```bash
    poetry shell
    ```
+
+   Then you are ready to run your Python scripts in the exact same system setup as it 
+   has been developed!
 
 2. Another way is to use `conda`.
 
@@ -120,3 +152,17 @@ Invoke tab completion with hydra by running:
 ```bash
 python src/A_main_hydra.py -sc install=bash
 ```
+
+You can now run different reinforcement learning functions by defining different
+inputs to A_main_hydra.py in the terminal. Eg.
+
+```bash
+python src/A_main_hydra.py EXP.MODE=optimization EXP.DEBUG=True
+```
+
+To see all options for change run:
+
+```bash
+python src/A_main_hydra.py --help
+```
+
