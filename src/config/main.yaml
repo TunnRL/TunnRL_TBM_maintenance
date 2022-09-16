@@ -18,6 +18,7 @@ defaults: # sub-configs
   - agent: a2c.yaml
   - REWARD: experiment_1.yaml # different setups for different sites and experiments
   - _self_ # main overrides sub-cfg in case of duplicates
+  - base_config
 
 hydra:
   run:

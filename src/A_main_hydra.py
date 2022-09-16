@@ -31,6 +31,7 @@ from XX_experiment_factory import ExperimentAnalysis, Optimization, load_best_mo
 from XX_hyperparams import Hyperparameters
 from XX_plotting import Plotter
 from XX_TBM_environment import CustomEnv, Reward
+from config import Config
 
 
 # install()
@@ -242,7 +243,7 @@ def run_execution(
 
 
 @hydra.main(config_path="config", config_name="main", version_base="1.2")
-def main(cfg: DictConfig) -> None:
+def main(cfg: Config) -> None:
 
     ###############################################################################
     # WARNINGS AND ERROR CHECKING INPUT VARIABLES
@@ -252,6 +253,8 @@ def main(cfg: DictConfig) -> None:
         cfg.EXP.CHECKPOINT_INTERVAL = 6
         cfg.OPT.N_PARALLELL_PROCESSES = 1
         cfg.OPT.N_CORES_PARALLELL = 2
+        
+    OmegaConf.to_object(cfg)  # runs checks of inputs by pydantic, types and validation
 
     warnings.filterwarnings("ignore", category=optuna.exceptions.ExperimentalWarning)
 
