@@ -80,6 +80,7 @@ class Optimization:
     cb_cfg: dict
 
     def __post_init__(self) -> None:
+        """Functions are called automatically after initializing the object."""
         self.CHECKPOINT_INTERVAL = self.cb_cfg["CHECKPOINT_INTERVAL"]
         self.n_actions = self.n_c_tot * self.n_c_tot
         # n steps, eg. 1000 steps x 100 checkpoint_interval = every 100 000 steps

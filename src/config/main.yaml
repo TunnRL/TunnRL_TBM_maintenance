@@ -81,3 +81,8 @@ EXECUTE:
   EXECUTION_MODEL: "" # directory name with saved model in checkpoints or optimization
   NUM_TEST_EPISODES: 3
   VISUALIZE_EPISODES: False
+
+
+# LAYOUT SETUP
+######################
+rich_console:
