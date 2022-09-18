@@ -13,6 +13,13 @@ from pydantic.dataclasses import dataclass
 
 @dataclass
 class Agent:
+    @validator("NAME")
+    def check_name(cls, NAME: str) -> str:
+        if NAME not in ["ppo", "a2c", "ddpg", "td3", "sac"]:
+            raise ValueError(
+                f"{NAME} is not a valid algorithm name. Remember to use lowercase"
+            )
+
     NAME: str
     CHECKPOINT_INTERVAL: int
     MAX_NO_IMPROVEMENT_EVALS: int
