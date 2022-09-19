@@ -11,6 +11,7 @@ code contributors: Georg H. Erharter, Tom F. Hansen
 
 """
 
+import multiprocessing as mp
 import warnings
 from pathlib import Path
 
@@ -27,14 +28,14 @@ from rich.console import Console
 from rich.traceback import install
 from stable_baselines3.common.env_checker import check_env
 
+from XX_config_schemas import Config
 from XX_experiment_factory import ExperimentAnalysis, Optimization, load_best_model
 from XX_hyperparams import Hyperparameters
 from XX_plotting import Plotter
 from XX_TBM_environment import CustomEnv, Reward
-from config import Config
 
 
-# install()
+install()
 
 
 def run_optimization(
@@ -71,6 +72,8 @@ def run_optimization(
             delayed(optim.optimize)(study, N_SINGLE_RUN_OPTUNA_TRIALS)
             for _ in range(N_PARALLELL_PROCESSES)
         )
+        # pool = mp.Pool(4)
+        # [pool.apply(optim.optimize, args=(study, N_SINGLE_RUN_OPTUNA_TRIALS)) for _ in range(4)]
 
 
 def run_training(
@@ -253,7 +256,7 @@ def main(cfg: Config) -> None:
         cfg.EXP.CHECKPOINT_INTERVAL = 6
         cfg.OPT.N_PARALLELL_PROCESSES = 1
         cfg.OPT.N_CORES_PARALLELL = 2
-        
+
     OmegaConf.to_object(cfg)  # runs checks of inputs by pydantic, types and validation
 
     warnings.filterwarnings("ignore", category=optuna.exceptions.ExperimentalWarning)
@@ -280,7 +283,9 @@ def main(cfg: Config) -> None:
             f'results/algorithm_parameters/{cfg.EXP.STUDY.split("_")[0]}.yaml'
         ).exists(), "a yaml file with pararameter does not exist."
 
-    assert cfg.agent.NAME == (cfg.EXP.STUDY).split("_")[0], "Agent name and study name must be similar"
+    assert (
+        cfg.agent.NAME == (cfg.EXP.STUDY).split("_")[0]
+    ), "Agent name and study name must be similar"
 
     ###############################################################################
     # COMPUTED/DERIVED VARIABLES AND INSTANTIATIONS

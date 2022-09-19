@@ -153,12 +153,8 @@ class Optimization:
 
         return final_reward
 
-    def optimize(self, study: optuna.Study, n_trials: int) -> None:
+    def optimize(self, study: optuna.study.Study, n_trials: int) -> None:
         """Optimize-function to be called in parallell process.
-
-        Saves parameter-values and corresponding reward to mlflow.
-        Start mlflow GUI by calling from experiment-dir:
-        >>>mlflow ui
 
         Args:
             n_trials (int): Number of trials in each parallell process.
@@ -310,7 +306,9 @@ class Optimization:
                     self.rich_console,
                 )
             )
-            sb3_logger = logger.configure(f"optimization/{agent_dir}", ["csv", "tensorboard"])
+            sb3_logger = logger.configure(
+                f"optimization/{agent_dir}", ["csv", "tensorboard"]
+            )
 
         elif self.MODE == "training":
             cb_list.append(
@@ -651,13 +649,12 @@ class PrintExperimentInfoCallback(BaseCallback):
 
     def _on_training_start(self) -> None:
         r_console = self.r_console
-        r_console.print(
-            f"\n{self.mode} agent in dir: {self.agent_dir} | Num episodes: {self.n_episodes}"
-        )
+        r_console.print(f"\n{self.mode} agent in dir: {self.agent_dir}")
         r_console.print(f"Config values in: {self.hydra_dir}")
         r_console.print(
             f"Evaluation frequency is every {self.checkpoint_interval} episode / {self.checkpoint_interval * 1000} step"
         )
+        r_console.print(f"Num episodes: {self.n_episodes}")
         r_console.print(
             f"\nTraining with these parameters: \n{pformat(self.parameters)}\n"
         )

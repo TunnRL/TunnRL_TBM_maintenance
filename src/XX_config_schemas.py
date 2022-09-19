@@ -15,9 +15,9 @@ from pydantic.dataclasses import dataclass
 class Agent:
     @validator("NAME")
     def check_name(cls, NAME: str) -> str:
-        if NAME not in ["ppo", "a2c", "ddpg", "td3", "sac"]:
+        if NAME not in ["PPO", "A2C", "DDPG", "TD3", "SAC"]:
             raise ValueError(
-                f"{NAME} is not a valid algorithm name. Remember to use lowercase"
+                f"{NAME} is not a valid algorithm name. Remember to use uppercase"
             )
 
     NAME: str

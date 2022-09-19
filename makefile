@@ -20,12 +20,13 @@ delete_graphics:
 	@echo deleting svg graphics
 	rm graphics/*.svg
 
-# Run from dir where the files should be moved
+# Run from root in project locally
 move_results_from_odin:
 	@echo move study.db's, trained agents, graphics to common storage
-	scp tfh@odin.oslo.ngi.no:/home/tfh/data/projects/TunnRL_TBM_maintenance/graphics/PPO_2022_08_15_study_optimization_progress.svg .
-	scp tfh@odin.oslo.ngi.no:/home/tfh/data/projects/TunnRL_TBM_maintenance/results/*.db .
+	scp tfh@odin.oslo.ngi.no:/home/tfh/data/projects/TunnRL_TBM_maintenance/optimization/"${algorithm}"* ./optimization
+	scp tfh@odin.oslo.ngi.no:/home/tfh/data/projects/TunnRL_TBM_maintenance/results/*.db ./results
 
+# Run from root in project locally
 move_db_to_odin:
 	@echo move db for "${db_file}" to odin
 	scp results/"${db_file}" tfh@odin.oslo.ngi.no:/home/tfh/data/projects/TunnRL_TBM_maintenance/results
