@@ -1,7 +1,7 @@
 # quick runs of repository cleaning and other automatizations
 # USAGE: make delete_optimization_dirs algorithm=DDPG
 
-algorithm ?= PPO #set on input to make, PPO, A2C, DDPG
+algorithm ?=PPO#set on input to make, PPO, A2C, DDPG
 db_file ?= A2C_2022-09-13_study.db
 
 delete_optimization_dirs:
@@ -22,9 +22,9 @@ delete_graphics:
 
 # Run from root in project locally
 move_results_from_odin:
-	@echo move study.db's, trained agents, graphics to common storage
-	scp tfh@odin.oslo.ngi.no:/home/tfh/data/projects/TunnRL_TBM_maintenance/optimization/"${algorithm}"* ./optimization
-	scp tfh@odin.oslo.ngi.no:/home/tfh/data/projects/TunnRL_TBM_maintenance/results/*.db ./results
+	@echo move studys, trained agents, graphics to common storage
+	scp -r tfh@odin.oslo.ngi.no:/home/tfh/data/projects/TunnRL_TBM_maintenance/optimization/"${algorithm}"_* ./optimization
+	scp -r tfh@odin.oslo.ngi.no:/home/tfh/data/projects/TunnRL_TBM_maintenance/results/*.db ./results
 
 # Run from root in project locally
 move_db_to_odin:
