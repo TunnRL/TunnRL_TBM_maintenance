@@ -447,6 +447,8 @@ class Plotter:
     def custom_intermediate_values_plot(self, agent: str, folder: str,
                                         mode: str = 'rollout',
                                         print_thresh: int = None,
+                                        y_high: int = 1000,
+                                        y_low: int = -1000,
                                         savepath: str = None,
                                         show: bool = True) -> None:
         '''custom implementation of the plot_intermediate_values() function of
@@ -489,7 +491,7 @@ class Plotter:
         ax.grid(alpha=0.5)
         ax.set_xlabel('episodes')
         ax.set_ylabel('reward')
-        ax.set_ylim(top=1000, bottom=-1000)
+        ax.set_ylim(top=y_high, bottom=y_low)
 
         plt.tight_layout()
         if savepath is not None:
@@ -507,7 +509,7 @@ class Plotter:
         try:
             ax1.scatter(df_log['episodes'], df_log['eval/mean_reward'],
                         label=r'eval/mean_reward')
-        except KeyError:  # TODO: keyerror? Should be to raise an Exception?
+        except KeyError:
             pass
         ax1.legend()
         ax1.grid(alpha=0.5)
