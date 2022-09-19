@@ -18,14 +18,3 @@ delete_results:
 delete_graphics:
 	@echo deleting svg graphics
 	rm graphics/*.svg
-
-# include som scp from odin, just to remember the code
-move_results:
-	@echo move study.db's, trained agents, graphics to common storage
-
-
-# all_delete:
-# 	delete_checkpoints
-# 	delete_optimization_dirs
-# 	delete_results
-# 	delete_graphics
