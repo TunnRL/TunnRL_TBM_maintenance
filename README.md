@@ -124,8 +124,14 @@ We have organized 2 ways of setting up the environment, downloading and installi
    conda activate rl_cutter
    ```
 
-**NOTE**: To use hyperparameter functionality you need to have the database engine
+## Sqlite for Optuna optimization of parameters in parallell
+
+To use hyperparameter functionality you need to have the database engine
 `SQlite` installed. This is by default installed in Linux, but not in Windows.
+
+Sqlite make it possible to have one common study-file for optimization that a number of terminal-sessions (utilizing all the cores on a computer) or computers can access at the same time. This makes it possible to run optimization of hyperparameters in parallell, greatly speeding up the process, which in reinforcement learning is computationally demanding.
+
+Simply kick off a number of similar runs with the same study-name and all processes will update the same study-db.
 
 ## Principles for training an RL-agent
 
