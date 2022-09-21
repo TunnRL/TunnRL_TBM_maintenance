@@ -42,7 +42,7 @@ EXP:
   # MODE determines if either an optimization should run = "Optimization", or a
   # new agent is trained with prev. optimized parameters = "Training", or an
   # already trained agent is executed = "Execution"
-  MODE: "optimization" # 'optimization', 'training', 'execution'
+  MODE: "execution" # 'optimization', 'training', 'execution'
   # set to run SB3 environment check function
   # Checks if env is a suitable gym environment
   CHECK_ENV: False
@@ -78,7 +78,7 @@ TRAIN:
 # EXECUTION SPECIAL SETUP
 ######################
 EXECUTE:
-  EXECUTION_MODEL: "" # directory name with saved model in checkpoints or optimization
+  EXECUTION_MODEL: "PPO_71c0d183-1c30-4f00-82d3-674941041555" # directory name with saved model in checkpoints or optimization
   NUM_TEST_EPISODES: 3
   VISUALIZE_EPISODES: False
 

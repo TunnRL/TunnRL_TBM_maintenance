@@ -586,7 +586,7 @@ class TrainingProgressCallback(BaseCallback):
 
             if self.MODE == "training" and self.n_calls % (self.MAX_STROKES * 10) == 0:
                 self.r_console.print(
-                    f"Avg. #episode. Replaced: {avg_replaced_cutters: .2f} | Moved: {avg_moved_cutters: .2f} | Broken: {avg_broken_cutters: .2f} | Var. replaced: {var_replaced_cutters: .2f}"
+                    f"Avg. #10th episode. Replaced: {avg_replaced_cutters: .2f} | Moved: {avg_moved_cutters: .2f} | Broken: {avg_broken_cutters: .3f} | Var. replaced: {var_replaced_cutters: .2f}"
                 )
 
         if self.n_calls % self.check_freq == 0:
