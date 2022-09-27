@@ -18,6 +18,7 @@ tmp/
 # other stuff
 **/__pycache__
 settings.json
+nohup.out
 
 # some dev tools
 .flake8
