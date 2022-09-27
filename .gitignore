@@ -7,10 +7,12 @@ src/checkpoints/
 src/graphics/
 src/results/
 
+experiments/*
 checkpoints/*
 graphics/*
 optimization/*
 results/*
+!results/cutter_states.csv
 tmp/
 
 # other stuff
@@ -19,3 +21,4 @@ settings.json
 
 # some dev tools
 .flake8
+.vscode
