@@ -21,7 +21,7 @@ from XX_plotting import Plotter
 ###############################################################################
 # Constants and fixed variables
 
-STUDY = 'A2C_2022_08_21_study'
+STUDY = 'PPO_2022_09_27_study'
 agent = STUDY.split('_')[0]
 FILETYPE_TO_LOAD = "db"
 

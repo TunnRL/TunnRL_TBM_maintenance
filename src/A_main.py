@@ -64,20 +64,20 @@ DEBUG = False  # sets test values for quicker response
 # name of the study if MODE == 'Optimization' or 'Training'
 # the Study name must start with the name of the agent that needs to be one of
 # 'PPO', 'A2C', 'DDPG', 'SAC', 'TD3'
-STUDY = "SAC_2022_09_15_study"
+STUDY = "PPO_2022_09_27_study"
 # evaluations in optimization and checkpoints in training every X episodes
-CHECKPOINT_INTERVAL = 50
+CHECKPOINT_INTERVAL = 100
 EPISODES = 12_000  # max episodes to train for
 
 # OPTIMIZATION SPECIAL SETUP
 ######################
-DEFAULT_TRIAL = False  # first run a trial with default parameters.
-MAX_NO_IMPROVEMENT = 3  # maximum number of evaluations without improvement
+DEFAULT_TRIAL = True  # first run a trial with default parameters.
+MAX_NO_IMPROVEMENT = 1  # maximum number of evaluations without improvement
 # n optuna trials to run in total (including eventual default trial)
-N_SINGLE_RUN_OPTUNA_TRIALS = 100
+N_SINGLE_RUN_OPTUNA_TRIALS = 250
 # NOTE: memory can be an issue for many parallell processes. Size of neural
 # network and available memory will be limiting factors
-N_CORES_PARALLELL = -1
+N_CORES_PARALLELL = 4
 N_PARALLELL_PROCESSES = 4
 
 # TRAINING SPECIAL SETUP

@@ -8,12 +8,12 @@ Created on Tue Jul 26 13:32:03 2022
 from XX_plotting import Plotter
 
 
-AGENT = 'SAC'  # 'PPO' 'A2C' 'DDPG' 'TD3' 'SAC'
+AGENT = 'PPO'  # 'PPO' 'A2C' 'DDPG' 'TD3' 'SAC'
 FOLDER = 'optimization'  # 'checkpoints' 'optimization'
-SAVEPATH = 'graphics/SAC_optimization_exp1.svg'
+SAVEPATH = 'graphics/PPO_optimization_exp1.svg'
 VIS_MODE = 'rollout'  # 'rollout' 'eval'
 PRINT_THRESH = 900  # reward threshold to print trial name in VIS_MODE 'eval'
-Y_LOW = 50
+Y_LOW = 100
 Y_HIGH = 200
 
 if __name__ == "__main__":
