@@ -455,7 +455,7 @@ def mlflow_log_experiment(
     main_dir: str,
     agent_dir: str,
     parameters: dict,
-    sub_parameters: dict = None
+    sub_parameters: dict = None,
 ) -> None:
     """Logs setup data and results from one experiment to mlflow
 

@@ -95,7 +95,7 @@ def run_training(
         hparams (Hyperparameters): object with parameter interpreting functionality
         env (gym.Env): TBM environment for the agent to act with
         optim (Optimization): experiment object containing all functionality for training
-        
+
     Usecase (to run 5 trials of best parameters and 5 of default parameters):
         pythonr src/A_main_hydra.py --multirun agent=ppo_best, ppo_default, TRAIN.N_DUPLICATES=5
     """
@@ -115,12 +115,13 @@ def run_training(
 
     else:
         print("loading parameters from best_params or default_params in yaml file...")
-        
+
     best_params_dict = hparams.remake_params_dict(
         algorithm=agent_name,
         raw_params_dict=best_agent_params,
         env=env,
-        n_actions=n_c_tot * n_c_tot)
+        n_actions=n_c_tot * n_c_tot,
+    )
 
     optim.train_agent(best_params_dict, reporting_parameters=best_agent_params)
 
