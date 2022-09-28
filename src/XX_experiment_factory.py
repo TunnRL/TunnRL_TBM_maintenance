@@ -261,7 +261,6 @@ class Optimization:
         if self.LOG_MLFLOW is True:
             self._mlflow_log_experiment(
                 main_dir="optimization",
-                agent_dir=self.agent_dir,
                 parameters=parameters)
 
         return final_reward
@@ -305,6 +304,11 @@ class Optimization:
 
         agent.learn(total_timesteps=self.EPISODES * self.MAX_STROKES,
                     callback=callbacks)
+
+        if self.LOG_MLFLOW is True:
+            self._mlflow_log_experiment(
+                main_dir="checkpoints",
+                parameters=best_parameters)
 
     def _setup_agent(self, agent_name: str, parameters: dict) -> BaseAlgorithm:
         """Instantiating and returning an SB3 agent.

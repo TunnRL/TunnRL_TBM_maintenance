@@ -64,23 +64,23 @@ DEBUG = False  # sets test values for quicker response
 # name of the study if MODE == 'Optimization' or 'Training'
 # the Study name must start with the name of the agent that needs to be one of
 # 'PPO', 'A2C', 'DDPG', 'SAC', 'TD3'
-STUDY = "PPO_2022_09_27_study_test"
+STUDY = "PPO_2022_09_27_study"
 # evaluations in optimization and checkpoints in training every X episodes
 CHECKPOINT_INTERVAL = 100
 EPISODES = 12_000  # max episodes to train for
-LOG_DATAFORMATS = ["csv"]  # ["csv", "tensorboard"] ["csv"]
-LOG_MLFLOW = False
+LOG_DATAFORMATS = ["csv", "tensorboard"]  # ["csv", "tensorboard"] ["csv"]
+LOG_MLFLOW = True
 
 # OPTIMIZATION SPECIAL SETUP
 ######################
-DEFAULT_TRIAL = True  # first run a trial with default parameters.
+DEFAULT_TRIAL = False  # first run a trial with default parameters.
 MAX_NO_IMPROVEMENT = 1  # maximum number of evaluations without improvement
 # n optuna trials to run in total (including eventual default trial)
-N_SINGLE_RUN_OPTUNA_TRIALS = 250
+N_SINGLE_RUN_OPTUNA_TRIALS = 100
 # NOTE: memory can be an issue for many parallell processes. Size of neural
 # network and available memory will be limiting factors
-N_CORES_PARALLELL = 4
-N_PARALLELL_PROCESSES = 4
+N_CORES_PARALLELL = 8
+N_PARALLELL_PROCESSES = 8
 
 # TRAINING SPECIAL SETUP
 ######################

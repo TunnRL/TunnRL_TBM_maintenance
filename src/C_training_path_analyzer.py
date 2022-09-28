@@ -10,7 +10,7 @@ from XX_plotting import Plotter
 
 AGENT = 'PPO'  # 'PPO' 'A2C' 'DDPG' 'TD3' 'SAC'
 FOLDER = 'optimization'  # 'checkpoints' 'optimization'
-SAVEPATH = 'graphics/PPO_optimization_exp1.svg'
+SAVEPATH = 'graphics/PPO_2022_09_27_optimization_runs.svg'
 VIS_MODE = 'rollout'  # 'rollout' 'eval'
 PRINT_THRESH = 900  # reward threshold to print trial name in VIS_MODE 'eval'
 Y_LOW = 100
