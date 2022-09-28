@@ -14,7 +14,7 @@ SAVEPATH = 'graphics/PPO_optimization_exp1.svg'
 VIS_MODE = 'rollout'  # 'rollout' 'eval'
 PRINT_THRESH = 900  # reward threshold to print trial name in VIS_MODE 'eval'
 Y_LOW = 100
-Y_HIGH = 200
+Y_HIGH = 600
 
 if __name__ == "__main__":
 

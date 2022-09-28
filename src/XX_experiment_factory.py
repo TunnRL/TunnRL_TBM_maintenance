@@ -14,12 +14,12 @@ Created on Sat Oct 30 12:57:51 2021
 code contributors: Georg H. Erharter, Tom F. Hansen
 """
 
-from itertools import chain
 import uuid
 import warnings
 from typing import Any
 
 import gym
+import mlflow
 import numpy as np
 import optuna
 import pandas as pd
@@ -181,8 +181,8 @@ class Optimization:
     and hyperparameter tuning of agent parameters using Optuna."""
 
     def __init__(self, n_c_tot: int, environment: gym.Env, STUDY: str, EPISODES: int,
-                 CHECKPOINT_INTERVAL: int, MODE: str, MAX_STROKES: int,
-                 AGENT_NAME: str, DEFAULT_TRIAL: bool,
+                 CHECKPOINT_INTERVAL: int, LOG_DATAFORMATS: list[str], LOG_MLFLOW: bool, 
+                 MODE: str, MAX_STROKES: int, AGENT_NAME: str, DEFAULT_TRIAL: bool,
                  MAX_NO_IMPROVEMENT: int) -> None:
         """Initialize the Optimization object.
 
@@ -192,6 +192,8 @@ class Optimization:
             STUDY (str): Optuna study object
             EPISODES (int): Number of RL episodes in the optimization
             CHECKPOINT_INTERVAL (int): Frequency of evaluations in episodes
+            LOG_DATAFORMATS (list[str]): dataformats for logging, eg. ["csv", "tensorboard"]
+            LOG_MLFLOW (bool): wether to log experiments to mlflow database
             MODE (str): the process mode of the optimization: training, optimization
             MAX_STROKES (int): Number of TBM strokes (steps) in each episode
             AGENT_NAME (str): name of RL algorithm, eg. PPO, DDPG ...
@@ -205,6 +207,8 @@ class Optimization:
         self.STUDY = STUDY
         self.EPISODES = EPISODES
         self.CHECKPOINT_INTERVAL = CHECKPOINT_INTERVAL
+        self.LOG_DATAFORMATS = LOG_DATAFORMATS
+        self.LOG_MLFLOW = LOG_MLFLOW
         self.MAX_STROKES = MAX_STROKES
         self.AGENT_NAME = AGENT_NAME
         self.DEFAULT_TRIAL = DEFAULT_TRIAL
@@ -250,15 +254,20 @@ class Optimization:
                                          deterministic=False,
                                          warn=False)[0]
         final_reward = mean_ep_reward  # objective's reward
+
+        # logging and reporting
         print(f"Agent in dir: {self.agent_dir} has a reward of: {mean_ep_reward}\n")
+
+        if self.LOG_MLFLOW is True:
+            self._mlflow_log_experiment(
+                main_dir="optimization",
+                agent_dir=self.agent_dir,
+                parameters=parameters)
+
         return final_reward
 
     def optimize(self, n_trials: int) -> None:
         """Optimize-function to be called in parallell process.
-
-        Saves parameter-values and corresponding reward to mlflow.
-        Start mlflow GUI by calling from optimization-dir:
-        >>>mlflow ui
 
         Args:
             n_trials (int): Number of trials in each parallell process.
@@ -281,7 +290,6 @@ class Optimization:
 
         finally:  # this will always be run
             print("Saving best parameters to a yaml_file")
-            # with open(f"results/{self.STUDY}_best_params_{study.best_value: .2f}.yaml", "w") as file:
             yaml.dump(study.best_params, f"results/{self.STUDY}_best_params_{study.best_value: .2f}.yaml")
 
     def train_agent(self, best_parameters: dict) -> None:
@@ -369,7 +377,8 @@ class Optimization:
                 PrintExperimentInfoCallback(
                     self.MODE, agent_dir, parameters, self.EPISODES, self.CHECKPOINT_INTERVAL)
             )
-            sb3_logger = logger.configure(f'optimization/{agent_dir}', ["csv"])
+            sb3_logger = logger.configure(
+                folder=f'optimization/{agent_dir}', format_strings=self.LOG_DATAFORMATS)
 
         elif self.MODE == "training":
             cb_list.append(
@@ -401,12 +410,55 @@ class Optimization:
                 PrintExperimentInfoCallback(
                     self.MODE, agent_dir, parameters, self.EPISODES, self.CHECKPOINT_INTERVAL)
             )
-            sb3_logger = logger.configure(f'checkpoints/{agent_dir}', ["csv"])
+            sb3_logger = logger.configure(folder=f'checkpoints/{agent_dir}', format_strings=self.LOG_DATAFORMATS)
         else:
             raise ValueError("not a valid mode")
 
         cb_list = CallbackList(cb_list)
         return cb_list, sb3_logger
+
+    def _mlflow_log_experiment(self, main_dir: str, parameters: dict) -> None:
+        """Logs setup data and results from one experiment to mlflow
+
+        Logging to mlflow to directly compare different runs
+        and to map projectdir to parameters
+
+        Use:
+            cd into experiment dir and run command: mlflow ui
+        """
+        print("Logging results to mlflow")
+
+        experiment_info = dict(
+            exp_logdir=self.agent_dir,
+            exp_mode=self.MODE,
+            exp_study=self.STUDY,
+            exp_agent=self.AGENT_NAME,
+        )
+
+        df_log = pd.read_csv(f"{main_dir}/{self.agent_dir}/progress.csv")
+        episode_best_reward = df_log[r"rollout/ep_rew_mean"].argmax()
+        rewards = df_log.loc[episode_best_reward, r"rollout/ep_rew_mean"]
+        df_env = pd.read_csv(f"{main_dir}/{self.agent_dir}/progress_env.csv")
+        try:
+            environment_results = dict(
+                env_broken_cutters=df_env.loc[episode_best_reward, "avg_broken_cutters"],
+                env_moved_cutters=df_env.loc[episode_best_reward, "avg_moved_cutters"],
+                env_replaced_cutters=df_env.loc[episode_best_reward, "avg_replaced_cutters"],
+                env_var_cutter_locations=df_env.loc[
+                    episode_best_reward, "var_cutter_locations"
+                ],
+            )
+        except KeyError:
+            print("The env episode values was not possible to retrieve")
+            environment_results = {}
+        mlflow.set_tracking_uri("./experiments/mlruns")
+        mlflow.set_experiment(experiment_name=experiment_info["exp_study"])
+
+        with mlflow.start_run():
+            mlflow.log_params(parameters)
+            mlflow.log_params(experiment_info)
+            mlflow.log_params(environment_results)
+            mlflow.log_metric(key="reward", value=rewards.max())
 
 
 class ExperimentAnalysis:
@@ -415,7 +467,7 @@ class ExperimentAnalysis:
                                  all_rewards: list, all_broken_cutters: list,
                                  all_replaced_cutters: list,
                                  all_moved_cutters: list,
-                                 perplexity=float) -> pd.DataFrame:
+                                 perplexity: float) -> pd.DataFrame:
         # flatten all episode lists
         all_actions = [item for sublist in all_actions for item in sublist]
         all_states = [item for sublist in all_states for item in sublist]
@@ -466,3 +518,6 @@ def load_best_model(agent_name: str, main_dir: str,
         agent = TD3.load(path)
 
     return agent
+
+
+

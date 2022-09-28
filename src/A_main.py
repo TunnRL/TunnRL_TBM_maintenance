@@ -64,10 +64,12 @@ DEBUG = False  # sets test values for quicker response
 # name of the study if MODE == 'Optimization' or 'Training'
 # the Study name must start with the name of the agent that needs to be one of
 # 'PPO', 'A2C', 'DDPG', 'SAC', 'TD3'
-STUDY = "PPO_2022_09_27_study"
+STUDY = "PPO_2022_09_27_study_test"
 # evaluations in optimization and checkpoints in training every X episodes
 CHECKPOINT_INTERVAL = 100
 EPISODES = 12_000  # max episodes to train for
+LOG_DATAFORMATS = ["csv"]  # ["csv", "tensorboard"] ["csv"]
+LOG_MLFLOW = False
 
 # OPTIMIZATION SPECIAL SETUP
 ######################
@@ -156,9 +158,9 @@ if CHECK_ENV:
 agent_name = STUDY.split('_')[0]
 assert agent_name in ["PPO", "A2C", "DDPG", "SAC", "TD3"], f"{agent_name} is not a valid agent."
 
-optim = Optimization(n_c_tot, env, STUDY, EPISODES, CHECKPOINT_INTERVAL, MODE,
-                     MAX_STROKES, agent_name, DEFAULT_TRIAL,
-                     MAX_NO_IMPROVEMENT)
+optim = Optimization(
+    n_c_tot, env, STUDY, EPISODES, CHECKPOINT_INTERVAL, LOG_DATAFORMATS, 
+    LOG_MLFLOW, MODE, MAX_STROKES, agent_name, DEFAULT_TRIAL, MAX_NO_IMPROVEMENT)
 
 ea = ExperimentAnalysis()
 hparams = Hyperparameters()
