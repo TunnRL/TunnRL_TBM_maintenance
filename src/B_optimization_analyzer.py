@@ -15,6 +15,7 @@ import joblib
 import optuna
 import pandas as pd
 from sklearn.preprocessing import LabelEncoder
+import yaml
 
 from XX_plotting import Plotter
 
@@ -60,8 +61,11 @@ trial = study.best_trial
 print('\nHighest reward: {}'.format(trial.value))
 print("Best hyperparameters:\n {}".format(trial.params))
 
-
-# optuna.importance.get_param_importances(study)
+print("Saving best parameters to a yaml_file")
+with open(
+    f"results/{STUDY}_best_params_{study.best_value: .2f}.yaml", "w"
+) as file:
+    yaml.dump(study.best_params, file)
 
 params = [p for p in df_study.columns if "params_" in p]
 
