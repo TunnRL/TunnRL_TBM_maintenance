@@ -188,16 +188,18 @@ class Optimization:
             ) as file:
                 yaml.dump(study.best_params, file)
 
-    def train_agent(self, best_parameters: dict, sub_parameters: dict) -> None:
-        """Train agent with best parameters from an optimization study."""
+    def train_agent(self, best_parameters: dict, reporting_parameters: dict) -> None:
+        """Train agent with best parameters from an optimization study.
+
+        Args:
+            best_parameters (dict): parameters for SB3 agent
+        """
 
         agent = self._setup_agent(self.AGENT_NAME, best_parameters)
 
         self.agent_dir = f"{self.AGENT_NAME}_{uuid.uuid4()}"
         self.hydra_dir = get_hydra_experiment_tag(HydraConfig.get().run.dir)
-        callbacks, SB3_logger = self._setup_callbacks_and_logger(
-            best_parameters, sub_parameters
-        )
+        callbacks, SB3_logger = self._setup_callbacks_and_logger(best_parameters)
         if SB3_logger is not None:
             agent.set_logger(SB3_logger)
 
@@ -215,8 +217,7 @@ class Optimization:
             experiment_info=experiment_info,
             main_dir="checkpoints",
             agent_dir=self.agent_dir,
-            parameters=best_parameters,
-            sub_parameters=sub_parameters,
+            parameters=reporting_parameters,
         )
 
     def _setup_agent(self, agent_name: str, parameters: dict) -> BaseAlgorithm:
@@ -244,9 +245,7 @@ class Optimization:
                 raise NotImplementedError(f"{self.AGENT_NAME} not implemented")
         return agent
 
-    def _setup_callbacks_and_logger(
-        self, parameters: dict, sub_parameters: dict = None
-    ) -> tuple[list, Any]:
+    def _setup_callbacks_and_logger(self, parameters: dict) -> tuple[list, Any]:
         """Defining callbacks and logger used in training and optimizing an RL agent.
         Different setups for different training/optimization modes.
         TODO: this is a function which takes second most time. Look for improvements.
@@ -456,7 +455,7 @@ def mlflow_log_experiment(
     main_dir: str,
     agent_dir: str,
     parameters: dict,
-    sub_parameters: dict,
+    sub_parameters: dict = None
 ) -> None:
     """Logs setup data and results from one experiment to mlflow
 
@@ -486,7 +485,8 @@ def mlflow_log_experiment(
 
     with mlflow.start_run():
         mlflow.log_params(parameters)
-        mlflow.log_params(sub_parameters)
+        if sub_parameters is not None:
+            mlflow.log_params(sub_parameters)
         mlflow.log_params(experiment_info)
         mlflow.log_params(environment_results)
         mlflow.log_metric(key="reward", value=rewards.max())

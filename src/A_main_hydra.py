@@ -19,8 +19,6 @@ import gym
 import hydra
 import numpy as np
 import optuna
-import torch.nn as nn  # used in evaluation of yaml file
-import yaml
 from joblib import Parallel, delayed
 from numpy.typing import NDArray
 from omegaconf import DictConfig, OmegaConf
@@ -79,6 +77,7 @@ def run_optimization(
 def run_training(
     STUDY: str,
     LOAD_PARAMS_FROM_STUDY: bool,
+    best_agent_params: dict,
     MAX_STROKES: int,
     agent_name: str,
     n_c_tot: int,
@@ -96,6 +95,9 @@ def run_training(
         hparams (Hyperparameters): object with parameter interpreting functionality
         env (gym.Env): TBM environment for the agent to act with
         optim (Optimization): experiment object containing all functionality for training
+        
+    Usecase (to run 5 trials of best parameters and 5 of default parameters):
+        pythonr src/A_main_hydra.py --multirun agent=ppo_best, ppo_default, TRAIN.N_DUPLICATES=5
     """
     print(f"New {agent_name} training run with optimized parameters started.")
     print(f" - total number of cutters: {n_c_tot}\n")
@@ -108,28 +110,19 @@ def run_training(
         db_file = f"sqlite:///{db_path}"
         study = optuna.load_study(study_name=STUDY, storage=db_file)
         best_trial = study.best_trial
+        best_agent_params = best_trial.params
         print(f"Highest reward from best trial: {best_trial.value}")
 
-        best_params_dict = hparams.remake_params_dict(
-            algorithm=agent_name,
-            raw_params_dict=best_trial.params,
-            env=env,
-            n_actions=n_c_tot * n_c_tot,
-        )
     else:
-        print("loading parameters from yaml file...")
-        with open(f"results/algorithm_parameters/{agent_name}.yaml") as file:
-            best_params_dict: dict = yaml.safe_load(file)
-        with open(f"results/algorithm_parameters/{agent_name}_sub.yaml") as file:
-            sub_params: dict = yaml.safe_load(file)
+        print("loading parameters from best_params or default_params in yaml file...")
+        
+    best_params_dict = hparams.remake_params_dict(
+        algorithm=agent_name,
+        raw_params_dict=best_agent_params,
+        env=env,
+        n_actions=n_c_tot * n_c_tot)
 
-        best_params_dict["learning_rate"] = hparams.parse_learning_rate(
-            best_params_dict["learning_rate"]
-        )
-        best_params_dict["policy_kwargs"] = eval(best_params_dict["policy_kwargs"])
-        best_params_dict.update(dict(env=env, n_steps=MAX_STROKES))
-
-    optim.train_agent(best_params_dict, sub_params)
+    optim.train_agent(best_params_dict, reporting_parameters=best_agent_params)
 
 
 def run_execution(
@@ -358,23 +351,25 @@ def main(cfg: Config) -> None:
     match cfg.EXP.MODE:
         case "optimization":
             run_optimization(
-                cfg.EXP.STUDY,
-                cfg.OPT.N_SINGLE_RUN_OPTUNA_TRIALS,
-                cfg.OPT.N_PARALLELL_PROCESSES,
-                cfg.OPT.N_CORES_PARALLELL,
-                optim,
+                STUDY=cfg.EXP.STUDY,
+                N_SINGLE_RUN_OPTUNA_TRIALS=cfg.OPT.N_SINGLE_RUN_OPTUNA_TRIALS,
+                N_PARALLELL_PROCESSES=cfg.OPT.N_PARALLELL_PROCESSES,
+                N_CORES_PARALLELL=cfg.OPT.N_CORES_PARALLELL,
+                optim=optim,
             )
 
         case "training":
-            run_training(
-                cfg.EXP.STUDY,
-                cfg.TRAIN.LOAD_PARAMS_FROM_STUDY,
-                cfg.TBM.MAX_STROKES,
-                agent_name,
-                n_c_tot,
-                env,
-                optim,
-            )
+            for _ in range(cfg.TRAIN.N_DUPLICATES):
+                run_training(
+                    STUDY=cfg.EXP.STUDY,
+                    LOAD_PARAMS_FROM_STUDY=cfg.TRAIN.LOAD_PARAMS_FROM_STUDY,
+                    best_agent_params=cfg.agent.agent_params,
+                    MAX_STROKES=cfg.TBM.MAX_STROKES,
+                    agent_name=agent_name,
+                    n_c_tot=n_c_tot,
+                    env=env,
+                    optim=optim,
+                )
 
         case "execution":
             run_execution(

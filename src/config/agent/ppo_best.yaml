@@ -1,0 +1,26 @@
+NAME: PPO
+CHECKPOINT_INTERVAL: 100
+MAX_NO_IMPROVEMENT_EVALS: 1
+EPISODES: 12_000
+
+# best parameters for PPO-architecture manually entered from results for study object
+# https://pyyaml.org/wiki/PyYAMLDocumentation#yaml-tags-and-python-types
+agent_params:
+  batch_size: 50
+  n_epochs: 10
+  verbose: 0
+  activation_fn: relu
+  clip_range: 0.2265448910846551
+  ent_coef: 0.01584753854087656
+  gae_lambda: 0.8530709999980135
+  gamma: 0.08095651007695259
+  learning_rate: 1.0455198981552651e-06
+  lr_schedule: constant
+  max_grad_norm: 0.26559026822886017
+  n_nodes_layer: 256
+  n_nodes_shared_layer: 64
+  n_not_shared_layers: 3
+  n_shared_layers: 0
+  vf_coef: 0.2999970669317938
+
+

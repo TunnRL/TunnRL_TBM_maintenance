@@ -15,7 +15,7 @@
 #   for different agents and reward-experiments
 
 defaults: # sub-configs
-  - agent: a2c.yaml
+  - agent: ddpg_best.yaml # ppo_best.yaml, ppo_default.yaml
   - REWARD: experiment_1.yaml # different setups for different sites and experiments
   - _self_ # main overrides sub-cfg in case of duplicates
   - base_config
@@ -42,7 +42,7 @@ EXP:
   # MODE determines if either an optimization should run = "Optimization", or a
   # new agent is trained with prev. optimized parameters = "Training", or an
   # already trained agent is executed = "Execution"
-  MODE: "execution" # 'optimization', 'training', 'execution'
+  MODE: "training" # 'optimization', 'training', 'execution'
   # set to run SB3 environment check function
   # Checks if env is a suitable gym environment
   CHECK_ENV: False
@@ -50,14 +50,14 @@ EXP:
   STUDY: ${agent.NAME}_${now:%Y-%m-%d}_study # name of optuna study object.
   # evaluations in optimization and checkpoints in training every X episodes
   CHECKPOINT_INTERVAL: ${agent.CHECKPOINT_INTERVAL} # different for each agent
-  EPISODES: 12_000 # max episodes to train for
+  EPISODES: ${agent.EPISODES} # max episodes to train for
   PLOT_PROGRESS: True # wether to make progress plots during training or not. Plotting takes time
   DETERMINISTIC: False # fixed environment used in evaluation or not
 
 # OPTIMIZATION SPECIAL SETUP
 ######################
 OPT:
-  DEFAULT_TRIAL: False # first run a trial with default parameters.
+  DEFAULT_TRIAL: True # first run a trial with default parameters.
   MAX_NO_IMPROVEMENT_EVALS: ${agent.MAX_NO_IMPROVEMENT_EVALS} # maximum number of evaluations without improvement
   # n optuna trials to run in total (including eventual default trial)
   N_SINGLE_RUN_OPTUNA_TRIALS: 100
@@ -74,6 +74,7 @@ TRAIN:
   # load best parameters from study object in training. Alternative: load from yaml
   LOAD_PARAMS_FROM_STUDY: False
   N_EVAL_EPISODES_TRAINING: 10
+  N_DUPLICATES: 1  # relevant in RL to train on same parameters x times
 
 # EXECUTION SPECIAL SETUP
 ######################

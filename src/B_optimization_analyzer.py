@@ -12,6 +12,7 @@ code contributors: Georg H. Erharter, Tom F. Hansen
 import click
 import optuna
 import pandas as pd
+import yaml
 from sklearn.preprocessing import LabelEncoder
 
 from XX_plotting import Plotter
@@ -52,7 +53,11 @@ def process_optuna_data(study_name: str, agent: str) -> tuple:
     print("\nHighest reward: {}".format(trial.value))
     print("Best hyperparameters:\n {}".format(trial.params))
 
-    # optuna.importance.get_param_importances(study)
+    print("Saving best parameters to a yaml_file")
+    with open(
+        f"results/{study_name}_best_params_{study.best_value: .2f}.yaml", "w"
+    ) as file:
+        yaml.dump(study.best_params, file)
 
     params = [p for p in df_study.columns if "params_" in p]
 

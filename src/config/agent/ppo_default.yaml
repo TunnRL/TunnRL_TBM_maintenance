@@ -1,0 +1,29 @@
+NAME: PPO
+CHECKPOINT_INTERVAL: 100
+MAX_NO_IMPROVEMENT_EVALS: 1
+EPISODES: 12_000
+
+# best parameters for PPO-architecture manually entered from results/algorithm_parameters
+# https://pyyaml.org/wiki/PyYAMLDocumentation#yaml-tags-and-python-types
+agent_params:
+  policy: MlpPolicy
+  batch_size: 64
+  n_epochs: 10
+  clip_range: 0.2
+  gamma: 0.99
+  gae_lambda: 0.95
+  ent_coef: 0.0
+  learning_rate: 0.0003
+  lr_schedule: constant
+  max_grad_norm: 0.5
+  vf_coef: 0.5
+  verbose: 0
+  n_nodes_layer: 64
+  n_nodes_shared_layer: 0
+  n_not_shared_layers: 2
+  n_shared_layers: 0
+  activation_fn: relu
+
+  # policy_kwargs: "dict(activation_fn=nn.ReLU,
+  #                     net_arch=[dict(pi=[64, 64], vf=[64,64])]
+  #                     )"

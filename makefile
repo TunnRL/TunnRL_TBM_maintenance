@@ -40,6 +40,7 @@ delete_all:
 	rm -rf checkpoints/TD3*
 	rm -rf checkpoints/A2C*
 	rm -rf checkpoints/SAC*
+	rm -rf checkpoints/_sample/*
 	rm -rf experiments/*
 	rm -rf results/*.db
 	rm -rf results/*.yaml

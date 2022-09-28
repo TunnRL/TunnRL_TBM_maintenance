@@ -1,0 +1,23 @@
+NAME: A2C
+CHECKPOINT_INTERVAL: 100
+MAX_NO_IMPROVEMENT_EVALS: 1
+EPISODES: 12_000
+
+agent_params:
+  policy: MlpPolicy
+  batch_size: 64
+  n_epochs: 10
+  activation_fn: leaky_relu
+  ent_coef: 0.8099384743484375
+  gae_lambda: 0.8261069673587401
+  gamma: 0.030048766450727182
+  learning_rate: 1.060704189057184e-06
+  lr_schedule: linear_decrease
+  max_grad_norm: 0.37654196118609284
+  n_nodes_layer: 16
+  n_nodes_shared_layer: 512
+  n_not_shared_layers: 8
+  n_shared_layers: 3
+  n_steps: 4
+  rms_prop_eps: 1.5593331931253677e-05
+  vf_coef: 0.23282590960866142
