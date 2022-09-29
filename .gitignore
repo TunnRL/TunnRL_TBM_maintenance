@@ -13,7 +13,7 @@ checkpoints/*
 graphics/*
 optimization/*
 results/*
-!results/cutter_states.csv
+# !results/cutter_states.csv
 tmp/
 
 # other stuff
