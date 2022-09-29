@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 Collection of default hyperparameters for agents
 Created on Sun Jul 24 16:19:57 2022

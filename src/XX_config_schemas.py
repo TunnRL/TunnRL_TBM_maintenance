@@ -93,7 +93,7 @@ class TRAIN:
 class EXECUTE:
     EXECUTION_MODEL: str
     NUM_TEST_EPISODES: int
-    VISUALIZE_EPISODES: bool
+    VISUALIZE_STATE_ACTION_PLOT: bool
 
 
 @dataclass

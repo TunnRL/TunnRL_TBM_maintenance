@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 Towards optimized TBM cutter changing policies with reinforcement learning
 G.H. Erharter, T.F. Hansen
@@ -135,7 +134,6 @@ class Optimization:
 
         print(f"Agent in dir: {self.agent_dir} has a reward of: {final_reward}\n")
 
-        # logging to mlflow
         experiment_info = dict(
             exp_logdir=self.agent_dir,
             exp_mode=self.MODE,
@@ -163,10 +161,6 @@ class Optimization:
         Returns:
             None
         """
-        # db_path = f"results/{self.STUDY}.db"
-        # db_file = f"sqlite:///{db_path}"
-        # study = optuna.load_study(study_name=self.STUDY, storage=db_file)
-
         try:
             study.optimize(
                 self.objective,
@@ -462,10 +456,14 @@ def mlflow_log_experiment(
     parameters: dict,
     sub_parameters: dict = None,
 ) -> None:
-    """Logs setup data and results from one experiment to mlflow
+    """Logs parameter values, metrics and setupdata for one experiment to mlflow.
 
     Args:
-        experiment_name (str, optional): study name. Defaults to "PPO_2022_08_27_study".
+        experiment_info (dict): setup information
+        main_dir (str): optimization or checkpoints
+        agent_dir (str): eg. "PPO-LSTM_5c254b01-4a54-4b21-8d5d-7a7206cf71db"
+        parameters (dict): hyperparameter for agent
+        sub_parameters (dict, optional): network details for MLP
     """
     print("Logging results to mlflow")
 
@@ -669,7 +667,10 @@ class PrintExperimentInfoCallback(BaseCallback):
 
 
 class MlflowLoggingCallback(BaseCallback):
-    """Logs parameters and reward to mlflow."""
+    """Logs parameters and reward to mlflow.
+
+    Alternative to function.
+    """
 
     def __init__(
         self,

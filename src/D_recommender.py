@@ -20,7 +20,13 @@ from XX_experiment_factory import load_best_model
 
 
 @click.command()
-@click.option("--n_c_tot", default=28, type=int, help="Number of cutters on cutterhead.")
+@click.option(
+    "--n_c_tot",
+    default=41,
+    show_default=True,
+    type=int,
+    help="Number of cutters on cutterhead.",
+)
 @click.option(
     "-dp",
     "--data_path",

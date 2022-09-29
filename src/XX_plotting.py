@@ -23,6 +23,7 @@ import plotly.express as px
 from mpl_toolkits.axes_grid1 import make_axes_locatable
 from numpy.typing import NDArray
 from pandas.errors import EmptyDataError
+from rich.progress import track
 from sklearn.preprocessing import LabelEncoder
 
 
@@ -211,7 +212,9 @@ class Plotter:
 
         ax = fig.add_subplot(312)
 
-        for stroke in range(n_strokes):
+        for stroke in track(
+            range(n_strokes), description="Processing strokes in state_action_plot"
+        ):
 
             for i in range(n_c_tot):
                 # select cutter from action vector

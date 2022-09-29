@@ -15,7 +15,7 @@
 #   for different agents and reward-experiments
 
 defaults: # sub-configs
-  - agent: ppo-lstm_default.yaml # ppo_best.yaml, ppo_default.yaml
+  - agent: ppo_best.yaml # ppo_best.yaml, ppo_default.yaml
   - REWARD: experiment_1.yaml # different setups for different sites and experiments
   - _self_ # main overrides sub-cfg in case of duplicates
   - base_config
@@ -42,7 +42,7 @@ EXP:
   # MODE determines if either an optimization should run = "Optimization", or a
   # new agent is trained with prev. optimized parameters = "Training", or an
   # already trained agent is executed = "Execution"
-  MODE: "optimization" # 'optimization', 'training', 'execution'
+  MODE: "training" # 'optimization', 'training', 'execution'
   # set to run SB3 environment check function
   # Checks if env is a suitable gym environment
   CHECK_ENV: False
@@ -79,9 +79,9 @@ TRAIN:
 # EXECUTION SPECIAL SETUP
 ######################
 EXECUTE:
-  EXECUTION_MODEL: "PPO_71c0d183-1c30-4f00-82d3-674941041555" # directory name with saved model in checkpoints or optimization
+  EXECUTION_MODEL: "PPO_0ce28d43-982e-400e-8bf6-f29829d12ea1" # directory name with saved model in checkpoints or optimization
   NUM_TEST_EPISODES: 3
-  VISUALIZE_EPISODES: False
+  VISUALIZE_STATE_ACTION_PLOT: False
 
 
 # LAYOUT SETUP

@@ -21,7 +21,7 @@ import numpy as np
 import optuna
 from joblib import Parallel, delayed
 from numpy.typing import NDArray
-from omegaconf import DictConfig, OmegaConf
+from omegaconf import OmegaConf
 from rich.console import Console
 from rich.traceback import install
 from stable_baselines3.common.env_checker import check_env
@@ -33,7 +33,7 @@ from XX_plotting import Plotter
 from XX_TBM_environment import CustomEnv, Reward
 
 
-install()
+install()  # better traceback messages
 
 
 def run_optimization(
@@ -48,6 +48,9 @@ def run_optimization(
     Args:
         STUDY (str): names the algorithm to optimize and the saved optimizing db object
         N_SINGLE_RUN_OPTUNA_TRIALS (int): n optuna trials
+        N_PARALLELL_PROCESSES (int):
+        N_CORES_PARALLELL (int):
+        optim (Optimization):
     """
 
     db_path = f"results/{STUDY}.db"
@@ -75,12 +78,14 @@ def run_optimization(
 
 
 def run_training(
+    rcon: Console,
     STUDY: str,
     LOAD_PARAMS_FROM_STUDY: bool,
     best_agent_params: dict,
-    MAX_STROKES: int,
     agent_name: str,
     n_c_tot: int,
+    MAX_STROKES: int,
+    STROKE_LENGTH: float,
     env: gym.Env,
     optim: Optimization,
 ) -> None:
@@ -99,22 +104,29 @@ def run_training(
     Usecase (to run 5 trials of best parameters and 5 of default parameters):
         pythonr src/A_main_hydra.py --multirun agent=ppo_best, ppo_default, TRAIN.N_DUPLICATES=5
     """
-    print(f"New {agent_name} training run with optimized parameters started.")
-    print(f" - total number of cutters: {n_c_tot}\n")
+    rcon.print(f"New {agent_name} training run with optimized parameters started.")
+    rcon.print(f" - total number of cutters: {n_c_tot}")
+    rcon.print(
+        f" - tunnel length in each episode, in meters: {MAX_STROKES*STROKE_LENGTH}"
+    )
+    rcon.print(f" - stroke length: {STROKE_LENGTH}")
+    rcon.print(f" - number of strokes: {MAX_STROKES}\n")
 
     hparams = Hyperparameters()
 
     if LOAD_PARAMS_FROM_STUDY:
-        print(f"loading parameters from the study object: {STUDY}")
+        rcon.print(f"loading parameters from the study object: {STUDY}")
         db_path = f"results/{STUDY}.db"
         db_file = f"sqlite:///{db_path}"
         study = optuna.load_study(study_name=STUDY, storage=db_file)
         best_trial = study.best_trial
         best_agent_params = best_trial.params
-        print(f"Highest reward from best trial: {best_trial.value}")
+        rcon.print(f"Highest reward from best trial: {best_trial.value}")
 
     else:
-        print("loading parameters from best_params or default_params in yaml file...")
+        rcon.print(
+            "loading parameters from best_params or default_params in yaml file..."
+        )
 
     best_params_dict = hparams.remake_params_dict(
         algorithm=agent_name,
@@ -126,14 +138,17 @@ def run_training(
 
 
 def run_execution(
+    rcon: Console,
     DETERMINISTIC: bool,
     EXECUTION_MODEL: str,
     NUM_TEST_EPISODES: int,
-    VISUALIZE_EPISODES: bool,
+    VISUALIZE_STATE_ACTION_PLOT: bool,
     env: gym.Env,
     n_c_tot: int,
 ) -> None:
-    """Runs a number of episodes for a trained TBM RL agent
+    """Runs a number of episodes for a trained TBM RL agent.
+
+    Plots several plots showing the decision making in the process.
 
     Args:
         DETERMINISTIC (bool): running on a constant environment
@@ -155,7 +170,7 @@ def run_execution(
 
     # test agent throughout multiple episodes
     for test_ep_num in range(NUM_TEST_EPISODES):
-        print(f"Episode num: {test_ep_num}")
+        rcon.print(f"Episode num: {test_ep_num}")
         state = env.reset()  # reset new environment
         terminal = False  # reset terminal flag
 
@@ -169,7 +184,7 @@ def run_execution(
         # one episode loop
         i = 0
         while not terminal:
-            print(f"Stroke (step) num: {i}")
+            rcon.print(f"Stroke (step) num: {i}")
             # collect number of broken cutters in curr. state
             broken_cutters.append(len(np.where(state == 0)[0]))
             # agent takes an action -> tells which cutters to replace
@@ -191,7 +206,8 @@ def run_execution(
         all_replaced_cutters.append([len(c) for c in replaced_cutters])
         all_moved_cutters.append([len(c) for c in moved_cutters])
 
-        if VISUALIZE_EPISODES:
+        if VISUALIZE_STATE_ACTION_PLOT:
+            rcon.print("Plotting state plots for each episode...")
             Plotter.state_action_plot(
                 states,
                 actions,
@@ -201,11 +217,12 @@ def run_execution(
                 show=False,
                 savepath=f"checkpoints/_sample/{EXECUTION_MODEL}{test_ep_num}_state_action.svg",
             )
+        with rcon.status("Plotting episode plots..."):
             Plotter.environment_parameter_plot(
                 test_ep_num,
                 env,
                 show=False,
-                savepath=f"checkpoints/_sample/{EXECUTION_MODEL}{test_ep_num}_episode.svg",
+                savepath=f"checkpoints/_sample/{EXECUTION_MODEL}_episode_{test_ep_num}.svg",
             )
             Plotter.sample_ep_plot(
                 states,
@@ -215,27 +232,28 @@ def run_execution(
                 moved_cutters=moved_cutters,
                 n_cutters=n_c_tot,
                 show=False,
-                savepath=f"checkpoints/_sample/{EXECUTION_MODEL}{test_ep_num}_sample.svg",
+                savepath=f"checkpoints/_sample/{EXECUTION_MODEL}_sample_{test_ep_num}.svg",
             )
 
-    df_reduced = ExperimentAnalysis.dimensionality_reduction(
-        all_actions,
-        all_states,
-        all_rewards,
-        all_broken_cutters,
-        all_replaced_cutters,
-        all_moved_cutters,
-        perplexity=200,
-    )
+    with rcon.status("Plotting action analyzing scripts for the last episode..."):
+        df_reduced = ExperimentAnalysis.dimensionality_reduction(
+            all_actions,
+            all_states,
+            all_rewards,
+            all_broken_cutters,
+            all_replaced_cutters,
+            all_moved_cutters,
+            perplexity=200,
+        )
+        Plotter.action_analysis_scatter_plotly(
+            df_reduced,
+            savepath=f"checkpoints/_sample/{EXECUTION_MODEL}_TSNE_scatter_plotly.html",
+        )
 
-    Plotter.action_analysis_scatter_plotly(
-        df_reduced,
-        savepath=f"checkpoints/_sample/{EXECUTION_MODEL}_TSNE_scatter_plotly.html",
-    )
-
-    Plotter.action_analysis_scatter(
-        df_reduced, savepath=f"checkpoints/_sample/{EXECUTION_MODEL}_TSNE_scatter.svg"
-    )
+        Plotter.action_analysis_scatter(
+            df_reduced,
+            savepath=f"checkpoints/_sample/{EXECUTION_MODEL}_TSNE_scatter.svg",
+        )
 
 
 @hydra.main(config_path="config", config_name="main", version_base="1.2")
@@ -254,6 +272,8 @@ def main(cfg: Config) -> None:
 
     warnings.filterwarnings("ignore", category=optuna.exceptions.ExperimentalWarning)
 
+    # TODO: move the assertions to runs with pydantic in XX_config_schemas
+
     if cfg.OPT.DEFAULT_TRIAL:
         warnings.warn("Optimization runs are started with default parameter values")
 
@@ -271,14 +291,9 @@ def main(cfg: Config) -> None:
             f"./results/{cfg.EXP.STUDY}.db"
         ).exists(), "The study object does not exist"
 
-    if cfg.TRAIN.LOAD_PARAMS_FROM_STUDY is False and cfg.EXP.MODE == "training":
-        assert Path(
-            f'results/algorithm_parameters/{cfg.EXP.STUDY.split("_")[0]}.yaml'
-        ).exists(), "a yaml file with pararameter does not exist."
-
-    assert (
-        cfg.agent.NAME == (cfg.EXP.STUDY).split("_")[0]
-    ), "Agent name and study name must be similar"
+        assert (
+            cfg.agent.NAME == (cfg.EXP.STUDY).split("_")[0]
+        ), "Agent name and study name must be similar"
 
     ###############################################################################
     # COMPUTED/DERIVED VARIABLES AND INSTANTIATIONS
@@ -362,24 +377,27 @@ def main(cfg: Config) -> None:
         case "training":
             for _ in range(cfg.TRAIN.N_DUPLICATES):
                 run_training(
+                    rcon=rich_console,
                     STUDY=cfg.EXP.STUDY,
                     LOAD_PARAMS_FROM_STUDY=cfg.TRAIN.LOAD_PARAMS_FROM_STUDY,
                     best_agent_params=cfg.agent.agent_params,
-                    MAX_STROKES=cfg.TBM.MAX_STROKES,
                     agent_name=agent_name,
                     n_c_tot=n_c_tot,
+                    MAX_STROKES=cfg.TBM.MAX_STROKES,
+                    STROKE_LENGTH=cfg.TBM.STROKE_LENGTH,
                     env=env,
                     optim=optim,
                 )
 
         case "execution":
             run_execution(
-                cfg.EXP.DETERMINISTIC,
-                cfg.EXECUTE.EXECUTION_MODEL,
-                cfg.EXECUTE.NUM_TEST_EPISODES,
-                cfg.EXECUTE.VISUALIZE_EPISODES,
-                env,
-                n_c_tot,
+                rcon=rich_console,
+                DETERMINISTIC=cfg.EXP.DETERMINISTIC,
+                EXECUTION_MODEL=cfg.EXECUTE.EXECUTION_MODEL,
+                NUM_TEST_EPISODES=cfg.EXECUTE.NUM_TEST_EPISODES,
+                VISUALIZE_STATE_ACTION_PLOT=cfg.EXECUTE.VISUALIZE_STATE_ACTION_PLOT,
+                env=env,
+                n_c_tot=n_c_tot,
             )
 
         case _:

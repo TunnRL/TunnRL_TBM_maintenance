@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 Towards optimized TBM cutter changing policies with reinforcement learning
 G.H. Erharter, T.F. Hansen
@@ -36,6 +35,7 @@ class Reward:
         GAMMA (float): weighting factor for cutter distance
         DELTA (float): weighting factor for entering cutterhead
     """
+
     n_c_tot: int
     BROKEN_CUTTERS_THRESH: float
     CHECK_BEARING_FAILURE: bool
@@ -200,7 +200,7 @@ class CustomEnv(gym.Env):
 
     def _implement_action(self, action: NDArray, state_before: NDArray) -> NDArray:
         """Function that interprets the "raw action" and modifies the state.
-        TODO: this is a function which takes most time. Look for improvements.
+        TODO: this is the function which takes longest time to run. Look for improvements.
         """
         state_new = state_before
         self.replaced_cutters = []

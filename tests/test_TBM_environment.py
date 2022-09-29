@@ -20,6 +20,7 @@ def test_Reward(check_bearing_failure, replaced_cutters):
         n_c_tot=28,
         BROKEN_CUTTERS_THRESH=0.85,
         CHECK_BEARING_FAILURE=check_bearing_failure,
+        BEARING_FAILURE_PENALTY=False,
     )
     res = reward_fn(
         replaced_cutters=replaced_cutters,
