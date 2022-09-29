@@ -23,8 +23,13 @@ delete_graphics:
 # Run from root in project locally
 move_results_from_odin:
 	@echo move studys, trained agents, graphics to common storage
-	scp -r tfh@odin.oslo.ngi.no:/home/tfh/data/projects/TunnRL_TBM_maintenance/optimization/"${algorithm}"_* ./optimization
 	scp -r tfh@odin.oslo.ngi.no:/home/tfh/data/projects/TunnRL_TBM_maintenance/results/*.db ./results
+	scp -r tfh@odin.oslo.ngi.no:/home/tfh/data/projects/TunnRL_TBM_maintenance/experiments/mlruns ./experiments
+
+# Run from root in project locally
+move_optimization_from_odin:
+	@echo move optimization directories from odin for "${algorithm}"
+	scp -r tfh@odin.oslo.ngi.no:/home/tfh/data/projects/TunnRL_TBM_maintenance/optimization/"${algorithm}"_* ./optimization
 
 # Run from root in project locally
 move_db_to_odin:

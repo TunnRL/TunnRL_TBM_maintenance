@@ -15,7 +15,9 @@ from XX_plotting import Plotter
     "--agent_name",
     default="PPO",
     show_default=True,
-    type=click.Choice(["PPO", "DDPG", "A2C", "TD3", "SAC"], case_sensitive=False),
+    type=click.Choice(
+        ["PPO", "DDPG", "A2C", "TD3", "SAC", "PPO-LSTM"], case_sensitive=False
+    ),
 )
 @click.option(
     "-f",
@@ -48,12 +50,28 @@ from XX_plotting import Plotter
     type=int,
     help="reward threshold to print trial name in VIS_MODE 'eval'",
 )
+@click.option(
+    "-ylow",
+    default=100,
+    show_default=True,
+    type=int,
+    help="y low reward scale",
+)
+@click.option(
+    "-yhigh",
+    default=500,
+    show_default=True,
+    type=int,
+    help="y high reward scale",
+)
 def main(
     agent_name: str,
     folder: str,
     save_dir: str,
     visualization_mode: str,
     print_threshold: int,
+    ylow: int,
+    yhigh: int,
 ) -> None:
     """Plot the training paths of all the trained models in a directory."""
     Plotter.custom_intermediate_values_plot(
@@ -62,6 +80,8 @@ def main(
         mode=visualization_mode,
         print_thresh=print_threshold,
         savepath=save_dir,
+        y_low=ylow,
+        y_high=yhigh,
     )
 
 

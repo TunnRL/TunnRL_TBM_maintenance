@@ -1,6 +1,8 @@
 """
 Schema definition and validation of the hierarchical config files.
 
+TODO: add more checks
+
 @author: Tom F. Hansen
 """
 
@@ -15,7 +17,7 @@ from pydantic.dataclasses import dataclass
 class Agent:
     @validator("NAME")
     def check_name(cls, NAME: str) -> str:
-        if NAME not in ["PPO", "A2C", "DDPG", "TD3", "SAC"]:
+        if NAME not in ["PPO", "A2C", "DDPG", "TD3", "SAC", "PPO-LSTM"]:
             raise ValueError(
                 f"{NAME} is not a valid algorithm name. Remember to use uppercase"
             )
@@ -23,6 +25,7 @@ class Agent:
     NAME: str
     CHECKPOINT_INTERVAL: int
     MAX_NO_IMPROVEMENT_EVALS: int
+    EPISODES: int
 
 
 @dataclass
@@ -83,6 +86,7 @@ class OPT:
 class TRAIN:
     LOAD_PARAMS_FROM_STUDY: bool
     N_EVAL_EPISODES_TRAINING: int
+    N_DUPLICATES: int
 
 
 @dataclass

@@ -578,6 +578,8 @@ class Plotter:
         print_thresh: int = None,
         savepath: str = None,
         show: bool = True,
+        y_low: int = -1000,
+        y_high: int = 1000,
     ) -> None:
         """custom implementation of the plot_intermediate_values() function of
         optuna:
@@ -626,7 +628,7 @@ class Plotter:
         ax.grid(alpha=0.5)
         ax.set_xlabel("episodes")
         ax.set_ylabel("reward")
-        ax.set_ylim(top=1000, bottom=-1000)
+        ax.set_ylim(top=y_high, bottom=y_low)
 
         plt.tight_layout()
         if savepath is not None:

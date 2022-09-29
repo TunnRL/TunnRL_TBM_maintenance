@@ -28,6 +28,7 @@ import yaml
 from hydra.core.hydra_config import HydraConfig
 from rich.console import Console
 from rich.traceback import install
+from sb3_contrib import RecurrentPPO
 from sklearn.manifold import TSNE
 from stable_baselines3 import A2C, DDPG, PPO, SAC, TD3
 from stable_baselines3.common import logger
@@ -241,6 +242,8 @@ class Optimization:
                 agent = DDPG(**parameters)
             case "TD3":
                 agent = TD3(**parameters)
+            case "PPO-LSTM":
+                agent = RecurrentPPO(**parameters)
             case _:
                 raise NotImplementedError(f"{self.AGENT_NAME} not implemented")
         return agent
@@ -395,6 +398,8 @@ def load_best_model(agent_name: str, main_dir: str, agent_dir: str) -> BaseAlgor
             agent = SAC.load(path)
         elif agent_name == "TD3":
             agent = TD3.load(path)
+        elif agent_name == "PPO-LSTM":
+            agent = RecurrentPPO.load(path)
         else:
             raise ValueError("not a valid agent")
     except FileNotFoundError:

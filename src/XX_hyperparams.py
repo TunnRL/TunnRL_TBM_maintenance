@@ -244,9 +244,12 @@ class Hyperparameters:
                     verbose=0,
                     policy_kwargs=dict(net_arch=network_architecture),
                 )
+            case "PPO-LSTM":
+                params = dict(policy="MlpLstmPolicy", env=environment)
             case _:
                 raise ValueError(
-                    f"{algorithm} is not implemented. These algorithms are implemented: PPO, DDPG, TD3, A2C, SAC"
+                    f"{algorithm} is not implemented. These algorithms are implemented: PPO, DDPG, TD3, A2C, SAC",
+                    "PPO-LSTM",
                 )
 
         return params, sub_params
@@ -285,7 +288,7 @@ class Hyperparameters:
         policy_network = []
         value_network = []
 
-        if algorithm in ["PPO", "A2C"]:
+        if algorithm in ["PPO", "A2C", "PPO-LSTM"]:
             network_description = []
 
             for _ in range(num_shared_layers):
@@ -377,7 +380,7 @@ class Hyperparameters:
         n_not_shared_layers = raw_params_dict["n_not_shared_layers"]
 
         reshaped_dict = {}
-        if algorithm in ["PPO", "A2C"]:
+        if algorithm in ["PPO", "A2C", "PPO-LSTM"]:
             n_nodes_shared_layer = raw_params_dict["n_nodes_shared_layer"]
             n_shared_layers = raw_params_dict["n_shared_layers"]
 

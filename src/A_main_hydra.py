@@ -122,7 +122,6 @@ def run_training(
         env=env,
         n_actions=n_c_tot * n_c_tot,
     )
-
     optim.train_agent(best_params_dict, reporting_parameters=best_agent_params)
 
 
@@ -249,7 +248,7 @@ def main(cfg: Config) -> None:
         cfg.EXP.EPISODES = 20
         cfg.EXP.CHECKPOINT_INTERVAL = 6
         cfg.OPT.N_PARALLELL_PROCESSES = 1
-        cfg.OPT.N_CORES_PARALLELL = 2
+        cfg.OPT.N_CORES_PARALLELL = 1
 
     OmegaConf.to_object(cfg)  # runs checks of inputs by pydantic, types and validation
 
@@ -319,6 +318,7 @@ def main(cfg: Config) -> None:
         "DDPG",
         "SAC",
         "TD3",
+        "PPO-LSTM",
     ], f"{agent_name} is not a valid agent."
 
     callbacks_cfg = dict(

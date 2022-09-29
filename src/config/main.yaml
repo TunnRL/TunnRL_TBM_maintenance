@@ -15,7 +15,7 @@
 #   for different agents and reward-experiments
 
 defaults: # sub-configs
-  - agent: ddpg_best.yaml # ppo_best.yaml, ppo_default.yaml
+  - agent: ppo-lstm_default.yaml # ppo_best.yaml, ppo_default.yaml
   - REWARD: experiment_1.yaml # different setups for different sites and experiments
   - _self_ # main overrides sub-cfg in case of duplicates
   - base_config
@@ -42,7 +42,7 @@ EXP:
   # MODE determines if either an optimization should run = "Optimization", or a
   # new agent is trained with prev. optimized parameters = "Training", or an
   # already trained agent is executed = "Execution"
-  MODE: "training" # 'optimization', 'training', 'execution'
+  MODE: "optimization" # 'optimization', 'training', 'execution'
   # set to run SB3 environment check function
   # Checks if env is a suitable gym environment
   CHECK_ENV: False
@@ -57,13 +57,13 @@ EXP:
 # OPTIMIZATION SPECIAL SETUP
 ######################
 OPT:
-  DEFAULT_TRIAL: True # first run a trial with default parameters.
+  DEFAULT_TRIAL: False # first run a trial with default parameters.
   MAX_NO_IMPROVEMENT_EVALS: ${agent.MAX_NO_IMPROVEMENT_EVALS} # maximum number of evaluations without improvement
   # n optuna trials to run in total (including eventual default trial)
   N_SINGLE_RUN_OPTUNA_TRIALS: 100
   # NOTE: memory can be an issue for many parallell processes. Size of neural network and
   # available memory will be limiting factors
-  N_CORES_PARALLELL: -1
+  N_CORES_PARALLELL: 1
   N_PARALLELL_PROCESSES: 1
   N_EVAL_EPISODES_OPTIMIZATION: 3 # n eval episodes in stop training cb
   N_EVAL_EPISODES_REWARD: 10 # n eval episodes for computing mean reward in end of training

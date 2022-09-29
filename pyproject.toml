@@ -10,6 +10,7 @@ repository = "https://github.com/TunnRL/TunnRL_TBM_maintenance"
 [tool.poetry.dependencies]
 python = ">=3.10.5,<3.12"
 stable-baselines3 = "^1.6.0"
+sb3-contrib = "^1.6.0"
 numpy = "^1.23.1"
 optuna = "^2.10.1"
 joblib = "^1.1.0"
