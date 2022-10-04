@@ -64,7 +64,7 @@ DEBUG = False  # sets test values for quicker response
 # name of the study if MODE == 'Optimization' or 'Training'
 # the Study name must start with the name of the agent that needs to be one of
 # 'PPO', 'A2C', 'DDPG', 'SAC', 'TD3'
-STUDY = "PPO_2022_09_27_study"
+STUDY = "DDPG_2022_10_03_study"
 # evaluations in optimization and checkpoints in training every X episodes
 CHECKPOINT_INTERVAL = 100
 EPISODES = 12_000  # max episodes to train for
@@ -73,14 +73,14 @@ LOG_MLFLOW = True
 
 # OPTIMIZATION SPECIAL SETUP
 ######################
-DEFAULT_TRIAL = False  # first run a trial with default parameters.
+DEFAULT_TRIAL = True  # first run a trial with default parameters.
 MAX_NO_IMPROVEMENT = 1  # maximum number of evaluations without improvement
 # n optuna trials to run in total (including eventual default trial)
 N_SINGLE_RUN_OPTUNA_TRIALS = 100
 # NOTE: memory can be an issue for many parallell processes. Size of neural
 # network and available memory will be limiting factors
-N_CORES_PARALLELL = 8
-N_PARALLELL_PROCESSES = 8
+N_CORES_PARALLELL = 4
+N_PARALLELL_PROCESSES = 4
 
 # TRAINING SPECIAL SETUP
 ######################
@@ -159,7 +159,7 @@ agent_name = STUDY.split('_')[0]
 assert agent_name in ["PPO", "A2C", "DDPG", "SAC", "TD3"], f"{agent_name} is not a valid agent."
 
 optim = Optimization(
-    n_c_tot, env, STUDY, EPISODES, CHECKPOINT_INTERVAL, LOG_DATAFORMATS, 
+    n_c_tot, env, STUDY, EPISODES, CHECKPOINT_INTERVAL, LOG_DATAFORMATS,
     LOG_MLFLOW, MODE, MAX_STROKES, agent_name, DEFAULT_TRIAL, MAX_NO_IMPROVEMENT)
 
 ea = ExperimentAnalysis()

@@ -458,6 +458,7 @@ class Plotter:
 
         # only get trials of one agent type
         trials = [t for t in listdir(folder) if agent in t]
+        num_trials = len(trials)
 
         fig, ax = plt.subplots(figsize=(10, 8))
 
@@ -486,7 +487,7 @@ class Plotter:
             except EmptyDataError:
                 pass
 
-        ax.set_title(agent)
+        ax.set_title(f"{agent} ({num_trials} trials)")
 
         ax.grid(alpha=0.5)
         ax.set_xlabel('episodes')
