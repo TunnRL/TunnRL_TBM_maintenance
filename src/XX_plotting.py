@@ -343,6 +343,18 @@ class Plotter:
                 ax.text(x=x[i], y=1.01, s='linear decrease',
                         horizontalalignment='center',
                         verticalalignment='bottom')
+            elif params[i] == 'params_use_sde':
+                ax.text(x=x[i], y=-0.01, s='False',
+                        horizontalalignment='center', verticalalignment='top')
+                ax.text(x=x[i], y=1.01, s='True',
+                        horizontalalignment='center',
+                        verticalalignment='bottom')
+            elif params[i] == 'params_use_sde_at_warmup':
+                ax.text(x=x[i], y=-0.01, s='False',
+                        horizontalalignment='center', verticalalignment='top')
+                ax.text(x=x[i], y=1.01, s='True',
+                        horizontalalignment='center',
+                        verticalalignment='bottom')
             else:
                 ax.text(x=x[i], y=-0.01,
                         s=np.round(df_study[params].min().values[i], 4),
@@ -404,6 +416,7 @@ class Plotter:
     def custom_slice_plot(self, df_study: pd.DataFrame, params: list,
                           le_noise: LabelEncoder = None,
                           le_activation: LabelEncoder = None,
+                          le_schedule: LabelEncoder = None,
                           savepath: str = None,
                           show: bool = True) -> None:
         '''custom implementation of the plot_slice() function of optuna:
@@ -435,6 +448,9 @@ class Plotter:
             if "activation" in param:
                 plt.xticks(range(len(le_activation.classes_)),
                            le_activation.classes_)
+            if "lr_schedule" in param:
+                plt.xticks(range(len(le_schedule.classes_)),
+                           le_schedule.classes_)
 
         ax.legend()
 

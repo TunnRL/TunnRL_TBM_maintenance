@@ -22,7 +22,7 @@ from XX_plotting import Plotter
 ###############################################################################
 # Constants and fixed variables
 
-STUDY = 'DDPG_2022_10_03_study'  # 'PPO_2022_09_27_study'
+STUDY = 'SAC_2022_10_05_study'  # 'PPO_2022_09_27_study' 'DDPG_2022_10_03_study' 'SAC_2022_10_05_study'
 agent = STUDY.split('_')[0]
 FILETYPE_TO_LOAD = "db"
 
@@ -55,6 +55,9 @@ else:
 if "params_activation_fn" in df_study.columns:
     le_activation = LabelEncoder()
     df_study["params_activation_fn"] = le_activation.fit_transform(df_study["params_activation_fn"])
+if "params_lr_schedule" in df_study.columns:
+    le_schedule = LabelEncoder()
+    df_study["params_lr_schedule"] = le_schedule.fit_transform(df_study["params_lr_schedule"])
 
 # print values of best trial in study
 trial = study.best_trial
@@ -76,18 +79,18 @@ if agent == 'SAC' or agent == 'DDPG' or agent == 'TD3':
 ###############################################################################
 # different visualizations of OPTUNA optimization
 
-pltr.custom_parallel_coordinate_plot(df_study, params, le_activation,
-                                     savepath=f'graphics/{STUDY}_parallel_plot.svg')
-
 # plot that shows the progress of the optimization over the individual trials
 pltr.custom_optimization_history_plot(df_study,
                                       savepath=f'graphics/{STUDY}_optimization_progress.svg')
 
 # scatterplot of indivdual hyperparameters vs. reward
 pltr.custom_slice_plot(df_study, params, le_activation=le_activation,
-                       le_noise=le_noise,
+                       le_noise=le_noise, le_schedule=le_schedule,
                        savepath=f'graphics/{STUDY}_optimization_scatter.svg')
 
 # plot intermediate steps of the training paths
 pltr.custom_intermediate_values_plot(agent, folder='optimization',
                                      savepath=f'graphics/{STUDY}_optimization_interms.svg')
+
+pltr.custom_parallel_coordinate_plot(df_study, params, le_activation,
+                                     savepath=f'graphics/{STUDY}_parallel_plot.svg')
