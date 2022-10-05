@@ -41,8 +41,8 @@ from stable_baselines3.common.callbacks import (
 )
 from stable_baselines3.common.evaluation import evaluate_policy
 
-from XX_hyperparams import Hyperparameters
-from XX_plotting import Plotter
+from utils.XX_hyperparams import Hyperparameters
+from utils.XX_plotting import Plotter
 
 
 install()

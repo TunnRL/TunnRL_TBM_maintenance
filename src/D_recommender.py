@@ -16,7 +16,7 @@ import numpy as np
 import pandas as pd
 from numpy.typing import NDArray
 
-from XX_experiment_factory import load_best_model
+from utils.XX_experiment_factory import load_best_model
 
 
 @click.command()

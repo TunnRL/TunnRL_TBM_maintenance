@@ -6,7 +6,7 @@ Created on Tue Jul 26 13:32:03 2022
 
 import click
 
-from XX_plotting import Plotter
+from utils.XX_plotting import Plotter
 
 
 @click.command()

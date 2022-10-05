@@ -10,7 +10,7 @@ To enable coverage reporting, invoke pytest with the --cov option: "pytest --cov
 
 import pytest
 
-from src.XX_TBM_environment import Reward
+from utils.XX_TBM_environment import Reward
 
 
 @pytest.mark.parametrize("replaced_cutters", [[], [12, 25]])

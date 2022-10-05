@@ -12,7 +12,7 @@ To enable coverage reporting, invoke pytest with the --cov option: "pytest --cov
 import pytest
 from stable_baselines3.common.base_class import BaseAlgorithm
 
-from src.XX_experiment_factory import load_best_model
+from utils.XX_experiment_factory import load_best_model
 
 
 def test_load_best_model():

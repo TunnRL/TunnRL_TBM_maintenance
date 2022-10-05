@@ -13,10 +13,11 @@ import click
 import optuna
 import pandas as pd
 import yaml
+from rich.traceback import install
 from sklearn.preprocessing import LabelEncoder
 
-from XX_plotting import Plotter
-from rich.traceback import install
+from utils.XX_plotting import Plotter
+
 
 install()
 
@@ -84,7 +85,10 @@ def main(study_name: str) -> None:
     # different visualizations of OPTUNA optimization
 
     Plotter.custom_parallel_coordinate_plot(
-        df_study, params, le_activation, savepath=f"graphics/{study_name}_parallel_plot.svg"
+        df_study,
+        params,
+        le_activation,
+        savepath=f"graphics/{study_name}_parallel_plot.svg",
     )
 
     # plot that shows the progress of the optimization over the individual trials

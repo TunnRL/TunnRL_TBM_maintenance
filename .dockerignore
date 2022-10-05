@@ -1,0 +1,28 @@
+# folder that contains documents connected to paper writing
+documents/
+
+# different folders that contain agent checkpoint, intermediate results or graphics
+src/optimization/
+src/checkpoints/
+src/graphics/
+src/results/
+src/A_main.py
+
+experiments/*
+checkpoints/*
+graphics/*
+optimization/*
+results/*
+# !results/cutter_states.csv
+tmp/
+
+# other stuff
+**/__pycache__
+settings.json
+
+# some dev tools
+#.flake8
+.vscode
+
+.gitignore
+.git

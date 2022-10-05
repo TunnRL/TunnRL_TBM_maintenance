@@ -6,6 +6,9 @@ authors = ["Georg H. Erharter <erharter@tugraz.at>", "Tom F. Hansen <tom.frode.h
 license = "MIT"
 readme = "README.md"
 repository = "https://github.com/TunnRL/TunnRL_TBM_maintenance"
+packages = [
+	{ include = "utils", from = "src"}
+]
 
 [tool.poetry.dependencies]
 python = ">=3.10.5,<3.12"

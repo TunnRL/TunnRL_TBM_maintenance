@@ -1,5 +1,7 @@
 # Tunnel automation with Reinforcement Learning - TunnRL-TBM
 
+#TODO: legg til info om begge os + mer om installasjonsskript
+
 [![codestyle](https://img.shields.io/badge/code%20style-black-000000.svg)](https://github.com/psf/black)
 
 This repository contains code for the ongoing project to use RL for optimization of cutter maintenance in hardrock tunnel boring machines.
@@ -170,6 +172,8 @@ epochs (eg 10 epochs) in order to minimize the loss-function.
 
 
 ## Hydra functionality
+
+#TODO: legg til mer info om --help og kjøring av script, konfigurasjonsnivåer
 
 The hydra system logs and organize all config values, without touching the code itself. Config values can be altered in the yaml-files directly in the config-dir, or overridden in the terminal as described below.
 

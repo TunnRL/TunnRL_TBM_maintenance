@@ -26,11 +26,15 @@ from rich.console import Console
 from rich.traceback import install
 from stable_baselines3.common.env_checker import check_env
 
-from XX_config_schemas import Config
-from XX_experiment_factory import ExperimentAnalysis, Optimization, load_best_model
-from XX_hyperparams import Hyperparameters
-from XX_plotting import Plotter
-from XX_TBM_environment import CustomEnv, Reward
+from utils.XX_config_schemas import Config
+from utils.XX_experiment_factory import (
+    ExperimentAnalysis,
+    Optimization,
+    load_best_model,
+)
+from utils.XX_hyperparams import Hyperparameters
+from utils.XX_plotting import Plotter
+from utils.XX_TBM_environment import CustomEnv, Reward
 
 
 install()  # better traceback messages

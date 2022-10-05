@@ -50,7 +50,6 @@ delete_all:
 	rm -rf results/*.db
 	rm -rf results/*.yaml
 
-
 init:
 	@echo checks and initialize the environment
 	poetry check
