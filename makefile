@@ -18,3 +18,8 @@ delete_results:
 delete_graphics:
 	@echo deleting svg graphics
 	rm graphics/*.svg
+
+move_from_az_to_odin:
+	@echo copying graphics and results from az-cluster to odin
+	scp -r az-cluster.oslo.ngi.no:~/projects/TunnRL_TBM_maintenance/graphics/"${algorithm}"* ./graphics
+	scp -r az-cluster.oslo.ngi.no:~/projects/TunnRL_TBM_maintenance/results/"${algorithm}"* ./results
