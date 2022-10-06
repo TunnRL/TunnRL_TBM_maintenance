@@ -25,3 +25,6 @@ copy_from_az_to_odin:
 	scp -r az-cluster.oslo.ngi.no:~/projects/TunnRL_TBM_maintenance/optimization/"${algorithm}"* ./optimization
 	
 # scp -r az-cluster.oslo.ngi.no:~/projects/TunnRL_TBM_maintenance/graphics/"${algorithm}"* ./graphics
+
+copy_experiments_from_az_to_odin:
+	scp -r az-cluster.oslo.ngi.no:~/projects/TunnRL_TBM_maintenance/experiments/mlruns/0/* ./experiments/mlruns/3
