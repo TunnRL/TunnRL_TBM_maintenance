@@ -1,35 +1,35 @@
-# eventually use python:3.10.7 or 3.10.5-slim
-FROM python:3.10.5-slim
+FROM python:3.10.7-slim as requirements-stage
 
-WORKDIR /project
-# More info: https://stackoverflow.com/questions/53835198/integrating-python-poetry-with-docker
-# install the latest version of poetry
-# If you want a specific python version you need to use pip
-# ie. RUN pip install poetry==1.2
-# RUN curl -sSL https://install.python-poetry.org | python3 -
-# add poetry to path
+RUN pip install poetry==1.2.2
 
-# ENV PATH="$HOME/.poetry/bin:$PATH"
-
-RUN pip install poetry==1.1.14
-
-# make sure you don't creante another virtual env, in addition to the docker env
-RUN poetry config virtualenvs.create false
-
-# Copy requirement files to workdir. This will cache our requirements
 # and only reinstall if they are changed
-COPY poetry.lock pyproject.toml ./
+COPY poetry.lock / 
+COPY pyproject.toml /
+RUN poetry export -f requirements.txt -o requirements.txt
 
 # add source code into the image
-COPY . ./
+COPY ./src /src
+COPY README.md /
+# RUN mkdir experiments graphics optimization results checkpoints
+# RUN mkdir experiments/mlruns experiments/hydra_outputs
 
-# install dependencies from poetry.lock
-RUN poetry install
+# build
+RUN poetry build
 
-# list project structure
+# throws away files from first stage when we start 2nd stage
+FROM python:3.10.7-slim
+
+# Install project package and dependencies
+COPY --from=requirements-stage /requirements.txt /
+COPY --from=requirements-stage /dist /dist
+RUN pip install -r requirements.txt --no-deps
+RUN pip install --no-deps --no-index dist/*.whl
+# copy files that is not a part of the build
+COPY ./src/A_main_hydra.py /src/A_main_hydra.py
+COPY ./src/B_optimization_analyzer.py /src/B_optimization_analyzer.py
+COPY ./src/config /src/config
+
 RUN ls
+CMD "ls"
 
-# activate the environment when starting the container
-CMD ["poetry", "shell"]
-
-# it should now be possible to run scripts on the container
+# CMD ["python", "./src/A_main_hydra.py", "EXP.MODE='training'"]
