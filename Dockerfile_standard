@@ -1,8 +1,6 @@
-# Building a docker image in linux include linux programs, git, gnu make etc.
 # A 2-stage build has benefits
 # STAGE1
 #########
-# consider slim-bullseye
 FROM python:3.10.7-slim as requirements-stage
 
 RUN pip install poetry==1.2.2
@@ -22,10 +20,10 @@ RUN poetry build
 # STAGE2
 #########
 # throws away files from first stage when we start 2nd stage
-FROM python:3.10.7-slim as main-stage
+FROM python:3.10.7-slim
 
 # get latest update in linux
-# RUN apt-get update
+RUN apt-get update
 
 # Install project package and dependencies
 COPY --from=requirements-stage /requirements.txt /

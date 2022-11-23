@@ -264,6 +264,25 @@ def run_execution(
 def main(cfg: Config) -> None:
 
     ###############################################################################
+    # SETUP DIRECTORY STRUCTURE
+    ###############################################################################
+    opt_dir = Path.cwd() / "optimization"
+    ckpt_dir = Path.cwd() / "checkpoints"
+    res_dir = Path.cwd() / "results"
+    graphics_dir = Path.cwd() / "graphics"
+    exp_dir = Path.cwd() / "experiments"
+    if not opt_dir.exists():
+        opt_dir.mkdir(exist_ok=True)
+    if not ckpt_dir.exists():
+        ckpt_dir.mkdir(exist_ok=True)
+    if not res_dir.exists():
+        res_dir.mkdir(exist_ok=True)
+    if not graphics_dir.exists():
+        graphics_dir.mkdir(exist_ok=True)
+    if not exp_dir.exists():
+        exp_dir.mkdir(exist_ok=True)
+
+    ###############################################################################
     # WARNINGS AND ERROR CHECKING INPUT VARIABLES
     ###############################################################################
     if cfg.EXP.DEBUG:
