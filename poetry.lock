@@ -242,7 +242,7 @@ development = ["black", "flake8", "mypy", "pytest", "types-colorama"]
 name = "commonmark"
 version = "0.9.1"
 description = "Python parser for the CommonMark Markdown spec"
-category = "dev"
+category = "main"
 optional = false
 python-versions = "*"
 
@@ -1546,7 +1546,7 @@ rsa = ["oauthlib[signedtoken] (>=3.0.0)"]
 name = "rich"
 version = "12.6.0"
 description = "Render rich text, tables, progress bars, syntax highlighting, markdown and more to the terminal"
-category = "dev"
+category = "main"
 optional = false
 python-versions = ">=3.6.3,<4.0.0"
 
@@ -2010,7 +2010,7 @@ testing = ["flake8 (<5)", "func-timeout", "jaraco.functools", "jaraco.itertools"
 [metadata]
 lock-version = "1.1"
 python-versions = ">=3.10.5,<3.12"
-content-hash = "a9cc24369371f1fcf0010eac155772854da142064cc5b909ed0a3e1b78460209"
+content-hash = "307cf3c0f5e88773956df66375a93d4b5383c419c129064f298c34ad4f4d8fdd"
 
 [metadata.files]
 absl-py = [
