@@ -1,9 +1,14 @@
+# -*- coding: utf-8 -*-
 """
-Towards optimized TBM cutter changing policies with reinforcement learning
-G.H. Erharter, T.F. Hansen
+Code for the paper:
+
+Towards smart TBM cutter changing with reinforcement learning (working title)
+Georg H. Erharter, Tom F. Hansen, Thomas Marcher, Amund Bruland
+JOURNAL NAME
 DOI: XXXXXXXXXXXXXXXXXXXXXXXXXX
 
-Custom library for plotting.
+Custom library for plotting functions that are used throughout the code
+framework.
 
 code contributors: Georg H. Erharter, Tom F. Hansen
 """

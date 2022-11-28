@@ -1,7 +1,10 @@
 # -*- coding: utf-8 -*-
 """
-Towards optimized TBM cutter changing policies with reinforcement learning
-G.H. Erharter, T.F. Hansen
+Code for the paper:
+
+Towards smart TBM cutter changing with reinforcement learning (working title)
+Georg H. Erharter, Tom F. Hansen, Thomas Marcher, Amund Bruland
+JOURNAL NAME
 DOI: XXXXXXXXXXXXXXXXXXXXXXXXXX
 
 Custom library that contains different classes for:
@@ -10,7 +13,6 @@ Custom library that contains different classes for:
 - Callbacks used in training process
 - some utility functionality (loading trained agents etc.)
 
-Created on Sat Oct 30 12:57:51 2021
 code contributors: Georg H. Erharter, Tom F. Hansen
 """
 

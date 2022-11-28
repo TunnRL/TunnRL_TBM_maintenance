@@ -1,7 +1,13 @@
 # -*- coding: utf-8 -*-
 """
+Code for the paper:
+
+Towards smart TBM cutter changing with reinforcement learning (working title)
+Georg H. Erharter, Tom F. Hansen, Thomas Marcher, Amund Bruland
+JOURNAL NAME
+DOI: XXXXXXXXXXXXXXXXXXXXXXXXXX
+
 Collection of default hyperparameters for agents
-Created on Sun Jul 24 16:19:57 2022
 
 code contributors: Georg H. Erharter, Tom F. Hansen
 """
