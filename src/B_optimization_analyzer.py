@@ -1,12 +1,15 @@
 # -*- coding: utf-8 -*-
 """
-Towards optimized TBM cutter changing policies with reinforcement learning
-G.H. Erharter, T.F. Hansen
+Code for the paper:
+
+Towards smart TBM cutter changing with reinforcement learning (working title)
+Georg H. Erharter, Tom F. Hansen, Thomas Marcher, Amund Bruland
+JOURNAL NAME
 DOI: XXXXXXXXXXXXXXXXXXXXXXXXXX
 
-Script that analyzes / visualizes the log of an OPTUNA study
+Code that analyzes / visualizes the log of an ongoing or finished OPTUNA
+optimization study.
 
-Created on Thu Apr 14 13:28:07 2022
 code contributors: Georg H. Erharter, Tom F. Hansen
 """
 
@@ -45,6 +48,7 @@ else:
 df_study: pd.DataFrame = study.trials_dataframe()
 
 print(df_study.tail(n=25))
+print(df_study['state'].value_counts())
 
 # some cleaning
 if "params_action_noise" in df_study.columns:

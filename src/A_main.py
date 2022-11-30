@@ -1,12 +1,16 @@
+# -*- coding: utf-8 -*-
 """
-Towards optimized TBM cutter changing policies with reinforcement learning
-G.H. Erharter, T.F. Hansen
+Code for the paper:
+
+Towards smart TBM cutter changing with reinforcement learning (working title)
+Georg H. Erharter, Tom F. Hansen, Thomas Marcher, Amund Bruland
+JOURNAL NAME
 DOI: XXXXXXXXXXXXXXXXXXXXXXXXXX
 
-Main code that either runs a hyperparameter optimization study with OPTUNA or a
-"main run" of just one study with fixed hyperparameters
+Main code that either runs a hyperparameter "optimization" study with OPTUNA,
+or a "training" run with a specific hyperparameter setup, or an "execution" run
+where an already trained agent is applied to multiple episodes.
 
-Created on Sat Oct 30 12:46:42 2021
 code contributors: Georg H. Erharter, Tom F. Hansen
 """
 

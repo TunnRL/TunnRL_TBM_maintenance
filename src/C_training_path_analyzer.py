@@ -1,8 +1,16 @@
 # -*- coding: utf-8 -*-
 """
-Created on Tue Jul 26 13:32:03 2022
+Code for the paper:
 
-@author: GEr
+Towards smart TBM cutter changing with reinforcement learning (working title)
+Georg H. Erharter, Tom F. Hansen, Thomas Marcher, Amund Bruland
+JOURNAL NAME
+DOI: XXXXXXXXXXXXXXXXXXXXXXXXXX
+
+Code that plots only intermediate values of multiple training runs from either
+an ongoing OPTUNA study or multiple single training runs.
+
+code contributors: Georg H. Erharter, Tom F. Hansen
 """
 
 from XX_plotting import Plotter
