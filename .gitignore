@@ -11,6 +11,7 @@ experiments/*
 checkpoints/*
 graphics/*
 optimization/*
+optimization_ppo_extra_hyp
 results/*
 !results/cutter_states.csv
 tmp/

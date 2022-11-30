@@ -23,6 +23,8 @@ copy_from_az_to_odin:
 	@echo copying graphics and results from az-cluster to odin
 	scp -r az-cluster.oslo.ngi.no:~/projects/TunnRL_TBM_maintenance/results/"${algorithm}"* ./results
 	scp -r az-cluster.oslo.ngi.no:~/projects/TunnRL_TBM_maintenance/optimization/"${algorithm}"* ./optimization
+
+# scp -r az-cluster.oslo.ngi.no:~/projects/TunnRL_TBM_maintenance/optimization/"${algorithm}"* ./optimization_ppo_extra_hyp
 	
 # scp -r az-cluster.oslo.ngi.no:~/projects/TunnRL_TBM_maintenance/graphics/"${algorithm}"* ./graphics
 
