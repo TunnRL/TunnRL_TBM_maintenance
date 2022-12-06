@@ -2,9 +2,10 @@
 documents/
 
 # different folders that contain agent checkpoint, intermediate results or graphics
-src/optimization/
 src/checkpoints/
+src/experiments/
 src/graphics/
+src/optimization/
 src/results/
 
 experiments/*
