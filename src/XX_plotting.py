@@ -218,13 +218,13 @@ class Plotter:
         n_brokens = np.count_nonzero(env.brokens, axis=1)
 
         fig, (ax1, ax2, ax3, ax4, ax5, ax6) = plt.subplots(nrows=6,
-                                                           figsize=(12, 9))
+                                                           figsize=(9, 7))
 
         ax1.plot(x, env.Jv_s, color='black')
         ax1.grid(alpha=0.5)
-        ax1.set_ylabel('Volumetric Joint count\n[joints / m3]')
+        ax1.set_ylabel('Volumetric\nJoint count\n[joints / m3]')
         ax1.set_xlim(left=0, right=len(x))
-        ax1.set_title(f'episode {ep}', fontsize=10)
+        # ax1.set_title(f'episode {ep}', fontsize=10)
         ax1.set_xticklabels([])
 
         ax2.plot(x, env.UCS_s, color='black')
@@ -236,6 +236,16 @@ class Plotter:
         ax3.plot(x, env.FPIblocky_s, color='black')
         ax3.hlines([50, 100, 200, 300], xmin=0, xmax=len(x), color='black',
                    alpha=0.5)
+        ax3.fill_between(x, env.FPIblocky_s, 0, color='lightyellow')
+        ax3.fill_between(x, np.where(env.FPIblocky_s <= 300, env.FPIblocky_s, 300), 0, color='yellow')
+        ax3.fill_between(x, np.where(env.FPIblocky_s <= 200, env.FPIblocky_s, 200), 0, color='goldenrod')
+        ax3.fill_between(x, np.where(env.FPIblocky_s <= 100, env.FPIblocky_s, 100), 0, color='darkred')
+        ax3.fill_between(x, np.where(env.FPIblocky_s <= 50, env.FPIblocky_s, 50), 0, color='yellow')
+        ax3.text(x=x.max()-10, y=330, s='massive', ha='right')
+        ax3.text(x=x.max()-10, y=230, s='blocky', ha='right')
+        ax3.text(x=x.max()-10, y=130, s='blocky/very blocky', ha='right')
+        ax3.text(x=x.max()-10, y=60, s='very blocky', ha='right')
+        ax3.text(x=x.max()-10, y=10, s='blocky/disturbed', ha='right')
         ax3.set_ylim(bottom=0, top=400)
         ax3.set_ylabel('FPI blocky\n[kN/m/mm/rot]')
         ax3.set_xlim(left=0, right=len(x))
@@ -253,7 +263,7 @@ class Plotter:
         ax5.set_xlim(left=0, right=len(x))
         ax5.set_xticklabels([])
 
-        ax6.plot(x, n_brokens, color='black')
+        ax6.bar(x, n_brokens, color='grey', edgecolor='black', width=3)
         ax6.grid(alpha=0.5)
         ax6.set_ylabel('broken cutters\ndue to blocks')
         ax6.set_xlabel('strokes')
@@ -261,7 +271,7 @@ class Plotter:
 
         plt.tight_layout()
         if savepath is not None:
-            plt.savefig(savepath)
+            plt.savefig(savepath, dpi=600)
         if show is False:
             plt.close()
 
@@ -298,7 +308,7 @@ class Plotter:
         '''
         # TODO consider le_noise
 
-        df_study['params_lr_schedule'] = np.where(df_study['params_lr_schedule']=='constant', 0, 1)
+        # df_study['params_lr_schedule'] = np.where(df_study['params_lr_schedule']=='constant', 0, 1)
 
         fig, ax = plt.subplots(figsize=(18, 9))
 
@@ -594,5 +604,3 @@ class Plotter:
             plt.savefig(savepath)
         if show is False:
             plt.close()
-
-

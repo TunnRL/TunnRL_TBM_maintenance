@@ -318,75 +318,99 @@ class CustomEnv(gym.Env):
 
 
 if __name__ == "__main__":
+    # create plots describing the environment for the paper
+    from XX_plotting import Plotter
 
-    # visualization of all possible reward states
-    n_c_tot = 28  # total number of cutters
-    broken_cutters_thresh = 0.5
+    # TBM EXCAVATION PARAMETERS
+    ######################
+    CUTTERHEAD_RADIUS = 4  # cutterhead radius [m]
+    TRACK_SPACING = 0.1  # cutter track spacing [m]
+    LIFE = 400000  # theoretical durability of one cutter [m]
+    STROKE_LENGTH = 1.8  # length of one stroke [m]
+    MAX_STROKES = 1000  # number of strokes per episode
 
-    m = Maintenance(n_c_tot, broken_cutters_thresh)
+    # REWARD FUNCTION PARAMETERS
+    ######################
+    BROKEN_CUTTERS_THRESH = 0.85  # minimum required % of functional cutters
+    ALPHA = 0.1  # weighting factor for replacing cutters
+    BETA = 0.65  # weighting factor for moving cutters
+    GAMMA = 0.1  # weighting factor for cutter distance
+    DELTA = 0.15  # weighting factor for entering cutterhead
+    CHECK_BEARING_FAILURE = True  # if True should check cutter bearing failures
+    BEARING_FAILURE_PENALTY = 0
 
-    cutters = np.arange(n_c_tot)
+    np.random.seed(14)
 
-    n_repls = []
-    n_moves = []
-    n_good_cutters = []
-    r_s = []
+    n_c_tot = (int(round((CUTTERHEAD_RADIUS - TRACK_SPACING / 2) / TRACK_SPACING, 0)) + 1)
 
-    for _ in range(10_000):
-        n_repl = np.random.randint(0, n_c_tot)
-        replaced_cutters = np.sort(np.random.choice(cutters, n_repl, replace=False))
-        n_move = np.random.randint(0, n_c_tot - n_repl)
-        moved_cutters = np.sort(np.random.choice(np.delete(cutters, replaced_cutters),
-                                                 n_move, replace=False))
+    cutter_positions = (
+        np.cumsum(np.full((n_c_tot), TRACK_SPACING)) - TRACK_SPACING / 2)
 
-        good_cutters = np.random.randint(n_repl + n_move, n_c_tot)
-        # print(n_repl, n_move, good_cutters)
+    cutter_pathlenghts = cutter_positions * 2 * np.pi  # [m]
 
-        r = m.reward(list(replaced_cutters), list(moved_cutters), good_cutters)
-        n_repls.append(n_repl)
-        n_moves.append(n_move)
-        n_good_cutters.append(good_cutters)
-        r_s.append(r)
-        # print(r)
+    env = CustomEnv(n_c_tot,
+                    LIFE,
+                    MAX_STROKES,
+                    STROKE_LENGTH,
+                    cutter_pathlenghts,
+                    CUTTERHEAD_RADIUS,
+                    BROKEN_CUTTERS_THRESH,
+                    ALPHA, BETA, GAMMA, DELTA,
+                    CHECK_BEARING_FAILURE,
+                    BEARING_FAILURE_PENALTY)
+    env.reset()
+    plotter = Plotter()
+    plotter.environment_parameter_plot(0, env, show=True,
+                                       savepath='results/paper_example_episode.png')
 
-    fig, (ax1, ax2, ax3) = plt.subplots(nrows=1, ncols=3, figsize=(10, 4))
-    ax1.scatter(n_repls, r_s)
-    ax2.scatter(n_moves, r_s)
-    ax3.scatter(n_good_cutters, r_s)
+    # visualization of possible reward states
+    env.m.reward(replaced_cutters=[], moved_cutters=[], good_cutters=35,
+                 damaged_bearing=True)
+
+    x = []
+    r1_s = []
+    r2_s = []
+    r3_s = []
+    r4_s = []
+    r5_s = []
+
+    for n_good_cutters in range(int(n_c_tot*BROKEN_CUTTERS_THRESH)-3,
+                                n_c_tot+1):
+        x.append(n_good_cutters)
+        r1_s.append(env.m.reward(replaced_cutters=[], moved_cutters=[],
+                                 good_cutters=n_good_cutters,
+                                 damaged_bearing=False))
+        r2_s.append(env.m.reward(replaced_cutters=[], moved_cutters=[],
+                                 good_cutters=n_good_cutters,
+                                 damaged_bearing=True))
+        r3_s.append(env.m.reward(replaced_cutters=[0, 1, 2, 3, 4],
+                                 moved_cutters=[],
+                                 good_cutters=n_good_cutters,
+                                 damaged_bearing=False))
+        r4_s.append(env.m.reward(replaced_cutters=[],
+                                 moved_cutters=[0, 1, 2, 3, 4],
+                                 good_cutters=n_good_cutters,
+                                 damaged_bearing=False))
+        r5_s.append(env.m.reward(replaced_cutters=list(range(10)),
+                                 moved_cutters=list(range(20, 30)),
+                                 good_cutters=n_good_cutters,
+                                 damaged_bearing=False))
+
+    fig, ax = plt.subplots(figsize=(4, 4))
+    ax.plot(x, r1_s)
+    ax.text(40, 1, '1')
+    ax.plot(x, r2_s)
+    ax.text(40, 0.83, '2')
+    ax.plot(x, r3_s)
+    ax.text(40, 0.67, '3')
+    ax.plot(x, r4_s)
+    ax.text(40, 0.46, '4')
+    ax.plot(x, r5_s)
+    ax.text(40, 0.02, '5')
+    ax.axvline(n_c_tot*BROKEN_CUTTERS_THRESH, ls='--', color='black')
+    ax.grid(alpha=0.5)
+    ax.set_xlabel('number of functional cutters')
+    ax.set_ylabel('reward per stroke')
     plt.tight_layout()
+    plt.savefig('results/paper_reward_examples.svg', dpi=600)
 
-    # rewards = []
-    # for i in range(len(combined)):
-    #     rewards.append(m.reward(replaced_cutters=replaced_cutters[i],
-    #                             moved_cutters=moved_cutters[i],
-    #                             good_cutters=good_cutters[i],
-    #                             dist_cutters=dist_cutters[i]))
-    # rewards = np.array(rewards)
-
-    # low_r_id = np.argmin(rewards)
-    # high_r_id = np.argmax(rewards)
-    # len_low_r = len(np.where(rewards == rewards.min())[0])
-    # len_high_r = len(np.where(rewards == rewards.max())[0])
-
-    # print(f'there are {len_low_r} combinations with {rewards.min()} reward')
-    # print(f'lowest reward of {rewards.min()} with combination:')
-    # print(f'\t{replaced_cutters[low_r_id]} replaced cutters')
-    # print(f'\t{moved_cutters[low_r_id]} moved cutters')
-    # print(f'\t{good_cutters[low_r_id]} good cutters\n')
-
-    # print(f'there are {len_high_r} combinations with {rewards.max()} reward')
-    # print(f'highest reward of {rewards.max()} with combination:')
-    # print(f'\t{replaced_cutters[high_r_id]} replaced cutters')
-    # print(f'\t{moved_cutters[high_r_id]} moved cutters')
-    # print(f'\t{good_cutters[high_r_id]} good cutters')
-
-    # fig = plt.figure(figsize=(10, 7))
-    # ax = fig.add_subplot(projection='3d')
-    # scatter_plot= ax.scatter(replaced_cutters, moved_cutters, good_cutters,
-    #                          c=rewards, edgecolor='black', s=40)
-    # ax.set_xlabel('n replaced cutters')
-    # ax.set_ylabel('n moved cutters')
-    # ax.set_zlabel('n good cutters')
-
-    # plt.colorbar(scatter_plot, label='reward')
-    # plt.tight_layout()
