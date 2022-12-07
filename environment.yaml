@@ -17,3 +17,4 @@ dependencies:
   - tensorboard==2.10.0
   - stable-baselines3==1.6
   - plotly
+  - umap-learn

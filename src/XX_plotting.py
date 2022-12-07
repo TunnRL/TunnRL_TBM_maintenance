@@ -476,7 +476,7 @@ class Plotter:
             plt.close()
 
     def custom_intermediate_values_plot(self, agent: str, folder: str,
-                                        mode: str = 'rollout',
+                                        mode: str = 'rollout',  # 'eval'
                                         print_thresh: int = None,
                                         y_high: int = 1000,
                                         y_low: int = -1000,
@@ -577,6 +577,9 @@ class Plotter:
 
     def action_analysis_scatter_plotly(self, df: pd.DataFrame,
                                        savepath: str = None) -> None:
+        '''plot that shows actions of a certain number of episodes that were
+        projected into a 2D space to analyze the policy of the agent;
+        plotly version'''
         fig = px.scatter(df, x='x', y='y', color='broken cutters',
                          hover_data={'x': False, 'y': False, 'state': True,
                                      'replaced cutters': True,
@@ -586,18 +589,62 @@ class Plotter:
 
     def action_analysis_scatter(self, df: pd.DataFrame, savepath: str = None,
                                 show: bool = True) -> None:
+        '''plot that shows actions of a certain number of episodes that were
+        projected into a 2D space to analyze the policy of the agent;
+        matplotlib version'''
+
+        # scale x and y to 0-1 range for plotting reasons
+        df['x'] = df['x']-df['x'].min()
+        df['x'] = df['x']/df['x'].max()
+        df['y'] = df['y']-df['y'].min()
+        df['y'] = df['y']/df['y'].max()
 
         fig, ax = plt.subplots(figsize=(9, 9))
         divider = make_axes_locatable(ax)
         cax = divider.append_axes('right', size='5%', pad=0.05)
 
-        im = ax.scatter(df['x'], df['y'],
-                        c=df['broken cutters'], cmap='turbo')
-        fig.colorbar(im, cax=cax, orientation='vertical',
-                     label='broken cutters')
-        ax.set_title('TSNE mapping of actions')
+        im = ax.scatter(df['x'], df['y'], s=80, edgecolor=(0,0,0,.5),
+                        c=df['avg. cutter life'], cmap='viridis')
+        cbar = fig.colorbar(im, cax=cax, orientation='vertical')
+        cbar.set_label(label='avg. cutter life', size=15)
         ax.get_xaxis().set_visible(False)
         ax.get_yaxis().set_visible(False)
+
+        # annotation of some points
+        np.random.seed(7)
+        counter = 0
+        ids = []
+        p_xy_s = [[0, 0]]
+        while counter < 8:
+            i = np.random.choice(np.arange(len(df)), size=1)[0]
+            p_x, p_y = df['x'].iloc[i], df['y'].iloc[i]
+            # check if annotated point is not too close to edge of plot
+            if p_x > 0.0 and p_x < 0.80 and p_y > 0.0 and p_y < 1.0:
+                # check if annotated point is not too close to other annoted p.
+                if np.min(np.linalg.norm(np.array(p_xy_s) - np.array([p_x, p_y]), axis=1)) > 0.2:
+                    p_xy_s.append([p_x, p_y])
+                    counter += 1
+                    text = 'avg. c. life: {}\nc.broken: {}\nc.replaced: {}\n'\
+                           'c.moved: {}\nreward: {}'.format(round(df['avg. cutter life'].iloc[i], 2),
+                                                            df['broken cutters'].iloc[i],
+                                                            df['replaced cutters'].iloc[i],
+                                                            df['moved cutters'].iloc[i],
+                                                            round(df['rewards'].iloc[i], 2))
+                    # some logic to control annotation placement
+                    if p_x <= 0.5 and p_y <= 0.5:
+                        a_x, a_y, ha, va = -20, -20, 'right', 'top'
+                    elif p_x > 0.5 and p_y <= 0.5:
+                        a_x, a_y, ha, va = 20, -20, 'left', 'top'
+                    elif p_x > 0.5 and p_y > 0.5:
+                        a_x, a_y, ha, va = 20, 20, 'left', 'bottom'
+                    else:
+                        a_x, a_y, ha, va = -20, 20, 'right', 'bottom'
+                    ax.annotate(text=text, xy=(p_x, p_y), zorder=10,
+                                xytext=(a_x, a_y), textcoords='offset points',
+                                arrowprops=dict(facecolor='black', shrink=0,
+                                                width=1),
+                                horizontalalignment=ha, verticalalignment=va,
+                                bbox=dict(facecolor='white', edgecolor='black'))
 
         plt.tight_layout()
         if savepath is not None:

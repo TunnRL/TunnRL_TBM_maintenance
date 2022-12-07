@@ -38,6 +38,7 @@ from stable_baselines3.common.callbacks import (
     StopTrainingOnNoModelImprovement,
 )
 from stable_baselines3.common.evaluation import evaluate_policy
+from umap import UMAP
 
 from XX_hyperparams import Hyperparameters
 from XX_plotting import Plotter
@@ -473,7 +474,11 @@ class ExperimentAnalysis:
                                  all_rewards: list, all_broken_cutters: list,
                                  all_replaced_cutters: list,
                                  all_moved_cutters: list,
-                                 perplexity: float) -> pd.DataFrame:
+                                 perplexity: float,
+                                 reducer: str) -> pd.DataFrame:
+        '''function that applies different dimensionality reduction algorithms
+        (unsupervised ML) to help analyzing the high dimensional actions space
+        and the overall learned policy'''
         # flatten all episode lists
         all_actions = [item for sublist in all_actions for item in sublist]
         all_states = [item for sublist in all_states for item in sublist]
@@ -481,12 +486,22 @@ class ExperimentAnalysis:
         all_broken_cutters = [item for sublist in all_broken_cutters for item in sublist]
         all_replaced_cutters = [item for sublist in all_replaced_cutters for item in sublist]
         all_moved_cutters = [item for sublist in all_moved_cutters for item in sublist]
+        print(np.array(all_states).shape)
+        avg_cutter_life = np.mean(np.array(all_states), axis=1)
 
         # apply TSNE
-        reducer = TSNE(n_components=2, perplexity=perplexity, init='random',
-                       learning_rate='auto', verbose=1, n_jobs=-1)
+        if reducer == 'TSNE':
+            reducer = TSNE(n_components=2, perplexity=perplexity, init='random',
+                           learning_rate='auto', verbose=1, n_jobs=-1,
+                           random_state=42)
+            print('reducer to apply on actions: TSNE')
+        elif reducer == 'UMAP':
+            reducer = UMAP(n_components=2, n_neighbors=600, min_dist=0.4,
+                           n_jobs=-1, random_state=42)
+            print('reducer to apply on actions: UMAP')
+        else:
+            raise ValueError("not a valid reducer")
         all_actions_reduced_2D = reducer.fit_transform(np.array(all_actions))
-        print('TSNE reduced actions to 2D')
 
         # collect results in dataframe and return
         df = pd.DataFrame({'x': all_actions_reduced_2D[:, 0],
@@ -494,7 +509,9 @@ class ExperimentAnalysis:
                            'broken cutters': all_broken_cutters,
                            'replaced cutters': all_replaced_cutters,
                            'moved cutters': all_moved_cutters,
-                           'state': [np.round(s, 1) for s in all_states]})
+                           'rewards': all_rewards,
+                           'state': [np.round(s, 1) for s in all_states],
+                           'avg. cutter life': avg_cutter_life})
         return df
 
 
@@ -511,6 +528,7 @@ def load_best_model(agent_name: str, main_dir: str,
         Instantiated RL-object
     """
     path = f'{main_dir}/{agent_dir}/best_model'
+    print(path)
 
     if agent_name == 'PPO':
         agent = PPO.load(path)
