@@ -26,11 +26,11 @@ from XX_plotting import Plotter
 # Constants and fixed variables
 
 # name of study object
-STUDY = 'DDPG_2022_10_03_study'  # 'PPO_2022_09_27_study' 'DDPG_2022_10_03_study' 'A2C_2022_11_30_study' 'TD3_2022_09_27_study'
+STUDY = 'A2C_2022_11_30_study'  # 'PPO_2022_09_27_study' 'DDPG_2022_10_03_study' 'A2C_2022_11_30_study' 'TD3_2022_09_27_study'
 # folder where study database is located
-FOLDER_DB = 'P:/2022/00/20220043/Calculations'  # 'P:/2022/00/20220043/Calculations', 'results'
+FOLDER_DB = 'results'  # 'P:/2022/00/20220043/Calculations', 'results'
 # folder wehere records of individual runs are located
-FOLDER_INDIVIDUALS = f'P:/2022/00/20220043/Calculations/{STUDY}'  # f'P:/2022/00/20220043/Calculations/{FOLDER_DB}' 'optimization'
+FOLDER_INDIVIDUALS = 'optimization'  # f'P:/2022/00/20220043/Calculations/{STUDY}' 'optimization'
 agent = STUDY.split('_')[0]
 FILETYPE_TO_LOAD = "db"
 
@@ -102,6 +102,7 @@ pltr.custom_slice_plot(df_study, params, le_activation=le_activation,
 
 # plot intermediate steps of the training paths
 pltr.custom_intermediate_values_plot(agent, folder=FOLDER_INDIVIDUALS,
+                                     print_thresh=940, mode='eval',
                                      savepath=f'graphics/{STUDY}_optimization_interms.svg')
 
 pltr.custom_parallel_coordinate_plot(df_study, params, le_activation,
