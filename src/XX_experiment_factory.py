@@ -512,6 +512,7 @@ class ExperimentAnalysis:
                            'rewards': all_rewards,
                            'state': [np.round(s, 1) for s in all_states],
                            'avg. cutter life': avg_cutter_life})
+        print('dimensionality reduction finished')
         return df
 
 
