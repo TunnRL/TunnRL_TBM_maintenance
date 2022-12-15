@@ -25,3 +25,4 @@ nohup.out
 # some dev tools
 .flake8
 .vscode
+Dockerfile_git
