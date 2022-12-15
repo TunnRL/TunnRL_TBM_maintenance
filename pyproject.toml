@@ -16,6 +16,7 @@ importlib-resources = "^5.9.0"
 pysqlite3 = "^0.4.7"
 mlflow = "^1.28.0"
 tensorboard = "^2.10.0"
+umap-learn = "^0.5.3"
 
 [tool.poetry.dev-dependencies]
 mypy = "^0.971"

@@ -68,32 +68,37 @@ DEBUG = False  # sets test values for quicker response
 # name of the study if MODE == 'Optimization' or 'Training'
 # the Study name must start with the name of the agent that needs to be one of
 # 'PPO', 'A2C', 'DDPG', 'SAC', 'TD3'
-STUDY = "PPO_2022_09_27_study"
+STUDY = "A2C_2022_11_30_study"
 # evaluations in optimization and checkpoints in training every X episodes
 CHECKPOINT_INTERVAL = 100
 EPISODES = 12_000  # max episodes to train for
+LOG_DATAFORMATS = ["csv", "tensorboard"]  # ["csv", "tensorboard"] ["csv"]
+LOG_MLFLOW = True
 
 # OPTIMIZATION SPECIAL SETUP
 ######################
-DEFAULT_TRIAL = True  # first run a trial with default parameters.
+DEFAULT_TRIAL = False  # first run a trial with default parameters.
 MAX_NO_IMPROVEMENT = 1  # maximum number of evaluations without improvement
 # n optuna trials to run in total (including eventual default trial)
-N_SINGLE_RUN_OPTUNA_TRIALS = 250
+N_SINGLE_RUN_OPTUNA_TRIALS = 11
 # NOTE: memory can be an issue for many parallell processes. Size of neural
 # network and available memory will be limiting factors
-N_CORES_PARALLELL = 4
-N_PARALLELL_PROCESSES = 4
+N_CORES_PARALLELL = 6
+N_PARALLELL_PROCESSES = 6
 
 # TRAINING SPECIAL SETUP
 ######################
-# load best parameters from study object in training. Alternative: load from yaml
+# load best parameters from study object in training.
+# Alternative: load from yaml
 LOAD_PARAMS_FROM_STUDY = False
 
 # EXECUTION SPECIAL SETUP
 ######################
-EXECUTION_MODEL = "TD3_58c8ef65-de89-4b64-ab26-c5ddae4f0d06"
-NUM_TEST_EPISODES = 10
+EXECUTION_DIRECTORY = 'P:/2022/00/20220043/Calculations/TD3_2022_09_27_study'  # 'optimization' 'P:/2022/00/20220043/Calculations/TD3_2022_09_27_study'
+EXECUTION_MODEL = "TD3_f0d5fbc9-b2e2-49da-9fac-45abc8625f1e"
+NUM_TEST_EPISODES = 30
 VISUALIZE_EPISODES = False  # if the episodes should be visualized or not
+REDUCER = 'TSNE'  # algorithm for dimensionality reduction: 'TSNE' or 'UMAP'
 
 ###############################################################################
 # WARNINGS AND ERROR CHECKING INPUT VARIABLES
@@ -160,9 +165,9 @@ if CHECK_ENV:
 agent_name = STUDY.split('_')[0]
 assert agent_name in ["PPO", "A2C", "DDPG", "SAC", "TD3"], f"{agent_name} is not a valid agent."
 
-optim = Optimization(n_c_tot, env, STUDY, EPISODES, CHECKPOINT_INTERVAL, MODE,
-                     MAX_STROKES, agent_name, DEFAULT_TRIAL,
-                     MAX_NO_IMPROVEMENT)
+optim = Optimization(
+    n_c_tot, env, STUDY, EPISODES, CHECKPOINT_INTERVAL, LOG_DATAFORMATS,
+    LOG_MLFLOW, MODE, MAX_STROKES, agent_name, DEFAULT_TRIAL, MAX_NO_IMPROVEMENT)
 
 ea = ExperimentAnalysis()
 hparams = Hyperparameters()
@@ -213,7 +218,7 @@ elif MODE == 'training':
 
 elif MODE == 'execution':
     agent_name = EXECUTION_MODEL.split('_')[0]
-    agent = load_best_model(agent_name, main_dir="optimization",
+    agent = load_best_model(agent_name, main_dir=EXECUTION_DIRECTORY,
                             agent_dir=EXECUTION_MODEL)
 
     all_actions = []
@@ -265,14 +270,17 @@ elif MODE == 'execution':
             plotter.state_action_plot(states, actions, n_strokes=300,
                                       rewards=rewards, n_c_tot=n_c_tot,
                                       show=False,
-                                      savepath=f'checkpoints/_sample/{EXECUTION_MODEL}{test_ep_num}_state_action.svg')
+                                      filetypes=['.svg', '.png', '.pdf'],
+                                      savepath=f'results/_execution/{EXECUTION_MODEL}{test_ep_num}_state_action')
             plotter.environment_parameter_plot(test_ep_num, env, show=False,
-                                               savepath=f'checkpoints/_sample/{EXECUTION_MODEL}{test_ep_num}_episode.svg')
+                                               filetypes=['.svg', '.png', '.pdf'],
+                                               savepath=f'results/_execution/{EXECUTION_MODEL}{test_ep_num}_episode')
             plotter.sample_ep_plot(states, actions, rewards,
                                    replaced_cutters=replaced_cutters,
                                    moved_cutters=moved_cutters,
                                    n_cutters=n_c_tot, show=False,
-                                   savepath=f'checkpoints/_sample/{EXECUTION_MODEL}{test_ep_num}_sample.svg')
+                                   filetypes=['.svg', '.png', '.pdf'],
+                                   savepath=f'results/_execution/{EXECUTION_MODEL}{test_ep_num}_sample')
 
     df_reduced = ea.dimensionality_reduction(all_actions,
                                              all_states,
@@ -280,13 +288,15 @@ elif MODE == 'execution':
                                              all_broken_cutters,
                                              all_replaced_cutters,
                                              all_moved_cutters,
-                                             perplexity=200)
+                                             perplexity=1000,
+                                             reducer=REDUCER)
 
     plotter.action_analysis_scatter_plotly(df_reduced,
-                                           savepath=f"checkpoints/_sample/{EXECUTION_MODEL}_TSNE_scatter_plotly.html")
+                                           savepath=f"results/_execution/{EXECUTION_MODEL}_dim_reduced_plotly.html")
 
-    plotter.action_analysis_scatter(df_reduced,
-                                    savepath=f'checkpoints/_sample/{EXECUTION_MODEL}_TSNE_scatter.svg')
+    plotter.action_analysis_scatter(df_reduced, n_annotations=6, show=True,
+                                    filetypes=['.png', '.pdf', '.svg'],
+                                    savepath=f'results/_execution/{EXECUTION_MODEL}_dim_reduced')
 
 else:
     raise ValueError(f"{MODE} is not a valid mode")

@@ -32,9 +32,19 @@ class Plotter:
     '''class that contains functions to visualzie the progress of the
     training and / or individual samples of it'''
 
+    def plot_finisher(self, savepath: str = None, filetypes: list = ['.svg'],
+                      show: bool = True):
+        '''function for saving and showing at the end of plots'''
+        if savepath is not None:
+            for filetype in filetypes:
+                plt.savefig(f'{savepath}{filetype}', dpi=600)
+        if show is False:
+            plt.close()
+
     def sample_ep_plot(self, states: list, actions: list, rewards: list,
                        replaced_cutters: list, moved_cutters: list,
                        n_cutters: int, savepath: str = None,
+                       filetypes: list = ['.svg'],
                        show: bool = True) -> None:
         '''plot of different recordings of one exemplary episode'''
 
@@ -60,7 +70,6 @@ class Plotter:
         h_legend, l_legend = ax.get_legend_handles_labels()
         ax.set_xlim(left=-1, right=actions_arr.shape[0]+1)
         ax.set_ylim(top=1.05, bottom=-0.05)
-        ax.set_title(f'sample episode', fontsize=10)
         ax.set_ylabel('cutter life')
         ax.set_xticklabels([])
         ax.grid(alpha=0.5)
@@ -79,11 +88,11 @@ class Plotter:
         ax.bar(x=strokes, height=n_moved_cutters, color='grey')
         avg_changed = np.mean(n_moved_cutters)
         ax.axhline(y=avg_changed, color='black')
-        ax.text(x=950, y=avg_changed-avg_changed*0.05,
+        ax.text(x=950, y=avg_changed+avg_changed*0.05,
                 s=f'avg. moved cutters / stroke: {round(avg_changed, 2)}',
-                color='black', va='top', ha='right', fontsize=7.5)
+                color='black', va='bottom', ha='right', fontsize=7.5)
         ax.set_xlim(left=-1, right=actions_arr.shape[0]+1)
-        ax.set_ylabel('cutter moves\nper stroke')
+        ax.set_ylabel('moved cutters\nper stroke')
         ax.set_xticklabels([])
         ax.grid(alpha=0.5)
 
@@ -95,18 +104,18 @@ class Plotter:
                color='grey', edgecolor='black')
         ax.set_xlim(left=0, right=n_cutters)
         ax.grid(alpha=0.5)
-        ax.set_xlabel('n cutter moves per\nposition')
+        ax.set_xlabel('cutter position')
 
         # bar plot that shows how many cutters were replaced
         ax = fig.add_subplot(gs[2, 0])
         ax.bar(x=strokes, height=n_replaced_cutters, color='grey')
         avg_changed = np.mean(n_replaced_cutters)
         ax.axhline(y=avg_changed, color='black')
-        ax.text(x=950, y=avg_changed-avg_changed*0.05,
+        ax.text(x=950, y=avg_changed+avg_changed*0.05,
                 s=f'avg. replacements / stroke: {round(avg_changed, 2)}',
-                color='black', va='top', ha='right', fontsize=7.5)
+                color='black', va='bottom', ha='right', fontsize=7.5)
         ax.set_xlim(left=-1, right=actions_arr.shape[0]+1)
-        ax.set_ylabel('cutter replacements\nper stroke')
+        ax.set_ylabel('replaced cutters\nper stroke')
         ax.set_xticklabels([])
         ax.grid(alpha=0.5)
 
@@ -118,7 +127,7 @@ class Plotter:
                color='grey', edgecolor='black')
         ax.set_xlim(left=0, right=n_cutters)
         ax.grid(alpha=0.5)
-        ax.set_xlabel('n cutter replacements per\nposition')
+        ax.set_xlabel('cutter position')
 
         # plot that shows the reward per stroke
         ax = fig.add_subplot(gs[3, 0])
@@ -133,14 +142,16 @@ class Plotter:
         ax.set_xlabel('strokes')
         ax.grid(alpha=0.5)
 
+        # text that gives the cumulative reward
+        textstr = f'cumulative reward:\n{round(np.sum(rewards), 1)}'
+        fig.text(0.83, 0.15, textstr, fontsize=10)
+
         plt.tight_layout()
-        if savepath is not None:
-            plt.savefig(savepath)
-        if show is False:
-            plt.close()
+        self.plot_finisher(savepath=savepath, filetypes=filetypes, show=show)
 
     def state_action_plot(self, states: list, actions: list, n_strokes: int,
                           n_c_tot: int, rewards: list, savepath: str = None,
+                          filetypes: list = ['.svg'],
                           show: bool = True) -> None:
         '''plot that shows combinations of states and actions for the first
         n_strokes of an episode'''
@@ -205,12 +216,10 @@ class Plotter:
         ax.set_xlabel('strokes')
 
         plt.tight_layout(h_pad=0)
-        if savepath is not None:
-            plt.savefig(savepath)
-        if show is False:
-            plt.close()
+        self.plot_finisher(savepath=savepath, filetypes=filetypes, show=show)
 
     def environment_parameter_plot(self, ep, env, savepath: str = None,
+                                   filetypes: list = ['.svg'],
                                    show: bool = True) -> None:
         '''plot that shows the generated TBM parameters of the episode'''
         x = np.arange(len(env.Jv_s))  # strokes
@@ -218,13 +227,13 @@ class Plotter:
         n_brokens = np.count_nonzero(env.brokens, axis=1)
 
         fig, (ax1, ax2, ax3, ax4, ax5, ax6) = plt.subplots(nrows=6,
-                                                           figsize=(12, 9))
+                                                           figsize=(9, 7))
 
         ax1.plot(x, env.Jv_s, color='black')
         ax1.grid(alpha=0.5)
-        ax1.set_ylabel('Volumetric Joint count\n[joints / m3]')
+        ax1.set_ylabel('Volumetric\nJoint count\n[joints / m3]')
         ax1.set_xlim(left=0, right=len(x))
-        ax1.set_title(f'episode {ep}', fontsize=10)
+        # ax1.set_title(f'episode {ep}', fontsize=10)
         ax1.set_xticklabels([])
 
         ax2.plot(x, env.UCS_s, color='black')
@@ -236,6 +245,16 @@ class Plotter:
         ax3.plot(x, env.FPIblocky_s, color='black')
         ax3.hlines([50, 100, 200, 300], xmin=0, xmax=len(x), color='black',
                    alpha=0.5)
+        ax3.fill_between(x, env.FPIblocky_s, 0, color='lightyellow')
+        ax3.fill_between(x, np.where(env.FPIblocky_s <= 300, env.FPIblocky_s, 300), 0, color='yellow')
+        ax3.fill_between(x, np.where(env.FPIblocky_s <= 200, env.FPIblocky_s, 200), 0, color='goldenrod')
+        ax3.fill_between(x, np.where(env.FPIblocky_s <= 100, env.FPIblocky_s, 100), 0, color='darkred')
+        ax3.fill_between(x, np.where(env.FPIblocky_s <= 50, env.FPIblocky_s, 50), 0, color='yellow')
+        ax3.text(x=x.max()-10, y=330, s='massive', ha='right')
+        ax3.text(x=x.max()-10, y=230, s='blocky', ha='right')
+        ax3.text(x=x.max()-10, y=130, s='blocky/very blocky', ha='right')
+        ax3.text(x=x.max()-10, y=60, s='very blocky', ha='right')
+        ax3.text(x=x.max()-10, y=10, s='blocky/disturbed', ha='right')
         ax3.set_ylim(bottom=0, top=400)
         ax3.set_ylabel('FPI blocky\n[kN/m/mm/rot]')
         ax3.set_xlim(left=0, right=len(x))
@@ -253,17 +272,14 @@ class Plotter:
         ax5.set_xlim(left=0, right=len(x))
         ax5.set_xticklabels([])
 
-        ax6.plot(x, n_brokens, color='black')
+        ax6.bar(x, n_brokens, color='grey', edgecolor='black', width=3)
         ax6.grid(alpha=0.5)
         ax6.set_ylabel('broken cutters\ndue to blocks')
         ax6.set_xlabel('strokes')
         ax6.set_xlim(left=0, right=len(x))
 
         plt.tight_layout()
-        if savepath is not None:
-            plt.savefig(savepath)
-        if show is False:
-            plt.close()
+        self.plot_finisher(savepath=savepath, filetypes=filetypes, show=show)
 
     def action_visualization(self, action, n_c_tot, savepath=None,
                              binary=False):
@@ -284,7 +300,7 @@ class Plotter:
         fig.colorbar(im, cax=cax, orientation='vertical')
         plt.tight_layout()
         if savepath is not None:
-            plt.savefig(savepath)
+            plt.savefig(savepath, dpi=600)
             plt.close()
 
     def custom_parallel_coordinate_plot(self, df_study: pd.DataFrame,
@@ -298,7 +314,7 @@ class Plotter:
         '''
         # TODO consider le_noise
 
-        df_study['params_lr_schedule'] = np.where(df_study['params_lr_schedule']=='constant', 0, 1)
+        # df_study['params_lr_schedule'] = np.where(df_study['params_lr_schedule']=='constant', 0, 1)
 
         fig, ax = plt.subplots(figsize=(18, 9))
 
@@ -348,6 +364,18 @@ class Plotter:
                 ax.text(x=x[i], y=1.01, s='linear decrease',
                         horizontalalignment='center',
                         verticalalignment='bottom')
+            elif params[i] == 'params_use_sde':
+                ax.text(x=x[i], y=-0.01, s='False',
+                        horizontalalignment='center', verticalalignment='top')
+                ax.text(x=x[i], y=1.01, s='True',
+                        horizontalalignment='center',
+                        verticalalignment='bottom')
+            elif params[i] == 'params_use_sde_at_warmup':
+                ax.text(x=x[i], y=-0.01, s='False',
+                        horizontalalignment='center', verticalalignment='top')
+                ax.text(x=x[i], y=1.01, s='True',
+                        horizontalalignment='center',
+                        verticalalignment='bottom')
             else:
                 ax.text(x=x[i], y=-0.01,
                         s=np.round(df_study[params].min().values[i], 4),
@@ -365,7 +393,7 @@ class Plotter:
 
         plt.tight_layout()
         if savepath is not None:
-            plt.savefig(savepath)
+            plt.savefig(savepath, dpi=600)
         if show is False:
             plt.close()
 
@@ -402,13 +430,14 @@ class Plotter:
 
         plt.tight_layout()
         if savepath is not None:
-            plt.savefig(savepath)
+            plt.savefig(savepath, dpi=600)
         if show is False:
             plt.close()
 
     def custom_slice_plot(self, df_study: pd.DataFrame, params: list,
                           le_noise: LabelEncoder = None,
                           le_activation: LabelEncoder = None,
+                          le_schedule: LabelEncoder = None,
                           savepath: str = None,
                           show: bool = True) -> None:
         '''custom implementation of the plot_slice() function of optuna:
@@ -440,17 +469,20 @@ class Plotter:
             if "activation" in param:
                 plt.xticks(range(len(le_activation.classes_)),
                            le_activation.classes_)
+            if "lr_schedule" in param:
+                plt.xticks(range(len(le_schedule.classes_)),
+                           le_schedule.classes_)
 
         ax.legend()
 
         plt.tight_layout()
         if savepath is not None:
-            plt.savefig(savepath)
+            plt.savefig(savepath, dpi=600)
         if show is False:
             plt.close()
 
     def custom_intermediate_values_plot(self, agent: str, folder: str,
-                                        mode: str = 'rollout',
+                                        mode: str = 'rollout',  # 'eval'
                                         print_thresh: int = None,
                                         y_high: int = 1000,
                                         y_low: int = -1000,
@@ -463,6 +495,7 @@ class Plotter:
 
         # only get trials of one agent type
         trials = [t for t in listdir(folder) if agent in t]
+        num_trials = len(trials)
 
         fig, ax = plt.subplots(figsize=(10, 8))
 
@@ -491,7 +524,7 @@ class Plotter:
             except EmptyDataError:
                 pass
 
-        ax.set_title(agent)
+        ax.set_title(f"{agent} ({num_trials} trials)")
 
         ax.grid(alpha=0.5)
         ax.set_xlabel('episodes')
@@ -500,7 +533,7 @@ class Plotter:
 
         plt.tight_layout()
         if savepath is not None:
-            plt.savefig(savepath)
+            plt.savefig(savepath, dpi=600)
         if show is False:
             plt.close()
 
@@ -544,12 +577,15 @@ class Plotter:
 
         plt.tight_layout()
         if savepath is not None:
-            plt.savefig(savepath)
+            plt.savefig(savepath, dpi=600)
         if show is False:
             plt.close()
 
     def action_analysis_scatter_plotly(self, df: pd.DataFrame,
                                        savepath: str = None) -> None:
+        '''plot that shows actions of a certain number of episodes that were
+        projected into a 2D space to analyze the policy of the agent;
+        plotly version'''
         fig = px.scatter(df, x='x', y='y', color='broken cutters',
                          hover_data={'x': False, 'y': False, 'state': True,
                                      'replaced cutters': True,
@@ -557,25 +593,91 @@ class Plotter:
         fig.update_layout(xaxis_title=None, yaxis_title=None)
         fig.write_html(savepath)
 
-    def action_analysis_scatter(self, df: pd.DataFrame, savepath: str = None,
+    def action_analysis_scatter(self, df: pd.DataFrame, n_annotations: int,
+                                savepath: str = None,
+                                filetypes: list = ['.svg'],
                                 show: bool = True) -> None:
+        '''plot that shows actions of a certain number of episodes that were
+        projected into a 2D space to analyze the policy of the agent;
+        matplotlib version'''
 
-        fig, ax = plt.subplots(figsize=(9, 9))
+        # scale x and y to 0-1 range for plotting reasons
+        df['x'] = df['x']-df['x'].min()
+        df['x'] = df['x']/df['x'].max()
+        df['y'] = df['y']-df['y'].min()
+        df['y'] = df['y']/df['y'].max()
+
+        fig = plt.figure(tight_layout=True, figsize=(9, 12))
+        gs = gridspec.GridSpec(nrows=2, ncols=3, height_ratios=[3.5, 1])
+
+        # main plot with additional annotation
+        ax = fig.add_subplot(gs[0, :])
+        # fig, ax = plt.subplots(figsize=(9, 9))
         divider = make_axes_locatable(ax)
         cax = divider.append_axes('right', size='5%', pad=0.05)
 
-        im = ax.scatter(df['x'], df['y'],
-                        c=df['broken cutters'], cmap='turbo')
-        fig.colorbar(im, cax=cax, orientation='vertical',
-                     label='broken cutters')
-        ax.set_title('TSNE mapping of actions')
+        im = ax.scatter(df['x'], df['y'], s=80, edgecolor=(0, 0, 0, .5),
+                        c=df['avg. cutter life'], cmap='viridis')
+        cbar = fig.colorbar(im, cax=cax, orientation='vertical')
+        cbar.set_label(label='avg. cutter life', size=10)
         ax.get_xaxis().set_visible(False)
         ax.get_yaxis().set_visible(False)
 
+        # annotation of some points
+        np.random.seed(3)
+        counter = 0
+        p_xy_s = [[0, 0]]
+        while counter < n_annotations:
+            i = np.random.choice(np.arange(len(df)), size=1)[0]
+            p_x, p_y = df['x'].iloc[i], df['y'].iloc[i]
+            # check if annotated point is not too close to edge of plot
+            if p_x > 0.1 and p_x < 0.85 and p_y > 0.15 and p_y < 0.95:
+                # check if annotated point is not too close to other annoted p.
+                if np.min(np.linalg.norm(np.array(p_xy_s) - np.array([p_x, p_y]), axis=1)) > 0.2:
+                    p_xy_s.append([p_x, p_y])
+                    counter += 1
+                    text = 'avg. c. life: {}\nc.broken: {}\nc.replaced: {}\n'\
+                           'c.moved: {}\nreward: {}'.format(round(df['avg. cutter life'].iloc[i], 2),
+                                                            df['broken cutters'].iloc[i],
+                                                            df['replaced cutters'].iloc[i],
+                                                            df['moved cutters'].iloc[i],
+                                                            round(df['rewards'].iloc[i], 2))
+                    # some logic to control annotation placement
+                    if p_x <= 0.5 and p_y <= 0.5:
+                        a_x, a_y, ha, va = -20, -20, 'right', 'top'
+                    elif p_x > 0.5 and p_y <= 0.5:
+                        a_x, a_y, ha, va = 20, -20, 'left', 'top'
+                    elif p_x > 0.5 and p_y > 0.5:
+                        a_x, a_y, ha, va = 20, 20, 'left', 'bottom'
+                    else:
+                        a_x, a_y, ha, va = -20, 20, 'right', 'bottom'
+                    ax.annotate(text=text, xy=(p_x, p_y), zorder=10,
+                                xytext=(a_x, a_y), textcoords='offset points',
+                                arrowprops=dict(facecolor='black', shrink=0,
+                                                width=1),
+                                horizontalalignment=ha, verticalalignment=va,
+                                bbox=dict(facecolor='white',
+                                          edgecolor='black'))
+
+        # 2 smaller plots showing color coding according to other features
+        for i, feature in enumerate(['rewards', 'replaced cutters', 'moved cutters']):
+            ax = fig.add_subplot(gs[1, i])
+            divider = make_axes_locatable(ax)
+            cax = divider.append_axes('right', size='5%', pad=0.05)
+
+            im = ax.scatter(df['x'], df['y'], s=40, edgecolor=(0, 0, 0, .5),
+                            c=df[feature], cmap='viridis')
+
+            cbar = fig.colorbar(im, cax=cax, orientation='vertical')
+            cbar.set_label(label=feature, size=10)
+            ax.get_xaxis().set_visible(False)
+            ax.get_yaxis().set_visible(False)
+
+        # add subplot labels
+        fig.text(0.05, 0.95, 'a)', fontsize=20)
+        fig.text(0.05, 0.20, 'b)', fontsize=20)
+        fig.text(0.37, 0.20, 'c)', fontsize=20)
+        fig.text(0.70, 0.20, 'd)', fontsize=20)
+
         plt.tight_layout()
-        if savepath is not None:
-            plt.savefig(savepath)
-        if show is False:
-            plt.close()
-
-
+        self.plot_finisher(savepath=savepath, filetypes=filetypes, show=show)

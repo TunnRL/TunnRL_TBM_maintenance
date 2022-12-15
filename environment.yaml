@@ -6,6 +6,7 @@ dependencies:
 - python=3.10
 - joblib=1.1.0
 - matplotlib=3.5.1
+- mlflow=1.28.0
 - numpy=1.23.1
 - pandas
 - pip
@@ -13,5 +14,7 @@ dependencies:
 - spyder-kernels=2.3
 - pip:
   - optuna==2.10.1
+  - tensorboard==2.10.0
   - stable-baselines3==1.6
   - plotly
+  - umap-learn

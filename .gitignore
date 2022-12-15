@@ -2,15 +2,17 @@
 documents/
 
 # different folders that contain agent checkpoint, intermediate results or graphics
-src/optimization/
 src/checkpoints/
+src/experiments/
 src/graphics/
+src/optimization/
 src/results/
 
 experiments/*
 checkpoints/*
 graphics/*
 optimization/*
+optimization_ppo_extra_hyp
 results/*
 !results/cutter_states.csv
 tmp/
@@ -23,3 +25,4 @@ nohup.out
 # some dev tools
 .flake8
 .vscode
+Dockerfile_git

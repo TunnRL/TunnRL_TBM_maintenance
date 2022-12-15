@@ -6,8 +6,9 @@ authors:
   orcid: "https://orcid.org/0000-0002-7793-9994"
 - family-names: "Hansen"
   given-names: "Tom F."
-title: "Code to the paper Towards optimized TBM cutter changing policies with reinforcement learning"
-version: 1.0.0
+  orcid: "https://orcid.org/0000-0002-1020-7537"
+title: "Code to the paper 'TunnRL-CC: A computational framework for smart TBM cutter changing'"
+version: 2.0.0
 date-released: 2022-XX-XX
 url: "https://github.com/TunnRL/TunnRL_TBM_maintenance"
 preferred-citation:
@@ -18,13 +19,14 @@ preferred-citation:
     orcid: "https://orcid.org/0000-0002-7793-9994"
   - family-names: "Hansen"
     given-names: "Tom F."
+    orcid: "https://orcid.org/0000-0002-1020-7537"
   doi: "XXXXXXXXXXXXX"
   url: "XXXXXXXXXXXXX"
-  journal: "Geomechanics and Tunnelling"
-  issn: "1865-7389"
-  month: X
-  title: "Towards optimized TBM cutter changing policies with reinforcement learning"
-  volume: XXX
-  year: 2022
-  keywords: "XXXX"
-  abstract: "X"
+  journal: "Computers and Geotechnics"
+  issn: "XXXXXXXXXXXXX"
+  month: "XXXXXXXXXXXXX"
+  title: "TunnRL-CC: A computational framework for smart TBM cutter changing"
+  volume: "XXXXXXXXXXXXX"
+  year: "XXXXXXXXXXXXX"
+  keywords: "XXXXXXXXXXXXX"
+  abstract: "XXXXXXXXXXXXX"
