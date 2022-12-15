@@ -20,3 +20,6 @@ tmp/
 # some dev tools
 #.flake8
 install_scripts
+id_rsa
+id_rsa.pub
+Dockerfile_git

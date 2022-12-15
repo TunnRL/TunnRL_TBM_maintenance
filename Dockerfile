@@ -1,8 +1,13 @@
-# Building a docker image in linux include linux programs, git, gnu make etc.
-# A 2-stage build has benefits
+# Docker file to build an image that train a ML-model
+#####################################################
+
+# Build the image in 2 stages
+# - reduce size of image
+# - only install dependencies and own program in image, no poetry etc.
+# - safer
+
 # STAGE1
 #########
-# consider slim-bullseye
 FROM python:3.10.7-slim as requirements-stage
 
 RUN pip install poetry==1.2.2
@@ -21,11 +26,12 @@ RUN poetry build
 
 # STAGE2
 #########
-# throws away files from first stage when we start 2nd stage
+# Except for requirements and the python packakge we throw away files from first stage 
+# when we start 2nd stage
 FROM python:3.10.7-slim as main-stage
 
-# get latest update in linux
-# RUN apt-get update
+# get latest update of linux
+RUN apt-get -y update && apt-get upgrade -y
 
 # Install project package and dependencies
 COPY --from=requirements-stage /requirements.txt /
@@ -34,13 +40,13 @@ RUN pip install -r requirements.txt --no-deps
 RUN pip install --no-deps --no-index dist/*.whl
 
 # copy files that is not a part of the build, scriptfiles and config
-RUN mkdir project project/scripts
-COPY ./src/*.py /project/scripts
-COPY ./src/config /project/scripts/config
+# RUN mkdir project project/scripts project/exp_results
+RUN mkdir scripts, exp_results, data
+# COPY ./src/*.py /project/scripts
+COPY ./src/*.py /scripts
+# COPY ./src/config /project/scripts/config
+COPY ./src/config /scripts/config
 
-WORKDIR /project
+# WORKDIR /project
 
-RUN ls
-CMD "ls"
-
-# CMD ["python", "./src/A_main_hydra.py", "EXP.MODE='training'"]
+CMD ["python", "./scripts/A_main_hydra.py", "EXP.MODE='training'"]
