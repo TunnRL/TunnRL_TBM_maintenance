@@ -23,5 +23,3 @@ install_scripts
 id_rsa
 id_rsa.pub
 Dockerfile_git
-git-credential-manager/
-linux-install-source.sh
