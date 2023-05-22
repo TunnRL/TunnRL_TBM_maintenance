@@ -16,25 +16,27 @@ There are implemented two different versions of the repo:
 - main branch
 - industry_advanced branch
 
-Industry_advanced __has the same RL-functionality__ and plots as the main_branch but has extended functionality and structure for reporting, config and Q&A, mainly with functionality from:
+Industry_advanced __has the same RL-functionality__ and plots as the main_branch but has extended functionality and structure for reporting, reproducability, config and quality control, mainly with functionality from:
+
 - Mlflow    - for tracking and visualization of all parameters and metrics of all training experiments
-- Hydra     - defines, structures and saves all configuration parameters
+- Hydra     - defines, structures and saves all configuration parameters for all experiments
 - Pydantic  - defines schemas and validations for quality checking config-inputs
-- Rich      - better visualisation of terminal output
+- Rich      - enhanced visualisation of terminal output
 - Pytest    - unity testing of code
+- Docker    - to run experiments in a reproducible way on a High Performance Computer (HPC)
 
-This repo implements more advanced programming techniques, and includes software principles such as testing, input-checks and code-formatting, all by facilitating easy runs of code using the terminal.
+__Industry_advanced__ implements more advanced programming techniques, and includes software principles such as testing, input-checks and code-formatting, all by facilitating easy runs of code using the terminal.
 
-Switch between the repos by choosing the branch at the top left or by clicking: 
+Switch between the repos by choosing the branch at the top left or by clicking:
 https://github.com/TunnRL/TunnRL_TBM_maintenance/tree/industry_advanced.
 
 ## Directory structure
 
-The code framework depends on a certain folder structure. The main functionality is 
+The code framework depends on a certain folder structure. The main functionality is
 in the src folder. Here are mainly two types of files:
 
 - "<A, B, C, D>"_description - scripts to be run
-- XX_description - functionality provided to run scripts. 
+- XX_description - functionality provided to run scripts.
 The set up should be done in the following way:
 
 ```
@@ -48,7 +50,7 @@ TunnRL_TBM_maintenance
 ├── src
 │   ├── A_main.py                         - main script to call for optimization, training, execution
 │   ├── B_optimization_analyzer.py        - analysing the optuna optimization study
-│   ├── C_training_path_analyzer.py       
+│   ├── C_training_path_analyzer.py
 │   ├── D_recommender.py                  - recommend the next action from a policy (based on a trained agent)
 │   ├── XX_experiment_factory.py
 │   ├── XX_hyperparams.py
@@ -72,12 +74,12 @@ git clone https://github.com/TunnRL/TunnRL_TBM_maintenance.git
 
 We have organized 2 ways of setting up the environment, downloading and installing all required pacakages, using the same package versions as have been used in development. In this way it is possible to repeat the experiments as close as possible.
 
-1. The recommended way is to use the `poetry` system to set up the environment and install all dependencies. Poetry is stricter on depedencies than conda and define all depedencies in a human readable way through the categorized `pyproject.toml` file. The 
+1. The recommended way is to use the `poetry` system to set up the environment and install all dependencies. Poetry is stricter on depedencies than conda and define all depedencies in a human readable way through the categorized `pyproject.toml` file. The
 `poetry.lock`defines exact version of all dependencies.
 
    Make sure you have installed `pyenv` to control your python version. Install the python version and continue. If you don't have poetry and pyenv installed, we have made bash-scripts that installs these in your linux system. __NOTE__: If you haven't got linux you can run linux from windows by activating Window Subsystem for Linux:
    https://learn.microsoft.com/en-us/windows/wsl/install
-   
+
    Run these scripts in your terminal to install:
 
    ```bash
@@ -104,7 +106,7 @@ We have organized 2 ways of setting up the environment, downloading and installi
    ```
 
    Set up environment and install all depedencies:
-   
+
    ```bash
    poetry install
    ```
@@ -112,12 +114,12 @@ We have organized 2 ways of setting up the environment, downloading and installi
    Running this will install all dependencies defined in `poetry.lock`.
 
    Activate the environment with
-   
+
    ```bash
    poetry shell
    ```
 
-   Then you are ready to run your Python scripts in the exact same system setup as it 
+   Then you are ready to run your Python scripts in the exact same system setup as it
    has been developed!
 
 2. Another way is to use `conda`.
@@ -145,7 +147,7 @@ Simply kick off a number of similar runs with the same study-name and all proces
 
 ## Principles for training an RL-agent
 
-We use the quality controlled implementation of RL-agents in Stable Baselines 3 (implemented in Pytorch). In setting up the customized RL-environment we follow the 
+We use the quality controlled implementation of RL-agents in Stable Baselines 3 (implemented in Pytorch). In setting up the customized RL-environment we follow the
 API from Open AI gym by inheriting our custom environment from `gym.env`.
 
 The basic principles for training an agent follow these steps (functionality included in scripts):
@@ -154,14 +156,14 @@ The basic principles for training an agent follow these steps (functionality inc
 cutters defined in a state vector of cutter life for all cutters, initially assigned with a max life of 1. Another vector defines the penetration value for all steps in the episode.
 2. Instantiate the agent with: `agent = PPO(...)` (a number of different agents are defined)
 3. Instantiate callbacks with: `callback = CallbackList([eval_cb, custom_callback]`.
-Callbacks are not a part of the actual training process but provides functionality for 
+Callbacks are not a part of the actual training process but provides functionality for
 logging metrics, early stopping etc.
-4. Train the agent by looping over episodes, thereby making new actions and changin the state, each time with a new version of the 
+4. Train the agent by looping over episodes, thereby making new actions and changin the state, each time with a new version of the
 environment. This functionality is wrapped into the learn function in Stable Baselines3.
 `agent.learn(total_timesteps=self.EPISODES * self.MAX_STROKES, callback=callback)`.
 
 In every episode (say 10 000 episodes), the agent takes (loops over) a number of steps
-(which is TBM-strokes in this environment, eg. 1000 strokes of 1.8 meter). In each step a MLP-neural network is trained to match the best actions to the given state, ie. that maximize the reward. The MLP's are used in different ways for the different agent 
+(which is TBM-strokes in this environment, eg. 1000 strokes of 1.8 meter). In each step a MLP-neural network is trained to match the best actions to the given state, ie. that maximize the reward. The MLP's are used in different ways for the different agent
 architectures: PPO, A2C, DDPG, TD3, SAC.
 This training session is a classic NN-machine learning session looping over a number of
 epochs (eg 10 epochs) in order to minimize the loss-function.
