@@ -1,60 +1,46 @@
 [tool.poetry]
-name = "tunnrl_tbm_maintenance"
+name = "tunnrl-tbm-maintenance"
 version = "0.1.0"
-description = "Functionality to train, optimize and execute reinforcement learning models controlling the maintenance of cutter discs for a Tunnel Boring Machine (TBM). A simulated TBM environment is defined."
-authors = ["Georg H. Erharter <erharter@tugraz.at>", "Tom F. Hansen <tom.frode.hansen@gmail.com>"]
+description = "Decision making in cutter changing on TBM excavation using reinforcement learning"
+authors = ["Tom F. Hansen <tom.frode.hansen@gmail.com>", "Georg H. Erharter <erharter@tugraz.at>"]
 license = "MIT"
 readme = "README.md"
-repository = "https://github.com/TunnRL/TunnRL_TBM_maintenance"
-packages = [
-	{ include = "utils", from = "src"}
-	# { include = "src"}
-]
+packages = [{include = "utils", from = "src"}]
 
 [tool.poetry.dependencies]
-python = ">=3.10.5,<3.12"
-stable-baselines3 = "^1.6.0"
-sb3-contrib = "^1.6.0"
-numpy = "^1.23.1"
-optuna = "^2.10.1"
-joblib = "^1.1.0"
-scikit-learn = "^1.1.1"
-mlflow = "^1.28.0"
-tensorboard = "^2.10.0"
-hydra-core = "^1.2.0"
-plotly = "^5.10.0"
-pydantic = "^1.10.0"
-rich = "^12.5.1"
+python = "^3.10"
+scikit-learn = "^1.2.2"
+mlflow = "^2.3.2"
+hydra-core = "^1.3.2"
+optuna = "2.10.1"
+rich = "^13.3.5"
+pydantic = "^1.10.7"
+plotly = "^5.14.1"
+torch = "^2.0.1"
+stable-baselines3 = {git = "https://github.com/DLR-RM/stable-baselines3"}
+sb3-contrib = {git = "https://github.com/Stable-Baselines-Team/stable-baselines3-contrib/"}
+tensorboard = "^2.13.0"
+openpyxl = "^3.1.2"
 
-[tool.poetry.dev-dependencies]
-ipykernel = "^6.15.2"
-mypy = "^0.971"
-# setuptools = "<60"
-isort = "^5.10.1"
-flake8 = "^5.0.3"
-flake8-annotations = "^2.9.1"
-ipdb = "^0.13.9"
-black = "^22.6.0"
-pyupgrade = "^2.37.3"
-pre-commit = "^2.20.0"
-pytest = "^7.1.3"
-coverage = "^6.4.4"
+
+[tool.poetry.group.dev.dependencies]
+ruff = "^0.0.269"
+black = "^23.3.0"
+mypy = "^1.3.0"
+ipdb = "^0.13.13"
+pytest = "^7.3.1"
+coverage = "^7.2.5"
+pre-commit = "^3.3.2"
 
 [build-system]
-requires = ["poetry-core>=1.2.2"]
+requires = ["poetry-core"]
 build-backend = "poetry.core.masonry.api"
 
 [tool.ipdb]
-context = 8
-
-[tool.isort]
-profile = "black"
-known_first_party = "src"
-force_single_line = false
-lines_after_imports = 2
+context = 10
 
 [tool.black]
-line-length = 89
+line-length = 88
 exclude = '''
 /(
 	\.git
@@ -68,23 +54,16 @@ exclude = '''
 )/
 '''
 
+[tool.ruff]
+line-length = 88
+
 [tool.mypy]
 strict = false
-strict_optional = false
-warn_unreachable = true
-pretty = true
-show_column_numbers = true
-show_error_codes = true
-show_error_context = true
-ignore_missing_imports = true
-
-[tool.coverage.paths]
-source = ["src", "*/site-packages"]
-
-# [tool.coverage.run]
-# branch = true
-# source = ["mwd_prediction_round"]
 
 [tool.coverage.report]
 show_missing = true
 fail_under = 5 # coverage will fail if over xxx % of functions are covered
+
+
+# export dependencies to a requirements.txt with:
+# poetry export -f requirements.txt --output requirements.txt --without-hashes

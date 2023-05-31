@@ -15,20 +15,19 @@ import pandas as pd
 import yaml
 from rich.traceback import install
 from sklearn.preprocessing import LabelEncoder
-
 from utils.XX_plotting import Plotter
-
 
 install()
 
 
-def process_optuna_data(study_name: str, agent: str) -> tuple:
+def process_optuna_data(study_name: str, agent: str, study_dirpath="results") -> tuple:
     """Process optuna data from optimization process.
     Returns a processed dataframe.
     """
     # load data from completed OPTUNA study
-    db_path = f"results/{study_name}.db"
-    db_file = f"sqlite:///{db_path}"
+    # db_path = f"results/{study_name}.db"
+    study_dirpath = f"{study_dirpath}/{study_name}.db"
+    db_file = f"sqlite:///{study_dirpath}"
     study = optuna.load_study(study_name=study_name, storage=db_file)
 
     df_study: pd.DataFrame = study.trials_dataframe()
@@ -65,6 +64,10 @@ def process_optuna_data(study_name: str, agent: str) -> tuple:
     if agent == "SAC" or agent == "DDPG" or agent == "TD3":
         df_study["params_action_noise"].fillna(value="None", inplace=True)
 
+    df_study = df_study.dropna().reset_index()
+
+    df_study.to_excel("tmp/optuna_datafram.xlsx")
+
     return df_study, params, le_activation, le_noise
 
 
@@ -72,8 +75,14 @@ def process_optuna_data(study_name: str, agent: str) -> tuple:
 @click.option(
     "-sn",
     "--study_name",
-    default="A2C_2022_08_21_study",
+    default="PPO_2022_09_27_study", show_default=True,
     help="Optuna study object with experiment information",
+)
+@click.option(
+    "-sdp",
+    "--study_dirpath",
+    default="results", show_default=True,
+    help="Directory path to directory containing study file. Eg. /mnt/P/2022/00/20220043/Calculations/",
 )
 def main(study_name: str) -> None:
     """Preprocessing and plotting optuna optimization data."""

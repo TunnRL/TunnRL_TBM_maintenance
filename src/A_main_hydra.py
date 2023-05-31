@@ -3,8 +3,10 @@ Towards optimized TBM cutter changing policies with reinforcement learning
 G.H. Erharter, T.F. Hansen
 DOI: XXXXXXXXXXXXXXXXXXXXXXXXXX
 
-Main code that either runs a hyperparameter optimization study with OPTUNA or a
-"main run" of just one study with fixed hyperparameters
+Main code that either runs one of:
+- hyperparameter optimization study with OPTUNA
+- training a model with optimized parameters
+- execute a trained model
 
 Created on Sat Oct 30 12:46:42 2021
 code contributors: Georg H. Erharter, Tom F. Hansen
@@ -15,7 +17,7 @@ import multiprocessing as mp
 import warnings
 from pathlib import Path
 
-import gym
+import gymnasium as gym
 import hydra
 import numpy as np
 import optuna
@@ -25,7 +27,6 @@ from omegaconf import OmegaConf
 from rich.console import Console
 from rich.traceback import install
 from stable_baselines3.common.env_checker import check_env
-
 from utils.XX_config_schemas import Config
 from utils.XX_experiment_factory import (
     ExperimentAnalysis,
@@ -35,7 +36,6 @@ from utils.XX_experiment_factory import (
 from utils.XX_hyperparams import Hyperparameters
 from utils.XX_plotting import Plotter
 from utils.XX_TBM_environment import CustomEnv, Reward
-
 
 install()  # better traceback messages
 

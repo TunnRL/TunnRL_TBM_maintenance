@@ -12,7 +12,7 @@ from collections import Counter
 from itertools import chain
 from os import listdir
 
-import gym
+import gymnasium as gym
 import matplotlib
 import matplotlib.cm as mplcm
 import matplotlib.gridspec as gridspec
@@ -353,7 +353,7 @@ class Plotter:
         df_study: pd.DataFrame,
         params: list,
         le_activation: LabelEncoder,
-        savepath: str = None,
+        savepath: str | None = None,
         show: bool = True,
     ) -> None:
         """custom implementation of the plot_parallel_coordinate() function of

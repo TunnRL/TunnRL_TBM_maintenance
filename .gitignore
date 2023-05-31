@@ -3,11 +3,15 @@ documents/
 
 # different folders that contain results from experiments
 experiments/*
+!experiments/.gitkeep
 checkpoints/*
+!checkpoints/.gitkeep
 graphics/*
+!graphics/.gitkeep
 optimization/*
+!optimization/.gitkeep
 results/*
-# !results/cutter_states.csv
+!results/.gitkeep
 
 # other tmp stuff
 **/__pycache__
