@@ -97,12 +97,12 @@ Start the `Docker desktop` application.
 If you haven't installed `Docker desktop` install it from here: https://www.docker.com/products/docker-desktop/
 
 Start a terminal, ie. Powershell for Windows, Linux terminal etc.
-cd to where you want to save experiment data, eg. `P:/2022/00/2022043/Calculations/experiments`
+cd to where you want to save experiment data, eg. `P:/2022/00/2022043/Calculations/exp_results`
 
 Run:
 
 ```bash
-docker run -it --rm --ipc=host --gpus all --name running_tbm_rl -v "$(PWD)":/experiments tomfh/rock_classify:09.01-base bash
+docker run -it --rm --ipc=host --gpus all --name running_tbm_rl -v "$(PWD)":/exp_results tomfh/rock_classify:09.01-base bash
 ```
 
 You will now be able to run 4 different scripts from the terminal.
@@ -127,8 +127,21 @@ If you plan to run the RL-training on a HPC computer, the HPC machine will proba
 Login to the HPC machine, normally something like: `ssh <user-name>@<url-to-machine>` e.g.
 `ssh tfh@odin.oslo.ngi.no`
 
+Then make sure that you have mounted `P` into the HPC machine with: `ngi-mount P`.
+
+In the example below we mount a directory for saving experiment data in a project directory and a config directory, to be able to change config outside the container. This is a sustainable setup that avoid large experiment data directories to be stored locally. **NOTE**: we mount the subdirectories in the mount directory into the target directory.
+
+The `/projects/tbm-rl` could be any directory, but it is then also important to run the scripts from that directory, since that is the current working directory.
+
 ```bash
-singularity shell --writable-tmpfs --nv --pwd / -B /home/tfh/NGI/P/2022/00/20220043/exp_results:/home/tfh/projects/tbm-rl/ docker://tomfh/tbm-rl:26.11-train
+singularity shell --writable-tmpfs --nv --pwd / -B /home/tfh/NGI/P/2022/00/20220043/Calculations/exp_results:/home/tfh/projects/tbm-rl/ -B /home/tfh/NGI/P/2022/00/20220043/Calculations/config:/scripts/config docker://tomfh/tbm-rl:26.11-train
+
+cd ~/projects/tbml-rl
+python /scripts/A_main_hydra.py --help
+# or directly to train a TD3 model on the best parameters
+python /scripts/A_main_hydra.py agent=td3_best.yaml TRAIN.N_DUPLICATES=1
+# or to load params from study object. nohup >>> experiment don't terminate when terminal session breaks
+nohup python /scripts/A_main_hydra.py TRAIN.LOAD_PARAMS_FROM_STUDY=True EXP.STUDY=TD3_2022_09_27_study agent=td3_best.yaml
 ```
 
 Then you run the scripts in the same way as described for Docker above.
@@ -261,10 +274,10 @@ python src/A_main_hydra.py -m agent=ppo TBM.CUTTERHEAD_RADIUS=4,2
 ```
 
 
-Invoke tab completion with hydra by running:
+Invoke tab completion with hydra for a certain script by running:
 
 ```bash
-python src/A_main_hydra.py -sc install=bash
+eval "$(python src/C_training_path_analyzer.py -sc install=bash)"
 ```
 
 ## MLflow

@@ -18,7 +18,6 @@ defaults: # sub-configs
   - agent: ppo_best.yaml # ppo_best.yaml, ppo_default.yaml
   - REWARD: experiment_1.yaml # different setups for different sites and experiments
   - _self_ # main overrides sub-cfg in case of duplicates
-  - base_config
 
 hydra:
   run:
@@ -66,7 +65,7 @@ OPT:
   N_CORES_PARALLELL: 1
   N_PARALLELL_PROCESSES: 1
   N_EVAL_EPISODES_OPTIMIZATION: 3 # n eval episodes in stop training cb
-  N_EVAL_EPISODES_REWARD: 10 # n eval episodes for computing mean reward in end of training
+  N_EVAL_EPISODES_REWARD: 10 # n eval episodes for computing mean reward in end of training of one episode
 
 # TRAINING SPECIAL SETUP
 ######################
@@ -74,7 +73,7 @@ TRAIN:
   # load best parameters from study object in training. Alternative: load from yaml
   LOAD_PARAMS_FROM_STUDY: False
   N_EVAL_EPISODES_TRAINING: 10
-  N_DUPLICATES: 1  # relevant in RL to train on same parameters x times
+  N_DUPLICATES: 1  # Train on same config parameters x times. That is relevant in RL
 
 # EXECUTION SPECIAL SETUP
 ######################
@@ -86,4 +85,21 @@ EXECUTE:
 
 # LAYOUT SETUP
 ######################
+PLOT:
+  FIGURE_WIDTH: 3.15
+  DATA_DIR: "/mnt/P/2022/00/20220043/Calculations/"  # checkpoints, optimizations, or some other dir
+  AGENT_NAME: A2C  # "PPO", "DDPG", "A2C", "TD3", "SAC", "PPO-LSTM"
+  STUDY_NAME: A2C_2022_11_30_study
+  MAKE_MAX_REWARD_LIST: False  # make a list of max reward for all experiments for each algorithm
+  VISUALIZATION_MODE: rollout  # rollout or eval
+  PRINT_TRESH: null  # null or int. Only print curves with reward over this threshold
+  CHOOSE_NUM_BEST_REWARDS: 3 # null or int
+  PLOTS_TO_MAKE: [
+    "training_path_experiments_single_algorithm",
+    "training_path_experiments_algorithms",
+    "parallell_coordinate_plot",
+    # "slice_plot",
+    # "optimization_history_plot",
+  ]
+
 rich_console:

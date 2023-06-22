@@ -13,7 +13,6 @@ code contributors: Georg H. Erharter, Tom F. Hansen
 
 """
 
-import multiprocessing as mp
 import warnings
 from pathlib import Path
 
@@ -23,16 +22,16 @@ import numpy as np
 import optuna
 from joblib import Parallel, delayed
 from numpy.typing import NDArray
-from omegaconf import OmegaConf
+from omegaconf import DictConfig, OmegaConf
 from rich.console import Console
 from rich.traceback import install
 from stable_baselines3.common.env_checker import check_env
-from utils.XX_config_schemas import Config
 from utils.XX_experiment_factory import (
     ExperimentAnalysis,
     Optimization,
     load_best_model,
 )
+from utils.XX_general import parse_validate_hydra_config
 from utils.XX_hyperparams import Hyperparameters
 from utils.XX_plotting import Plotter
 from utils.XX_TBM_environment import CustomEnv, Reward
@@ -71,14 +70,17 @@ def run_optimization(
         optim.optimize(study, N_SINGLE_RUN_OPTUNA_TRIALS)
     else:
         print(
-            f"{N_SINGLE_RUN_OPTUNA_TRIALS * N_PARALLELL_PROCESSES} optuna trials are processed in {N_PARALLELL_PROCESSES} processes.\n"
+            f"{N_SINGLE_RUN_OPTUNA_TRIALS * N_PARALLELL_PROCESSES} \
+                optuna trials are processed in {N_PARALLELL_PROCESSES} processes.\n"
         )
         Parallel(n_jobs=N_CORES_PARALLELL, verbose=10, backend="loky")(
             delayed(optim.optimize)(study, N_SINGLE_RUN_OPTUNA_TRIALS)
             for _ in range(N_PARALLELL_PROCESSES)
         )
+        # import multiprocessing as mp
         # pool = mp.Pool(4)
-        # [pool.apply(optim.optimize, args=(study, N_SINGLE_RUN_OPTUNA_TRIALS)) for _ in range(4)]
+        # [pool.apply(optim.optimize, args=(study, N_SINGLE_RUN_OPTUNA_TRIALS)) for
+        # _ in range(4)]
 
 
 def run_training(
@@ -103,10 +105,12 @@ def run_training(
         n_c_tot (int): number of cutters on cutterhead
         hparams (Hyperparameters): object with parameter interpreting functionality
         env (gym.Env): TBM environment for the agent to act with
-        optim (Optimization): experiment object containing all functionality for training
+        optim (Optimization): experiment object containing all functionality for
+        training
 
     Usecase (to run 5 trials of best parameters and 5 of default parameters):
-        pythonr src/A_main_hydra.py --multirun agent=ppo_best, ppo_default, TRAIN.N_DUPLICATES=5
+        pythonr src/A_main_hydra.py --multirun agent=ppo_best, ppo_default,
+        TRAIN.N_DUPLICATES=5
     """
     rcon.print(f"New {agent_name} training run with optimized parameters started.")
     rcon.print(f" - total number of cutters: {n_c_tot}")
@@ -260,9 +264,8 @@ def run_execution(
         )
 
 
-@hydra.main(config_path="config", config_name="main", version_base="1.2")
-def main(cfg: Config) -> None:
-
+@hydra.main(config_path="config", config_name="main.yaml", version_base="1.3.2")
+def main(cfgs: DictConfig) -> None:
     ###############################################################################
     # SETUP DIRECTORY STRUCTURE
     ###############################################################################
@@ -285,13 +288,17 @@ def main(cfg: Config) -> None:
     ###############################################################################
     # WARNINGS AND ERROR CHECKING INPUT VARIABLES
     ###############################################################################
+    console = Console()
+    cfg = parse_validate_hydra_config(cfgs, console)
+
     if cfg.EXP.DEBUG:
         cfg.EXP.EPISODES = 20
         cfg.EXP.CHECKPOINT_INTERVAL = 6
         cfg.OPT.N_PARALLELL_PROCESSES = 1
         cfg.OPT.N_CORES_PARALLELL = 1
 
-    OmegaConf.to_object(cfg)  # runs checks of inputs by pydantic, types and validation
+    # runs checks and parsing of inputs by pydantic, types and validation
+    # OmegaConf.to_object(cfg)
 
     warnings.filterwarnings("ignore", category=optuna.exceptions.ExperimentalWarning)
 
@@ -320,10 +327,13 @@ def main(cfg: Config) -> None:
 
     ###############################################################################
     # COMPUTED/DERIVED VARIABLES AND INSTANTIATIONS
+    # - Defines the reward function
+    # - Defines the custom environment
+    # - Defines the experiment setup (optimization)
     ###############################################################################
 
     rich_console = Console()
-    rich_console.print(OmegaConf.to_yaml(cfg))
+    rich_console.print(OmegaConf.to_yaml(cfg))  # printing config values
 
     n_c_tot = (
         cfg.TBM.CUTTERHEAD_RADIUS - cfg.TBM.TRACK_SPACING / 2

@@ -3,7 +3,7 @@ Towards optimized TBM cutter changing policies with reinforcement learning
 G.H. Erharter, T.F. Hansen
 DOI: XXXXXXXXXXXXXXXXXXXXXXXXXX
 
-Custom library that contains different classes for:
+Custom library that contains functionality for:
 - Parameter optimization
 - Training an agent
 - Callbacks used in training process
@@ -15,10 +15,11 @@ code contributors: Georg H. Erharter, Tom F. Hansen
 import uuid
 import warnings
 from dataclasses import dataclass
+from pathlib import Path
 from pprint import pformat
 from typing import Any
 
-import gym
+import gymnasium as gym
 import mlflow
 import numpy as np
 import optuna
@@ -26,9 +27,9 @@ import pandas as pd
 import yaml
 from hydra.core.hydra_config import HydraConfig
 from rich.console import Console
-from rich.traceback import install
 from sb3_contrib import RecurrentPPO
 from sklearn.manifold import TSNE
+from sklearn.preprocessing import LabelEncoder
 from stable_baselines3 import A2C, DDPG, PPO, SAC, TD3
 from stable_baselines3.common import logger
 from stable_baselines3.common.base_class import BaseAlgorithm
@@ -43,9 +44,6 @@ from stable_baselines3.common.evaluation import evaluate_policy
 
 from utils.XX_hyperparams import Hyperparameters
 from utils.XX_plotting import Plotter
-
-
-install()
 
 warnings.filterwarnings("ignore", category=optuna.exceptions.ExperimentalWarning)
 
@@ -80,11 +78,13 @@ class Optimization:
     cb_cfg: dict
 
     def __post_init__(self) -> None:
-        """Functions are called automatically after initializing the object."""
+        """Function is called automatically after initializing the object."""
         self.CHECKPOINT_INTERVAL = self.cb_cfg["CHECKPOINT_INTERVAL"]
         self.n_actions = self.n_c_tot * self.n_c_tot
         # n steps, eg. 1000 steps x 100 checkpoint_interval = every 100 000 steps
-        self.checkpoint_frequency = self.cb_cfg["MAX_STROKES"] * self.CHECKPOINT_INTERVAL
+        self.checkpoint_frequency = (
+            self.cb_cfg["MAX_STROKES"] * self.CHECKPOINT_INTERVAL
+        )
         self.hparams = Hyperparameters()
         self.agent_dir: str = ""
 
@@ -92,7 +92,7 @@ class Optimization:
         """Objective function that drives the optimization of parameter values
         for the RL-agent.
 
-        Train an RL-agent and returns a reward evaluated on the last xxx episodes.
+        Train an RL-agent and returns a reward evaluated on the last 10 episodes.
         """
 
         if self.DEFAULT_TRIAL:
@@ -116,7 +116,9 @@ class Optimization:
         if sb3_logger is not None:
             agent.set_logger(sb3_logger)
 
-        agent.learn(total_timesteps=self.EPISODES * self.MAX_STROKES, callback=callbacks)
+        agent.learn(
+            total_timesteps=self.EPISODES * self.MAX_STROKES, callback=callbacks
+        )
         del agent
 
         print("Load agent and evaluate on 10 last episodes...")
@@ -198,7 +200,9 @@ class Optimization:
         if SB3_logger is not None:
             agent.set_logger(SB3_logger)
 
-        agent.learn(total_timesteps=self.EPISODES * self.MAX_STROKES, callback=callbacks)
+        agent.learn(
+            total_timesteps=self.EPISODES * self.MAX_STROKES, callback=callbacks
+        )
 
         # logging to mlflow
         experiment_info = dict(
@@ -413,11 +417,14 @@ class ExperimentAnalysis:
         all_moved_cutters: list,
         perplexity: float,
     ) -> pd.DataFrame:
-        # flatten all episode lists. TODO: do this smarter with itertools or the utility python pacakage I don't remember.
+        # flatten all episode lists. TODO: do this smarter with itertools or the utility
+        #  python pacakage I don't remember.
         all_actions = [item for sublist in all_actions for item in sublist]
         all_states = [item for sublist in all_states for item in sublist]
         all_rewards = [item for sublist in all_rewards for item in sublist]
-        all_broken_cutters = [item for sublist in all_broken_cutters for item in sublist]
+        all_broken_cutters = [
+            item for sublist in all_broken_cutters for item in sublist
+        ]
         all_replaced_cutters = [
             item for sublist in all_replaced_cutters for item in sublist
         ]
@@ -475,7 +482,9 @@ def mlflow_log_experiment(
         environment_results = dict(
             env_broken_cutters=df_env.loc[episode_best_reward, "avg_broken_cutters"],
             env_moved_cutters=df_env.loc[episode_best_reward, "avg_moved_cutters"],
-            env_replaced_cutters=df_env.loc[episode_best_reward, "avg_replaced_cutters"],
+            env_replaced_cutters=df_env.loc[
+                episode_best_reward, "avg_replaced_cutters"
+            ],
             env_var_cutter_locations=df_env.loc[
                 episode_best_reward, "var_cutter_locations"
             ],
@@ -536,9 +545,9 @@ class TrainingProgressCallback(BaseCallback):
         self.cutter_locations_replaced: list = []
 
     def _on_step(self) -> bool:
-        self.cutter_locations_replaced += self.training_env.get_attr("replaced_cutters")[
-            0
-        ]
+        self.cutter_locations_replaced += self.training_env.get_attr(
+            "replaced_cutters"
+        )[0]
         self.replaced_cutters_episode.append(
             len(self.training_env.get_attr("replaced_cutters")[0])
         )
@@ -589,7 +598,9 @@ class TrainingProgressCallback(BaseCallback):
 
             if self.MODE == "training" and self.n_calls % (self.MAX_STROKES * 10) == 0:
                 self.r_console.print(
-                    f"Avg. #10th episode. Replaced: {avg_replaced_cutters: .2f} | Moved: {avg_moved_cutters: .2f} | Broken: {avg_broken_cutters: .3f} | Var. replaced: {var_replaced_cutters: .2f}"
+                    f"Avg. #10th episode. Replaced: {avg_replaced_cutters: .2f} | \
+                    Moved: {avg_moved_cutters: .2f} | Broken: {avg_broken_cutters: .3f}\
+                          | Var. replaced: {var_replaced_cutters: .2f}"
                 )
 
         if self.n_calls % self.check_freq == 0:
@@ -655,7 +666,8 @@ class PrintExperimentInfoCallback(BaseCallback):
         r_console.print(f"\n{self.mode} agent in dir: {self.agent_dir}")
         r_console.print(f"Config values in: {self.hydra_dir}")
         r_console.print(
-            f"Evaluation frequency is every {self.checkpoint_interval} episode / {self.checkpoint_interval * 1000} step"
+            f"Evaluation frequency is every {self.checkpoint_interval} episode / \
+                {self.checkpoint_interval * 1000} step"
         )
         r_console.print(f"Num episodes: {self.n_episodes}")
         r_console.print(
@@ -709,3 +721,99 @@ class MlflowLoggingCallback(BaseCallback):
             self.parameters,
             self.sub_parameters,
         )
+
+
+def process_optuna_data(study_name: str, agent: str, study_dirpath="results") -> tuple:
+    """Process optuna data from optimization process.
+    - Returns a processed dataframe that can be utilized in plotting and analysis.
+    - Saves a yaml file with best performing parameters
+    - Print optimalization info
+    """
+    console = Console()
+
+    # LOAD DATA FROM COMPLETED OPTUNA STUDY
+    #############################################################
+    study_dirpath = f"{study_dirpath}/{study_name}.db"
+    if not (Path(study_dirpath).exists()):
+        raise ValueError(
+            f"studyobject is not found at: {study_dirpath}. Perhaps at P:?"
+        )
+    db_file = f"sqlite:///{study_dirpath}"
+    study = optuna.load_study(study_name=study_name, storage=db_file)
+
+    df_study: pd.DataFrame = study.trials_dataframe()
+
+    console.print("25 tail values before preprocessing\n", df_study.tail(n=25))
+
+    # PRINT AND SAVE VALUES OF BEST TRIAL IN STUDY
+    ################################################
+    print("\nSaving parameters for 10 best trials to yaml files")
+    df_tmp = df_study.copy()
+    new_names = [param[7:] for param in df_tmp.columns if "params" in param]
+    old_names = [param for param in df_tmp.columns if "params" in param]
+    param_name_change = {old: new for old, new in zip(old_names, new_names)}
+    df_tmp = df_tmp.rename(columns=param_name_change)
+
+    df_tmp = df_tmp.sort_values("value", ascending=False)
+    df_tmp = df_tmp.drop(columns=["datetime_complete", "datetime_start", "duration"])
+
+    for i in range(10):
+        params = df_tmp.iloc[i].to_dict()
+        with open(
+            f"results/{study_name}_best_params_{params['value']: .2f}.yaml", "w"
+        ) as file:
+            yaml.dump(params, file)
+
+    trial = study.best_trial
+    console.print("\nHighest reward: {}".format(trial.value))
+    console.print("Best hyperparameters:\n {}".format(trial.params))
+
+    # PREPROCESSING DATA
+    ##############################################################
+    if agent in ["SAC", "DDPG", "TD3"]:
+        df_study["params_action_noise"].fillna(value="None", inplace=True)
+
+    # dropping na values in running or failed runs
+    print(f"Num row before dropna: {df_study.shape[0]}")
+    df_study = df_study.dropna().reset_index(drop=True)
+    print(f"Num row after dropna: {df_study.shape[0]}")
+
+    if "params_action_noise" in df_study.columns:
+        le_noise = LabelEncoder()
+        df_study["params_action_noise"] = le_noise.fit_transform(
+            df_study["params_action_noise"]
+        )
+    else:
+        le_noise = None
+    if "params_activation_fn" in df_study.columns:
+        le_activation = LabelEncoder()
+        df_study["params_activation_fn"] = le_activation.fit_transform(
+            df_study["params_activation_fn"]
+        )
+
+    params = [p for p in df_study.columns if "params_" in p]
+
+    for param in params:
+        if df_study[param].dtype == float and df_study[param].max() > 0.01:
+            df_study[param] = df_study[param].round(2)
+
+    # Convert specific columns to int
+    columns_to_convert = []
+    if agent in ["SAC", "DDPG", "TD3", "PPO-LSTM"]:
+        columns_to_convert = [
+            "params_n_nodes_layer",
+            "params_n_not_shared_layers",
+            "params_batch_size",
+        ]
+    else:
+        columns_to_convert = [
+            "params_n_nodes_layer",
+            "params_n_nodes_shared_layer",
+            "params_n_not_shared_layers",
+            "params_n_shared_layers",
+        ]
+    df_study[columns_to_convert] = df_study[columns_to_convert].astype(int)
+
+    df_study.to_excel(f"tmp/optuna_dataframe_{agent}.xlsx")  # tmp check
+
+    return df_study, params, le_activation, le_noise

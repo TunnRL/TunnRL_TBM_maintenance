@@ -10,10 +10,11 @@ code contributors: Georg H. Erharter, Tom F. Hansen
 
 from collections import Counter
 from itertools import chain
-from os import listdir
+from pathlib import Path
 
 import gymnasium as gym
 import matplotlib
+import matplotlib as mpl
 import matplotlib.cm as mplcm
 import matplotlib.gridspec as gridspec
 import matplotlib.pyplot as plt
@@ -23,29 +24,89 @@ import plotly.express as px
 from mpl_toolkits.axes_grid1 import make_axes_locatable
 from numpy.typing import NDArray
 from pandas.errors import EmptyDataError
+from rich.console import Console
 from rich.progress import track
 from sklearn.preprocessing import LabelEncoder
+
+# HELPER FUNCTIONS
+#######################################################
+
+
+def print_function_name(func):
+    def wrapper(*args, **kwargs):
+        console = Console()
+        console.print(f"Function Name: {func.__name__}")
+        return func(*args, **kwargs)
+
+    return wrapper
+
+
+def plot_text(
+    x_val: float,
+    y_val: float,
+    text_string: str,
+    horizontal_align: str,
+    vertical_align: str,
+) -> None:
+    """
+    Plots the given text on the current axes at the specified coordinates.
+
+    Args:
+        x_val: X-coordinate for the text position.
+        y_val: Y-coordinate for the text position.
+        text_string: The text to be displayed.
+        horizontal_align: Horizontal alignment for the text. Can be 'center', 'left',
+        or 'right'.
+        vertical_align: Vertical alignment for the text. Can be 'top', 'center', or
+        'bottom'.
+
+    Returns:
+        None
+    """
+    ax = plt.gca()
+    ax.text(
+        x=x_val,
+        y=y_val,
+        s=text_string,
+        horizontalalignment=horizontal_align,
+        verticalalignment=vertical_align,
+    )
+
+
+# PLOTTING FUNCTIONS
+#######################################################
 
 
 class Plotter:
     """class that contains functions to visualize the progress of the
-    training and / or individual samples of it"""
+    training and / or individual samples of it
+
+    Configuring of plots:
+    - General rule: use config in figures_styles.mplstyle
+      Eg. dpi and image-type is controlled in config
+    - execptions for singular plots with matplotlib decorator:
+    Eg. @mpl.rc_context({'lines.linewidth': 1.1, 'lines.markersize': 2, 'font.size':6})
+
+    """
+
+    plt.style.use("./src/config/figures_styles.mplstyle")
+    FIGURE_WIDTH = 3.15
 
     @staticmethod
     def sample_ep_plot(
-        states: list,
-        actions: list,
-        rewards: list,
+        states: list[NDArray],
+        actions: list[NDArray],
+        rewards: list[NDArray],
         replaced_cutters: list,
         moved_cutters: list,
         n_cutters: int,
-        savepath: str = None,
+        savepath: str | None = None,
         show: bool = True,
     ) -> None:
         """plot of different recordings of one exemplary episode"""
 
-        n_replaced_cutters = [len(cutters) for cutters in replaced_cutters]
-        n_moved_cutters = [len(cutters) for cutters in moved_cutters]
+        n_replaced_cutters: list[int] = [len(cutters) for cutters in replaced_cutters]
+        n_moved_cutters: list[int] = [len(cutters) for cutters in moved_cutters]
         strokes = np.arange(len(moved_cutters))
 
         cmap = mplcm.get_cmap("viridis")
@@ -168,10 +229,7 @@ class Plotter:
         ax.grid(alpha=0.5)
 
         plt.tight_layout()
-        if savepath is not None:
-            plt.savefig(savepath)
-        if show is False:
-            plt.close()
+        plt.savefig(savepath)
 
     @staticmethod
     def state_action_plot(
@@ -215,7 +273,6 @@ class Plotter:
         for stroke in track(
             range(n_strokes), description="Processing strokes in state_action_plot"
         ):
-
             for i in range(n_c_tot):
                 # select cutter from action vector
                 cutter = actions[stroke][i * n_c_tot : i * n_c_tot + n_c_tot]
@@ -327,7 +384,7 @@ class Plotter:
 
     @staticmethod
     def action_visualization(
-        action: NDArray, n_c_tot: int, savepath: str = None, binary: bool = False
+        action: NDArray, n_c_tot: int, savepath: str | None = None, binary: bool = False
     ) -> None:
         """plot that visualizes a single action"""
         if binary is True:
@@ -349,12 +406,14 @@ class Plotter:
             plt.close()
 
     @staticmethod
+    @mpl.rc_context({"lines.linewidth": 1.1, "lines.markersize": 2, "font.size": 7})
     def custom_parallel_coordinate_plot(
         df_study: pd.DataFrame,
         params: list,
         le_activation: LabelEncoder,
-        savepath: str | None = None,
-        show: bool = True,
+        le_noise: LabelEncoder,
+        savepath: str,
+        figure_width=FIGURE_WIDTH,
     ) -> None:
         """custom implementation of the plot_parallel_coordinate() function of
         optuna:
@@ -362,123 +421,120 @@ class Plotter:
         """
         # TODO consider le_noise
 
-        df_study["params_lr_schedule"] = np.where(
-            df_study["params_lr_schedule"] == "constant", 0, 1
-        )
+        # dropping runs with values below zero
+        print(f"Num row before removing negative values: {df_study.shape[0]}")
+        df_study = df_study[df_study.value > 0]
+        print(f"Num row after removing negative values: {df_study.shape[0]}")
 
-        fig, ax = plt.subplots(figsize=(18, 9))
+        df_study.loc[
+            df_study["params_lr_schedule"] == "constant", "params_lr_schedule"
+        ] = 0
+        df_study.loc[
+            df_study["params_lr_schedule"] != "constant", "params_lr_schedule"
+        ] = 1
+
+        fig, ax = plt.subplots(figsize=(figure_width * 2.5, 0.6 * figure_width))
 
         mins = df_study[params].min().values
         f = df_study[params].values - mins
         maxs = np.max(f, axis=0)
 
-        cmap = matplotlib.cm.get_cmap("cividis")
-        norm = matplotlib.colors.Normalize(
+        cmap = mpl.cm.get_cmap("cividis")
+        norm = mpl.colors.Normalize(
             vmin=df_study["value"].min(), vmax=df_study["value"].max()
         )
+        x = np.arange(len(params))
 
+        # plotting the lines
         for t in range(len(df_study)):
             df_temp = df_study.sort_values(by="value").iloc[t]
-            x = np.arange(len(params))
             y = df_temp[params].values
 
             y = y - mins
-            y = y / maxs
+            try:
+                y = y / maxs
+            except ZeroDivisionError:
+                print(f"maxs has value: {maxs}")
+                continue
 
             if df_temp["state"] == "FAIL":
                 ax.plot(x, y, c="red", alpha=0.5)
             elif df_temp["state"] == "RUNNING":
                 pass
             else:
-
                 if df_temp["value"] < 600:
                     ax.plot(x, y, c=cmap(norm(df_temp["value"])), alpha=0.2)
                 else:
                     ax.plot(x, y, c=cmap(norm(df_temp["value"])), alpha=1, zorder=10)
 
+        # plotting the black points at bottom and top in plot
         ax.scatter(x, np.zeros(x.shape), color="black")
         ax.scatter(x, np.ones(x.shape), color="black")
 
-        for i in range(len(x)):
-            if params[i] == "params_activation_fn":
-                ax.text(
-                    x=x[i],
-                    y=-0.01,
-                    s=le_activation.classes_[0],
-                    horizontalalignment="center",
-                    verticalalignment="top",
-                )
-                ax.text(
-                    x=x[i],
-                    y=0.5,
-                    s=le_activation.classes_[1],
-                    horizontalalignment="right",
-                    verticalalignment="top",
-                )
-                ax.text(
-                    x=x[i],
-                    y=1.01,
-                    s=le_activation.classes_[2],
-                    horizontalalignment="center",
-                    verticalalignment="bottom",
-                )
-            elif params[i] == "params_lr_schedule":
-                ax.text(
-                    x=x[i],
-                    y=-0.01,
-                    s="constant",
-                    horizontalalignment="center",
-                    verticalalignment="top",
-                )
-                ax.text(
-                    x=x[i],
-                    y=1.01,
-                    s="linear decrease",
-                    horizontalalignment="center",
-                    verticalalignment="bottom",
+        # plotting the colorbar
+        # Add colorbar, specifying the mappable object and the axes to attach to
+        sm = mpl.cm.ScalarMappable(cmap=cmap, norm=norm)
+        sm.set_array([])  # This line is necessary for the colorbar to appear
+        cbar = fig.colorbar(sm, ax=ax, pad=0.01)
+        cbar.set_label("Reward")
+
+        # plotting the text
+        for param, x_val in zip(params, x):
+            if param == "params_action_noise":
+                noise_cats = [noise.split("Action")[0] for noise in le_noise.classes_]
+                plot_text(x_val, -0.01, noise_cats[0], "center", "top")
+                plot_text(x_val, 0.5, noise_cats[1], "center", "top")
+                plot_text(x_val, 1.01, noise_cats[2], "center", "bottom")
+
+            elif param == "params_activation_fn":
+                plot_text(x_val, -0.01, le_activation.classes_[0], "center", "top")
+                plot_text(x_val, 0.5, le_activation.classes_[1], "right", "top")
+                plot_text(x_val, 1.01, le_activation.classes_[2], "center", "bottom")
+
+            elif param == "params_lr_schedule":
+                plot_text(x_val, -0.01, "constant", "center", "top")
+                plot_text(x_val, 1.01, "lin. decr.", "center", "bottom")
+
+            elif df_study[param].max() < 0.01:
+                plot_text(x_val, -0.01, f"{df_study[param].min():.2E}", "center", "top")
+                plot_text(
+                    x_val, 1.01, f"{df_study[param].max():.2E}", "center", "bottom"
                 )
             else:
-                ax.text(
-                    x=x[i],
-                    y=-0.01,
-                    s=np.round(df_study[params].min().values[i], 4),
-                    horizontalalignment="center",
-                    verticalalignment="top",
-                )
-                ax.text(
-                    x=x[i],
-                    y=1.01,
-                    s=np.round(df_study[params].max().values[i], 4),
-                    horizontalalignment="center",
-                    verticalalignment="bottom",
-                )
+                plot_text(x_val, -0.01, f"{df_study[param].min()}", "center", "top")
+                plot_text(x_val, 1.01, f"{df_study[param].max()}", "center", "bottom")
 
         ax.set_xticks(x)
         ax.set_yticks([0, 1])
-        ax.set_xticklabels([p[7:] for p in params], rotation=45, ha="right")
+        ax.set_xticklabels([p[7:] for p in params], rotation=45, ha="center")
         ax.set_yticklabels([])
+        ax.set_ylim(bottom=-0.1, top=1.1)
         ax.grid()
+        score = df_study["value"].max()
+        plt.title(
+            f'{savepath.split("/")[1].split("_")[0]}. Best reward score: {score: .0f}'
+        )
 
-        plt.tight_layout()
-        if savepath is not None:
-            plt.savefig(savepath)
-        if show is False:
-            plt.close()
+        # plt.tight_layout()
+        plt.savefig(savepath, bbox_inches="tight")
 
     @staticmethod
+    @mpl.rc_context({"lines.linewidth": 1.1})
     def custom_optimization_history_plot(
-        df_study: pd.DataFrame, savepath: str = None, show: bool = True
+        df_study: pd.DataFrame,
+        savepath: str,
+        figure_width=FIGURE_WIDTH,
     ) -> None:
         """custom implementation of the plot_optimization_history() function of
         optuna:
         https://optuna.readthedocs.io/en/stable/reference/visualization/generated/optuna.visualization.plot_optimization_history.html#optuna.visualization.plot_optimization_history
         """
 
-        fig, ax = plt.subplots(figsize=(5, 5))
+        fig, ax = plt.subplots(figsize=(figure_width, figure_width))
 
         ax.scatter(
-            df_study[df_study["state"] == "COMPLETE"]["number"],
-            df_study[df_study["state"] == "COMPLETE"]["value"],
+            df_study.loc[df_study["state"] == "COMPLETE", "number"],
+            df_study.loc[df_study["state"] == "COMPLETE", "value"],
             s=30,
             alpha=0.7,
             color="grey",
@@ -486,39 +542,42 @@ class Plotter:
             label="COMPLETE",
             zorder=10,
         )
-        ax.scatter(
-            df_study[df_study["state"] == "FAIL"]["number"],
-            np.full(len(df_study[df_study["state"] == "FAIL"]), df_study["value"].min()),
-            s=30,
-            alpha=0.7,
-            color="red",
-            edgecolor="black",
-            label="FAIL",
-            zorder=10,
-        )
-        ax.scatter(
-            df_study[df_study["state"] == "RUNNING"]["number"],
-            np.full(
-                len(df_study[df_study["state"] == "RUNNING"]), df_study["value"].min()
-            ),
-            s=30,
-            alpha=0.7,
-            color="white",
-            edgecolor="black",
-            label="RUNNING",
-            zorder=10,
-        )
-        ax.plot(df_study["number"], df_study["value"].ffill().cummax(), color="black")
+        if (df_study["state"] == "FAIL").sum() > 0:
+            ax.scatter(
+                df_study[df_study["state"] == "FAIL"]["number"],
+                np.full(
+                    len(df_study[df_study["state"] == "FAIL"]), df_study["value"].min()
+                ),
+                s=30,
+                alpha=0.7,
+                color="red",
+                edgecolor="black",
+                label="FAIL",
+                zorder=10,
+            )
+        if (df_study["state"] == "RUNNING").sum() > 0:
+            ax.scatter(
+                df_study[df_study["state"] == "RUNNING"]["number"],
+                np.full(
+                    len(df_study[df_study["state"] == "RUNNING"]),
+                    df_study["value"].min(),
+                ),
+                s=30,
+                alpha=0.7,
+                color="white",
+                edgecolor="black",
+                label="RUNNING",
+                zorder=10,
+            )
+        ax.plot(df_study["number"], df_study["value"].ffill().cummax(), color="red")
         ax.grid(alpha=0.5)
         ax.set_xlabel("trial number")
         ax.set_ylabel("reward")
         ax.legend()
 
+        plt.title(savepath.split("/")[1].split("_")[0])
         plt.tight_layout()
-        if savepath is not None:
-            plt.savefig(savepath)
-        if show is False:
-            plt.close()
+        plt.savefig(savepath)
 
     @staticmethod
     def custom_slice_plot(
@@ -574,31 +633,141 @@ class Plotter:
             plt.close()
 
     @staticmethod
-    def custom_intermediate_values_plot(
+    def custom_training_path_plot_algorithms(
+        root_dir: Path,
+        savepath: Path,
+        algorithms: list[tuple],
+        figure_width=FIGURE_WIDTH,
+        choose_num_best_rewards: int | None = None,
+    ):
+        """
+        root_dir = /mnt/P/2022/00/20220043/Calculations/
+        """
+        fig, ax = plt.subplots(figsize=(1 * figure_width, 1 * figure_width))
+
+        # read in dataframe for each algorihtm
+        for alg, alg_path, color in algorithms:
+            max_reward_list_path = Path(root_dir, f"{alg}_maxreward_experiment.csv")
+            df_max_rewards = pd.read_csv(max_reward_list_path).sort_values(
+                "max_reward", ascending=False
+            )
+            df_max_rewards = df_max_rewards[0:choose_num_best_rewards]
+            trials = [
+                Path(root_dir, alg_path, experiment_dir)
+                for experiment_dir in df_max_rewards["experiment_directory"]
+            ]
+
+            # plot the chosen n best runs with differenct colors and labels
+            for trial in track(
+                trials, description=f"Plotting {len(trials)} trials for {alg}"
+            ):
+                df_log = pd.read_csv(trial / "progress.csv")
+                n_strokes = df_log[r"rollout/ep_len_mean"].median()
+                df_log["episodes"] = df_log[r"time/total_timesteps"] / n_strokes
+
+                ax.plot(
+                    df_log["episodes"],
+                    df_log[r"rollout/ep_rew_mean"],
+                    # alpha=0.3,
+                    color=color,
+                )
+            # Add a single label for the algorithm outside the inner loop
+            ax.plot([], [], color=color, label=alg)
+
+        # ax.set_title(agent)
+
+        ax.legend()
+        ax.grid(alpha=0.5)
+        ax.set_xlabel("episodes")
+        ax.set_ylabel("reward")
+        # ax.set_ylim(top=1000, bottom=-1000) # off-policy
+        ax.set_ylim(top=650, bottom=0)  # on-policy
+        # ax.set_xlim(xmin=0, xmax=2000) # off-policy
+        ax.set_xlim(xmin=0, xmax=8000)  # off-policy
+
+        plt.tight_layout()
+        plt.savefig(savepath)
+
+    @staticmethod
+    def custom_training_path_plot_algorithm(
         agent: str,
-        folder: str,
+        root_directory: Path,
+        study_name: str,
         mode: str = "rollout",
         print_thresh: int = None,
         savepath: str = None,
-        show: bool = True,
-        y_low: int = -1000,
-        y_high: int = 1000,
+        figure_width=FIGURE_WIDTH,
+        choose_num_best_rewards: int | None = None,
+        filename_reward_list: Path | None = None,
     ) -> None:
-        """custom implementation of the plot_intermediate_values() function of
-        optuna:
-        https://optuna.readthedocs.io/en/stable/reference/visualization/generated/optuna.visualization.plot_intermediate_values.html#optuna.visualization.plot_intermediate_values        https://optuna.readthedocs.io/en/stable/reference/visualization/generated/optuna.visualization.plot_slice.html#optuna.visualization.plot_slice
+        """Plots the training path for completed and running experiments for a single
+        algorithm.
+
+        Args:
+            agent (str): The name of the agent.
+            root_directory (Path): The root directory containing the experiment data
+            directories.
+            mode (str, optional): The mode to plot ('rollout' or 'eval'). Defaults to
+            'rollout'.
+            print_thresh (int, optional): Threshold for printing evaluation metrics.
+            Defaults to None.
+            savepath (str, optional): The file path to save the plot. Defaults to None.
+            figure_width (int, optional): Width of the plot figure. Defaults to
+            FIGURE_WIDTH.
+            choose_num_best_rewards (int | None, optional): Number of best rewards to
+            consider. Defaults to None.
+            path_reward_list (Path | None, optional): The path to the reward list file.
+            Defaults to None.
+
+        Note:
+            - When choose_num_best_rewards is not None, the function selects the best
+            rewards from the reward list file.
+            - When choose_num_best_rewards is None, the function selects trials of the
+            specified agent type from the root directory.
+
+        Raises:
+            EmptyDataError: If progress.csv is empty or not found for a trial.
+
+        Returns:
+            None
         """
+        study_directory = Path(root_directory, study_name)
+        path_reward_list = Path(root_directory, filename_reward_list)
+        if choose_num_best_rewards is not None:
+            df_max_rewards = pd.read_csv(path_reward_list).sort_values(
+                "max_reward", ascending=False
+            )
+            df_max_rewards = df_max_rewards[0:choose_num_best_rewards]
+            trials = [
+                Path(study_directory, experiment_dir)
+                for experiment_dir in df_max_rewards["experiment_directory"]
+            ]
+        else:
+            # only get trials of one agent type
+            trials = [
+                experiment_dir
+                for experiment_dir in study_directory.iterdir()
+                if agent in experiment_dir.name
+            ]
 
-        # only get trials of one agent type
-        trials = [t for t in listdir(folder) if agent in t]
+        # initialize y-limits
+        y_low = 1000
+        y_high = -1000
 
-        fig, ax = plt.subplots(figsize=(10, 8))
+        fig, ax = plt.subplots(figsize=(2 * figure_width, 1 * figure_width))
 
-        for trial in trials:
+        for trial in track(
+            trials, description=f"Plotting {len(trials)} trials for {agent}"
+        ):
             try:
-                df_log = pd.read_csv(f"{folder}/{trial}/progress.csv")
-                # if df_log[r'eval/mean_reward'].max() > 800:
-                #     print(trial)
+                df_log = pd.read_csv(trial / "progress.csv")
+
+                max_reward = df_log[r"rollout/ep_rew_mean"].max()
+                min_reward = df_log[r"rollout/ep_rew_mean"].min()
+                # automatically adjusts y-scale in plot
+                y_high = max_reward if max_reward > y_high else y_high
+                y_low = min_reward if min_reward < y_low else y_low
+
                 n_strokes = df_log[r"rollout/ep_len_mean"].median()
                 df_log["episodes"] = df_log[r"time/total_timesteps"] / n_strokes
 
@@ -634,10 +803,7 @@ class Plotter:
         ax.set_ylim(top=y_high, bottom=y_low)
 
         plt.tight_layout()
-        if savepath is not None:
-            plt.savefig(savepath)
-        if show is False:
-            plt.close()
+        plt.savefig(savepath)
 
     @staticmethod
     def training_progress_plot(
@@ -654,7 +820,9 @@ class Plotter:
         )
         try:
             ax1.scatter(
-                df_log["episodes"], df_log["eval/mean_reward"], label=r"eval/mean_reward"
+                df_log["episodes"],
+                df_log["eval/mean_reward"],
+                label=r"eval/mean_reward",
             )
         except KeyError:
             pass
@@ -714,7 +882,6 @@ class Plotter:
     def action_analysis_scatter(
         df: pd.DataFrame, savepath: str = None, show: bool = True
     ) -> None:
-
         fig, ax = plt.subplots(figsize=(9, 9))
         divider = make_axes_locatable(ax)
         cax = divider.append_axes("right", size="5%", pad=0.05)

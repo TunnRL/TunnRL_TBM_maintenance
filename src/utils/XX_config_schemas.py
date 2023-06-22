@@ -8,13 +8,11 @@ TODO: add more checks
 
 # from multiprocessing.sharedctypes import Value
 
-from hydra.core.config_store import ConfigStore
-from pydantic import validator
-from pydantic.dataclasses import dataclass
+from pydantic import validator, BaseModel
+from pathlib import Path
 
 
-@dataclass
-class Agent:
+class Agent(BaseModel):
     @validator("NAME")
     def check_name(cls, NAME: str) -> str:
         if NAME not in ["PPO", "A2C", "DDPG", "TD3", "SAC", "PPO-LSTM"]:
@@ -26,10 +24,10 @@ class Agent:
     CHECKPOINT_INTERVAL: int
     MAX_NO_IMPROVEMENT_EVALS: int
     EPISODES: int
+    agent_params: dict
 
 
-@dataclass
-class REWARD:
+class REWARD(BaseModel):
     BROKEN_CUTTERS_THRESH: float
     T_I: float
     ALPHA: float
@@ -40,8 +38,7 @@ class REWARD:
     BEARING_FAILURE_PENALTY: int
 
 
-@dataclass
-class TBM:
+class TBM(BaseModel):
     @validator("CUTTERHEAD_RADIUS")
     def check_radius(cls, CUTTERHEAD_RADIUS: int) -> int:
         if CUTTERHEAD_RADIUS > 15:
@@ -54,8 +51,7 @@ class TBM:
     MAX_STROKES: int
 
 
-@dataclass
-class EXP:
+class EXP(BaseModel):
     @validator("MODE")
     def check_mode(cls, MODE: str) -> str:
         if MODE not in ["optimization", "training", "execution"]:
@@ -71,8 +67,7 @@ class EXP:
     DETERMINISTIC: bool
 
 
-@dataclass
-class OPT:
+class OPT(BaseModel):
     DEFAULT_TRIAL: bool
     MAX_NO_IMPROVEMENT_EVALS: int
     N_SINGLE_RUN_OPTUNA_TRIALS: int
@@ -82,22 +77,31 @@ class OPT:
     N_EVAL_EPISODES_REWARD: int
 
 
-@dataclass
-class TRAIN:
+class TRAIN(BaseModel):
     LOAD_PARAMS_FROM_STUDY: bool
     N_EVAL_EPISODES_TRAINING: int
     N_DUPLICATES: int
 
 
-@dataclass
-class EXECUTE:
+class EXECUTE(BaseModel):
     EXECUTION_MODEL: str
     NUM_TEST_EPISODES: int
     VISUALIZE_STATE_ACTION_PLOT: bool
 
 
-@dataclass
-class Config:
+class PLOT(BaseModel):
+    FIGURE_WIDTH: float
+    DATA_DIR: Path
+    AGENT_NAME: str
+    STUDY_NAME: str
+    PLOTS_TO_MAKE: list[str]
+    VISUALIZATION_MODE: str
+    PRINT_TRESH: None | int
+    CHOOSE_NUM_BEST_REWARDS: None | int
+    MAKE_MAX_REWARD_LIST: bool
+
+
+class Config(BaseModel):
     agent: Agent
     REWARD: REWARD
     TBM: TBM
@@ -105,8 +109,4 @@ class Config:
     OPT: OPT
     TRAIN: TRAIN
     EXECUTE: EXECUTE
-
-
-cs = ConfigStore.instance()
-# name `base_config` is used for matching it with the main.yaml's default section
-cs.store(name="base_config", node=Config)
+    PLOT: PLOT

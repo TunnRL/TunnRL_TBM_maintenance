@@ -1,0 +1,21 @@
+NAME: TD3
+CHECKPOINT_INTERVAL: 50
+MAX_NO_IMPROVEMENT_EVALS: 3
+EPISODES: 2500
+
+agent_params:
+  action_noise: null
+  activation_fn: leaky_relu
+  batch_size: 200
+  gamma: 0.962574243333773
+  gradient_steps: 9
+  learning_rate: 0.00010248212861168939
+  learning_starts: 600
+  lr_schedule: constant
+  n_nodes_layer: 512
+  n_not_shared_layers: 8
+  policy_delay: 10
+  target_noise_clip: 0.34013887158747463
+  target_policy_noise: 0.12332043263104113
+  tau: 0.0017700526604820428
+

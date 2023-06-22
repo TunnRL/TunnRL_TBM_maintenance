@@ -7,7 +7,7 @@ code contributors: Georg H. Erharter, Tom F. Hansen
 
 from typing import Callable, Tuple
 
-import gym
+import gymnasium as gym
 import numpy as np
 import optuna
 import torch.nn as nn
@@ -31,7 +31,8 @@ class Hyperparameters:
         steps_episode: int,
         num_actions: int,
     ) -> Tuple[dict, dict]:
-        """Hyperparameter suggestions for optuna optimization of a chosen RL-architecture.
+        """Hyperparameter suggestions for optuna optimization of a chosen
+        RL-architecture.
 
         Each lookup of algorithm returns a dictionary of parameters for that
         algorithm.
@@ -94,7 +95,8 @@ class Hyperparameters:
             )
             sub_params.update(
                 dict(
-                    n_s_layers=num_shared_layers, n_nodes_s_layers=num_nodes_shared_layer
+                    n_s_layers=num_shared_layers,
+                    n_nodes_s_layers=num_nodes_shared_layer,
                 )
             )
             # prerocessing suggestions to the right input format for SB3 algorithms
@@ -226,7 +228,7 @@ class Hyperparameters:
                     ),
                     tau=trial.suggest_float("tau", low=1e-4, high=1e-1, log=True),
                     gamma=trial.suggest_float("gamma", low=0.0, high=1),
-                    # train_freq=trial.suggest_int('train_freq', low=1, high=10, step=1),
+                    # train_freq=trial.suggest_int('train_freq', low=1, high=10, step=1)
                     gradient_steps=trial.suggest_int(
                         "gradient_steps", low=1, high=10, step=1
                     ),
@@ -247,7 +249,8 @@ class Hyperparameters:
                 params = dict(policy="MlpLstmPolicy", env=environment)
             case _:
                 raise ValueError(
-                    f"{algorithm} is not implemented. These algorithms are implemented: PPO, DDPG, TD3, A2C, SAC",
+                    f"{algorithm} is not implemented. These algorithms are implemented:\
+                          PPO, DDPG, TD3, A2C, SAC",
                     "PPO-LSTM",
                 )
 
@@ -279,7 +282,8 @@ class Hyperparameters:
         More info about architecure here: https://github.com/DLR-RM/stable-baselines3/blob/646d6d38b6ba9aac612d4431176493a465ac4758/stable_baselines3/common/policies.py#L379
         And here: https://github.com/DLR-RM/stable-baselines3/blob/646d6d38b6ba9aac612d4431176493a465ac4758/stable_baselines3/common/torch_layers.py#L136
 
-        # TODO in some of the SB3 examples the actor and the critic have different sizes -> should we also do that?
+        # TODO in some of the SB3 examples the actor and the critic have different sizes
+         -> should we also do that?
 
         Returns:
             List | dict: network description. List for on-policy, dict for off-policy
@@ -315,7 +319,8 @@ class Hyperparameters:
         connected layer output.
 
         Args:
-            activation_fn_name (str): name of Pytorch activation function, eg. tanh, relu
+            activation_fn_name (str): name of Pytorch activation function, eg. tanh,
+            relu
 
         Returns:
             nn.Module: Pytorch activation function
@@ -463,7 +468,8 @@ class Hyperparameters:
                 lr_spec = self._linear_schedule(lr_rate)
             else:
                 raise ValueError(
-                    f"{split_res[0]} is not a valid lr scheduler term. Valid terms: lin,"
+                    f"{split_res[0]} is not a valid lr scheduler term. Valid terms: \
+                        lin,"
                 )
 
         else:
