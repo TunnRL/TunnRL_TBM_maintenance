@@ -18,6 +18,7 @@ from itertools import chain
 import matplotlib
 import matplotlib.cm as mplcm
 import matplotlib.gridspec as gridspec
+from matplotlib.lines import Line2D
 import matplotlib.pyplot as plt
 from mpl_toolkits.axes_grid1 import make_axes_locatable
 import numpy as np
@@ -155,11 +156,13 @@ class Plotter:
                           show: bool = True) -> None:
         '''plot that shows combinations of states and actions for the first
         n_strokes of an episode'''
-        fig = plt.figure(figsize=(20, 9))
+        fig = plt.figure(figsize=(16, 8))
 
-        ax = fig.add_subplot(311)
-        ax.imshow(np.vstack(states[:n_strokes]).T, aspect='auto',
-                  interpolation='none', vmin=0, vmax=1, cmap='cividis')
+        ax = fig.add_subplot(211)
+
+        cax = fig.add_axes([0.95, 0.535, 0.01, 0.445])
+        im = ax.imshow(np.vstack(states[:n_strokes]).T, aspect='auto',
+                       interpolation='none', vmin=0, vmax=1, cmap='cividis')
         ax.set_yticks(np.arange(-.5, n_c_tot), minor=True)
         ax.set_xticks(np.arange(-.5, n_strokes), minor=True)
         ax.set_xticks(np.arange(n_strokes), minor=False)
@@ -171,7 +174,10 @@ class Plotter:
         ax.set_ylim(bottom=-0.5, top=n_c_tot - 0.5)
         ax.set_ylabel('cutter states on\ncutter positions')
 
-        ax = fig.add_subplot(312)
+        cbar = fig.colorbar(im, cax=cax, orientation='vertical')
+        cbar.set_label('cutter life')
+
+        ax = fig.add_subplot(212)
         for stroke in range(n_strokes):
 
             for i in range(n_c_tot):
@@ -183,37 +189,53 @@ class Plotter:
                 elif np.argmax(cutter) == i:
                     # cutter is replaced
                     ax.scatter(stroke, i, edgecolor='black', color='black',
-                               zorder=50)
+                               zorder=50, s=60)
                 else:
                     # cutter is moved from original position to somewhere else
                     # original position of old cutter that is replaced
-                    ax.scatter(stroke, i, edgecolor=f'C{i}', color='black',
-                               zorder=20)
+                    ax.scatter(stroke, i, edgecolor=f'C{i}', color='white',
+                               zorder=20, s=60)
                     # new position where old cutter is moved to
                     ax.scatter(stroke, np.argmax(cutter), edgecolor=f'C{i}',
-                               color=f'C{i}', zorder=20)
+                               color=f'C{i}', zorder=20, s=60)
                     # arrow / line that connects old and new positions
                     ax.arrow(x=stroke, y=i,
                              dx=0, dy=-(i-np.argmax(cutter)), color=f'C{i}',
                              zorder=10)
         ax.set_yticks(np.arange(n_c_tot), minor=True)
-        ax.set_xticks(np.arange(n_strokes), minor=False)
-        ax.tick_params(axis='x', which='minor', color='white')
-        ax.tick_params(axis='x', which='major', length=10, color='lightgrey')
-        ax.set_xticklabels([])
-        ax.set_xlim(left=-1, right=n_strokes)
-        ax.grid(zorder=0, which='both', color='grey')
-        ax.set_ylabel('actions on\ncutter positions')
-
-        ax = fig.add_subplot(313)
-        ax.scatter(x=np.arange(n_strokes), y=rewards[:n_strokes],
-                   color='grey')
         ax.set_xticks(np.arange(n_strokes), minor=True)
+        ax.tick_params(axis='x', which='minor', color='white')
+        ax.set_xlim(left=-1, right=n_strokes)
+        ax.grid(zorder=0, which='both', color='grey', alpha=0.5)
+        ax.set_ylabel('actions on\ncutter positions')
+        ax.set_xlabel('strokes')
+
+        ax = ax.twinx()
+        ax.plot(np.arange(n_strokes), rewards[:n_strokes], color='black',
+                lw=3, alpha=0.6)
+        ax.tick_params(axis='x', which='major', length=0, color='white')
         ax.set_xlim(left=-1, right=n_strokes)
         ax.set_ylim(bottom=-1.05, top=1.05)
-        ax.grid(zorder=0, which='both', color='grey')
         ax.set_ylabel('reward per stroke')
-        ax.set_xlabel('strokes')
+
+        legend_elements = [Line2D([0], [0], marker='o', color='w',
+                                  label='replaced cutter',
+                                  markerfacecolor='black',
+                                  markeredgecolor='black',
+                                  markersize=10),
+                           Line2D([0], [0], marker='o', color='w',
+                                  label='moved cutter - original position',
+                                  markerfacecolor='white',
+                                  markeredgecolor='C1',
+                                  markersize=10),
+                           Line2D([0], [0], marker='o', color='w',
+                                  label='moved cutter - new position',
+                                  markerfacecolor='C1',
+                                  markeredgecolor='C1',
+                                  markersize=10),
+                           Line2D([0], [0], color='black', lw=3,
+                                  alpha=0.6, label='reward')]
+        ax.legend(handles=legend_elements, loc='lower left')
 
         plt.tight_layout(h_pad=0)
         self.plot_finisher(savepath=savepath, filetypes=filetypes, show=show)

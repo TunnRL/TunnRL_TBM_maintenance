@@ -57,7 +57,7 @@ BEARING_FAILURE_PENALTY = 0
 # MODE determines if either an optimization should run = "optimization", or a
 # new agent is trained with prev. optimized parameters = "training", or an
 # already trained agent is executed = "execution"
-MODE = "optimization"  # 'optimization', 'training', 'execution'
+MODE = "execution"  # 'optimization', 'training', 'execution'
 # set to run SB3 environment check function
 # Checks if env is a suitable gym environment
 CHECK_ENV = False
@@ -80,7 +80,7 @@ LOG_MLFLOW = True
 DEFAULT_TRIAL = False  # first run a trial with default parameters.
 MAX_NO_IMPROVEMENT = 1  # maximum number of evaluations without improvement
 # n optuna trials to run in total (including eventual default trial)
-N_SINGLE_RUN_OPTUNA_TRIALS = 11
+N_SINGLE_RUN_OPTUNA_TRIALS = 3
 # NOTE: memory can be an issue for many parallell processes. Size of neural
 # network and available memory will be limiting factors
 N_CORES_PARALLELL = 6
@@ -96,8 +96,8 @@ LOAD_PARAMS_FROM_STUDY = False
 ######################
 EXECUTION_DIRECTORY = 'P:/2022/00/20220043/Calculations/TD3_2022_09_27_study'  # 'optimization' 'P:/2022/00/20220043/Calculations/TD3_2022_09_27_study'
 EXECUTION_MODEL = "TD3_f0d5fbc9-b2e2-49da-9fac-45abc8625f1e"
-NUM_TEST_EPISODES = 30
-VISUALIZE_EPISODES = False  # if the episodes should be visualized or not
+NUM_TEST_EPISODES = 5
+VISUALIZE_EPISODES = True  # if the episodes should be visualized or not
 REDUCER = 'TSNE'  # algorithm for dimensionality reduction: 'TSNE' or 'UMAP'
 
 ###############################################################################
@@ -267,20 +267,20 @@ elif MODE == 'execution':
         all_moved_cutters.append([len(c) for c in moved_cutters])
 
         if VISUALIZE_EPISODES is True:
-            plotter.state_action_plot(states, actions, n_strokes=300,
-                                      rewards=rewards, n_c_tot=n_c_tot,
-                                      show=False,
-                                      filetypes=['.svg', '.png', '.pdf'],
-                                      savepath=f'results/_execution/{EXECUTION_MODEL}{test_ep_num}_state_action')
-            plotter.environment_parameter_plot(test_ep_num, env, show=False,
-                                               filetypes=['.svg', '.png', '.pdf'],
-                                               savepath=f'results/_execution/{EXECUTION_MODEL}{test_ep_num}_episode')
-            plotter.sample_ep_plot(states, actions, rewards,
-                                   replaced_cutters=replaced_cutters,
-                                   moved_cutters=moved_cutters,
-                                   n_cutters=n_c_tot, show=False,
-                                   filetypes=['.svg', '.png', '.pdf'],
-                                   savepath=f'results/_execution/{EXECUTION_MODEL}{test_ep_num}_sample')
+            plotter.state_action_plot(
+                states, actions, n_strokes=300, rewards=rewards,
+                n_c_tot=n_c_tot, show=False,
+                filetypes=['.svg', '.png', '.pdf'],
+                savepath=f'results/_execution/{EXECUTION_MODEL}{test_ep_num}_state_action')
+            plotter.environment_parameter_plot(
+                test_ep_num, env, show=False,
+                filetypes=['.svg', '.png', '.pdf'],
+                savepath=f'results/_execution/{EXECUTION_MODEL}{test_ep_num}_episode')
+            plotter.sample_ep_plot(
+                states, actions, rewards, replaced_cutters=replaced_cutters,
+                moved_cutters=moved_cutters, n_cutters=n_c_tot, show=False,
+                filetypes=['.svg', '.png', '.pdf'],
+                savepath=f'results/_execution/{EXECUTION_MODEL}{test_ep_num}_sample')
 
     df_reduced = ea.dimensionality_reduction(all_actions,
                                              all_states,
