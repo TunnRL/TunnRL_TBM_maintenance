@@ -8,8 +8,9 @@ TODO: add more checks
 
 # from multiprocessing.sharedctypes import Value
 
-from pydantic import validator, BaseModel
 from pathlib import Path
+
+from pydantic import BaseModel, validator
 
 
 class Agent(BaseModel):
@@ -65,6 +66,8 @@ class EXP(BaseModel):
     EPISODES: int
     PLOT_PROGRESS: bool
     DETERMINISTIC: bool
+    SEED_ALGORITHM: int | None
+    SEED_ALL: int | None
 
 
 class OPT(BaseModel):

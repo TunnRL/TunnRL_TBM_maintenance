@@ -10,7 +10,6 @@ Main code that either runs one of:
 
 Created on Sat Oct 30 12:46:42 2021
 code contributors: Georg H. Erharter, Tom F. Hansen
-
 """
 
 import warnings
@@ -26,17 +25,13 @@ from omegaconf import DictConfig, OmegaConf
 from rich.console import Console
 from rich.traceback import install
 from stable_baselines3.common.env_checker import check_env
-from utils.XX_experiment_factory import (
-    ExperimentAnalysis,
-    Optimization,
-    load_best_model,
-)
+
+from utils.XX_experiment_factory import (ExperimentAnalysis, Optimization,
+                                         load_best_model)
 from utils.XX_general import parse_validate_hydra_config
 from utils.XX_hyperparams import Hyperparameters
 from utils.XX_plotting import Plotter
 from utils.XX_TBM_environment import CustomEnv, Reward
-
-install()  # better traceback messages
 
 
 def run_optimization(
@@ -266,6 +261,7 @@ def run_execution(
 
 @hydra.main(config_path="config", config_name="main.yaml", version_base="1.3.2")
 def main(cfgs: DictConfig) -> None:
+    install()  # better traceback messages
     ###############################################################################
     # SETUP DIRECTORY STRUCTURE
     ###############################################################################
@@ -325,6 +321,26 @@ def main(cfgs: DictConfig) -> None:
             cfg.agent.NAME == (cfg.EXP.STUDY).split("_")[0]
         ), "Agent name and study name must be similar"
 
+    agent_name = cfg.EXP.STUDY.split("_")[0]
+    assert agent_name in [
+        "PPO",
+        "A2C",
+        "DDPG",
+        "SAC",
+        "TD3",
+        "PPO-LSTM",
+    ], f"{agent_name} is not a valid agent."
+
+    if (
+        cfg.EXP.MODE == "execute"
+        and cfg.EXP.DETERMINISTIC
+        and agent_name in ["PPO", "A2C"]
+    ):
+        warnings.warn(
+            "Deterministic should be true for running predictions with PPO and A2C. \
+                Ref: https://stable-baselines3.readthedocs.io/en/master/guide/rl_tips.html"
+        )
+
     ###############################################################################
     # COMPUTED/DERIVED VARIABLES AND INSTANTIATIONS
     # - Defines the reward function
@@ -358,16 +374,6 @@ def main(cfgs: DictConfig) -> None:
     )
     if cfg.EXP.CHECK_ENV:
         check_env(env)
-
-    agent_name = cfg.EXP.STUDY.split("_")[0]
-    assert agent_name in [
-        "PPO",
-        "A2C",
-        "DDPG",
-        "SAC",
-        "TD3",
-        "PPO-LSTM",
-    ], f"{agent_name} is not a valid agent."
 
     callbacks_cfg = dict(
         MAX_STROKES=cfg.TBM.MAX_STROKES,

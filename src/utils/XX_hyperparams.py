@@ -12,10 +12,8 @@ import numpy as np
 import optuna
 import torch.nn as nn
 from numpy.typing import NDArray
-from stable_baselines3.common.noise import (
-    NormalActionNoise,
-    OrnsteinUhlenbeckActionNoise,
-)
+from stable_baselines3.common.noise import (NormalActionNoise,
+                                            OrnsteinUhlenbeckActionNoise)
 
 
 class Hyperparameters:
@@ -30,6 +28,7 @@ class Hyperparameters:
         environment: gym.Env,
         steps_episode: int,
         num_actions: int,
+        algorithm_seed: int | None,
     ) -> Tuple[dict, dict]:
         """Hyperparameter suggestions for optuna optimization of a chosen
         RL-architecture.
@@ -46,6 +45,7 @@ class Hyperparameters:
             environment (gym.Env): RL environment
             steps_episode (int): number of steps (TBM strokes) in each episode
             num_actions (int): number of actions, ie. replacing and moving cutters
+            algorithm_seed (int | None): setting seed in model training
 
         Raises:
             ValueError: not implemented RL algorithm
@@ -128,8 +128,11 @@ class Hyperparameters:
                     policy="MlpPolicy",
                     env=environment,
                     n_steps=steps_episode,
-                    batch_size=50,
-                    n_epochs=10,
+                    batch_size=trial.suggest_categorical(
+                        "batch_size", [32, 64, 128, 256]
+                    ),
+                    n_epochs=trial.suggest_categorical("n_epochs", [5, 10, 20]),
+                    ortho_init=False,  # ref: https://rl-baselines3-zoo.readthedocs.io/en/master/guide/tuning.html
                     gamma=trial.suggest_float("gamma", low=0.05, high=1),
                     gae_lambda=trial.suggest_float("gae_lambda", low=0.5, high=1),
                     clip_range=trial.suggest_float("clip_range", low=0.05, high=0.8),
@@ -140,7 +143,13 @@ class Hyperparameters:
                     max_grad_norm=trial.suggest_float(
                         "max_grad_norm", low=0.05, high=0.7
                     ),
+                    # set to True for discrete action space
                     use_sde=False,
+                    # comment out the following 2 parameters for a discrete action space
+                    log_std_init=trial.suggest_uniform("log_std_init", -4, 1),
+                    sde_sample_freq=trial.suggest_categorical(
+                        "sde_sample_freq", [-1, 8, 16, 32, 64, 128, 256]
+                    ),
                     verbose=0,
                     policy_kwargs=dict(
                         net_arch=network_architecture, activation_fn=activation_fn
@@ -160,6 +169,8 @@ class Hyperparameters:
                     rms_prop_eps=trial.suggest_float(
                         "rms_prop_eps", low=1e-6, high=1e-3, log=True
                     ),
+                    # comment out for a discrete action space
+                    log_std_init=trial.suggest_uniform("log_std_init", -4, 1),
                     verbose=0,
                     policy_kwargs=dict(
                         net_arch=network_architecture, activation_fn=activation_fn
@@ -170,8 +181,8 @@ class Hyperparameters:
                     policy="MlpPolicy",
                     env=environment,
                     learning_rate=learning_rate,
-                    batch_size=trial.suggest_int(
-                        "batch_size", low=50, high=300, step=50
+                    batch_size=trial.suggest_categorical(
+                        "batch_size", [16, 32, 64, 100, 128, 256, 512, 1024, 2048]
                     ),
                     learning_starts=trial.suggest_int(
                         "learning_starts", low=50, high=1000, step=50
@@ -223,15 +234,21 @@ class Hyperparameters:
                     learning_starts=trial.suggest_int(
                         "learning_starts", low=50, high=1000, step=50
                     ),
-                    batch_size=trial.suggest_int(
-                        "batch_size", low=50, high=300, step=50
+                    batch_size=trial.suggest_categorical(
+                        "batch_size", [16, 32, 64, 100, 128, 256, 512, 1024, 2048]
+                    ),
+                    buffer_size=trial.suggest_categorical(
+                        "buffer_size", [int(1e4), int(1e5), int(1e6)]
                     ),
                     tau=trial.suggest_float("tau", low=1e-4, high=1e-1, log=True),
                     gamma=trial.suggest_float("gamma", low=0.0, high=1),
-                    # train_freq=trial.suggest_int('train_freq', low=1, high=10, step=1)
-                    gradient_steps=trial.suggest_int(
-                        "gradient_steps", low=1, high=10, step=1
-                    ),
+                    train_freq=trial.suggest_int("train_freq", low=1, high=10, step=1),
+                    gradient_steps=trial[
+                        "train_freq"
+                    ],  # https://rl-baselines3-zoo.readthedocs.io/en/master/guide/tuning.html
+                    # gradient_steps=trial.suggest_int(
+                    #     "gradient_steps", low=1, high=10, step=1
+                    # ),
                     action_noise=action_noise,
                     policy_delay=trial.suggest_int(
                         "policy_delay", low=1, high=10, step=1
@@ -253,6 +270,8 @@ class Hyperparameters:
                           PPO, DDPG, TD3, A2C, SAC",
                     "PPO-LSTM",
                 )
+
+        params.update(seed=algorithm_seed)
 
         return params, sub_params
 

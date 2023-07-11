@@ -5,5 +5,15 @@ EPISODES: 12_000
 
 agent_params:
   policy: MlpPolicy
-  batch_size: 64
+  batch_size: 300
   n_epochs: 10
+  action_noise: null
+  activation_fn: relu
+  gamma: 0.3406945548935365
+  gradient_steps: 4
+  learning_rate: 0.00018415691909201153
+  learning_starts: 450
+  lr_schedule: linear_decrease
+  n_nodes_layer: 128
+  n_not_shared_layers: 7
+  tau: 0.0018878564339125106

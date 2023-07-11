@@ -51,7 +51,11 @@ EXP:
   CHECKPOINT_INTERVAL: ${agent.CHECKPOINT_INTERVAL} # different for each agent
   EPISODES: ${agent.EPISODES} # max episodes to train for
   PLOT_PROGRESS: True # wether to make progress plots during training or not. Plotting takes time
-  DETERMINISTIC: False # fixed environment used in evaluation or not
+  # deterministic or stocastic actions in evaluate_policy. SB3 tutorials use True
+  # deterministic is also used to set this in execute for PPO and A2C. Ref: https://stable-baselines3.readthedocs.io/en/master/guide/rl_tips.html
+  DETERMINISTIC: True
+  SEED_ALGORITHM: 42 # 42 or null - set seed as input to SB3 algorithm
+  SEED_ALL: 42 # 42 or null - set seed using general np.seed torch.seed etc.
 
 # OPTIMIZATION SPECIAL SETUP
 ######################
@@ -64,7 +68,7 @@ OPT:
   # available memory will be limiting factors
   N_CORES_PARALLELL: 1
   N_PARALLELL_PROCESSES: 1
-  N_EVAL_EPISODES_OPTIMIZATION: 3 # n eval episodes in stop training cb
+  N_EVAL_EPISODES_OPTIMIZATION: 5 # n eval episodes in stop training cb. SB3 recommend 5-20
   N_EVAL_EPISODES_REWARD: 10 # n eval episodes for computing mean reward in end of training of one episode
 
 # TRAINING SPECIAL SETUP

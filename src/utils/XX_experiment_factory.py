@@ -8,6 +8,7 @@ Custom library that contains functionality for:
 - Training an agent
 - Callbacks used in training process
 - some utility functionality (loading trained agents etc.)
+- logging to mlflow
 
 code contributors: Georg H. Erharter, Tom F. Hansen
 """
@@ -34,13 +35,10 @@ from stable_baselines3 import A2C, DDPG, PPO, SAC, TD3
 from stable_baselines3.common import logger
 from stable_baselines3.common.base_class import BaseAlgorithm
 from stable_baselines3.common.callbacks import (
-    BaseCallback,
-    CallbackList,
-    CheckpointCallback,
-    EvalCallback,
-    StopTrainingOnNoModelImprovement,
-)
+    BaseCallback, CallbackList, CheckpointCallback, EvalCallback,
+    StopTrainingOnNoModelImprovement)
 from stable_baselines3.common.evaluation import evaluate_policy
+from stable_baselines3.common.utils import set_random_seed
 
 from utils.XX_hyperparams import Hyperparameters
 from utils.XX_plotting import Plotter
@@ -76,6 +74,8 @@ class Optimization:
     MAX_STROKES: int
     DEFAULT_TRIAL: bool
     cb_cfg: dict
+    seed_algorithm: int | None = None
+    seed_all: int | None = None
 
     def __post_init__(self) -> None:
         """Function is called automatically after initializing the object."""
@@ -87,6 +87,7 @@ class Optimization:
         )
         self.hparams = Hyperparameters()
         self.agent_dir: str = ""
+        set_random_seed(self.seed_all)
 
     def objective(self, trial: optuna.trial.Trial) -> float | list[float]:
         """Objective function that drives the optimization of parameter values
@@ -105,6 +106,7 @@ class Optimization:
                 self.environment,
                 steps_episode=self.MAX_STROKES,
                 num_actions=self.n_actions,
+                algorithm_seed=self.seed_algorithm,
             )
 
         agent = self._setup_agent(self.AGENT_NAME, parameters)

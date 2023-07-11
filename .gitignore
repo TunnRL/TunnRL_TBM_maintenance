@@ -21,6 +21,7 @@ tmp/
 .pytest_cache
 .vscode
 test.csv
+src/X_test.py
 
 # some dev tools
 #.flake8

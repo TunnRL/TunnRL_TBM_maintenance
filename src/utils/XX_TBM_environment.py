@@ -167,7 +167,7 @@ class Reward:
         return reward
 
 
-# TODO: use this instead if this works similar as the original one. Is coded in a better
+# TODO:use this instead if this works similar as the original one. Is coded in a better
 # way than the original
 @dataclass
 class Reward3:
@@ -248,8 +248,8 @@ class Reward3:
             reward = self.BEARING_FAILURE_PENALTY
         # If no cutters are acted on. This will give the highest reward. We want to
         # promote that behaviour since the agent is a bit over-active
-        # TODO: consider adding a weight factor on this term to let the agent behove
-        # more the way we want. Then we also can tune
+        # TODO: consider adding a weight factor on this term to let the agent behave
+        # more the way we want. Then we also can tune it
         elif len(acted_on_cutters) == 0:
             reward = n_good_cutters / self.n_c_tot
         # Standard.Compute reward based on various factors related to maintenance effort
@@ -258,7 +258,7 @@ class Reward3:
             ratio2 = self._compute_replacement_penalty(replaced_cutters)
             ratio3 = self._compute_movement_penalty(moved_cutters)
             ratio4 = self._compute_distance_penalty(dist_cutters)
-            change_penalty = self.T_I * self.DELTA
+            change_penalty = self.T_I * self.DELTA  # enter face penalty
             reward = ratio1 - ratio2 - ratio3 - ratio4 - change_penalty
 
         return reward
@@ -298,6 +298,22 @@ class Reward3:
 class CustomEnv(gym.Env):
     """Implementation of the custom environment that simulates the cutter wear
     and provides the agent with a state and reward signal.
+
+    The following functions are mandatory from gym:
+    - step
+    - reset
+    - close
+    - render
+
+    A learning process for one episode - containing MAX_STROKES num steps follow this:
+    - reset() # automatically called when a terminal state is reached
+    - step()
+    - render()
+    - close()
+
+    And the following variables:
+    - action_space
+    - observation_space
     """
 
     def __init__(
@@ -326,7 +342,7 @@ class CustomEnv(gym.Env):
 
         self.n_c_tot = n_c_tot
         self.LIFE = LIFE
-        self.MAX_STROKES = MAX_STROKES
+        self.MAX_STROKES: int = MAX_STROKES
         self.STROKE_LENGTH = STROKE_LENGTH
         self.cutter_pathlenghts = cutter_pathlenghts
         self.R = CUTTERHEAD_RADIUS
@@ -334,13 +350,18 @@ class CustomEnv(gym.Env):
 
         # state variables assigned in class methods:
         self.state: NDArray
-        self.epoch: int
+        self.epoch: int  # is actually the number of steps taken
         self.replaced_cutters: list
         self.moved_cutters: list
         self.good_cutters: NDArray
         self.inwards_moved_cutters: list
         self.wrong_moved_cutters: list
         self.penetration: NDArray
+        self.brokens: NDArray
+        self.FPIblocky_s: NDArray
+        self.TF_s: NDArray
+        self.Jv_s: NDArray
+        self.UCS_s: NDArray
 
     def step(self, actions: NDArray) -> tuple[NDArray, float, bool, dict]:
         """Main function that moves the environment one step further.
@@ -350,7 +371,7 @@ class CustomEnv(gym.Env):
         # replace cutters based on action of agent
         self.state = self._implement_action(actions, self.state)
 
-        # compute reward
+        # compute inputs to reward
         self.broken_cutters = np.where(self.state == 0)[0]  # for statistics
         self.good_cutters = np.where(self.state > 0)[0]
         n_good_cutters = len(self.good_cutters)
@@ -370,6 +391,7 @@ class CustomEnv(gym.Env):
         else:
             damaged_bearing = False
 
+        # compute reward
         reward = self.reward_fn(
             self.replaced_cutters, self.moved_cutters, n_good_cutters, damaged_bearing
         )
@@ -391,8 +413,15 @@ class CustomEnv(gym.Env):
 
         return self.state, reward, terminal, {}
 
-    def _implement_action(self, action: NDArray, state_before: NDArray) -> NDArray:
+    def _implement_action(
+        self,
+        action: NDArray,
+        state_before: NDArray,
+    ) -> NDArray:
         """Function that interprets the "raw action" and modifies the state.
+        Ex: An action vector for a cutterhead with 40 cutters would have length 1600.
+        Every 40 values would be dedicated to each cutter.
+
         TODO: this is the function which takes longest time to run. Look for
         improvements.
         """
@@ -402,8 +431,9 @@ class CustomEnv(gym.Env):
         self.wrong_moved_cutters = []
         # iterate through cutters starting from outside
         for i in np.arange(self.n_c_tot)[::-1]:
+            # cutter is a vector of length n_c_tot, ie. 41 for 41 cutters
             cutter = action[i * self.n_c_tot : i * self.n_c_tot + self.n_c_tot]
-            if np.max(cutter) < 0.9:  # TODO: explain this value
+            if np.max(cutter) < 0.9:  # TODO: explain this value, magic number?
                 # cutter is not acted on
                 pass
             elif np.argmax(cutter) == i:
@@ -422,7 +452,9 @@ class CustomEnv(gym.Env):
         return state_new
 
     def _rand_walk_with_bounds(self, n_dp: int) -> NDArray:
-        """function generates a random walk within the limits 0 and 1"""
+        """function generates a random walk within the limits 0 and 1.
+        Returns a numpuy array of size episode length in steps, given by n_dp
+        """
         bounds = 0.05
 
         x = [np.random.uniform(low=0, high=1, size=1)]
@@ -443,22 +475,30 @@ class CustomEnv(gym.Env):
         UCS_center: int = 80,
         UCS_range: int = 30,
     ) -> tuple:
-        """Function generates TBM recordings for one episode. Equations and
-        models based on Delisio & Zhao (2014) - "A new model for TBM
+        """Function generates TBM recordings for one episode of a length given by
+        MAX_STROKES.
+        Equations and models based on Delisio & Zhao (2014) - "A new model for TBM
         performance prediction in blocky rock conditions",
-        http://dx.doi.org/10.1016/j.tust.2014.06.004"""
+        http://dx.doi.org/10.1016/j.tust.2014.06.004
 
-        Jv_s = (
+        Jv_s, UCS_s, FPIblocky_s are all 1-D NDArray of floats with length
+        given by MAX_STROKES, ie. the episode length in steps.
+
+        brokens are 2-D array with num rows of episode length and num columns of
+        number of cutters for the machine.
+        """
+
+        Jv_s: NDArray = (
             self._rand_walk_with_bounds(self.MAX_STROKES) * (Jv_high - Jv_low) + Jv_low
         )  # [joints / m3]
-        UCS_s = (
+        UCS_s: NDArray = (
             UCS_center + self._rand_walk_with_bounds(self.MAX_STROKES) * UCS_range
         )  # [MPa]
 
         # eq 9, Delisio & Zhao (2014) - [kN/m/mm/rot]
-        FPIblocky_s = np.squeeze(np.exp(6) * Jv_s**-0.82 * UCS_s**0.17)
+        FPIblocky_s: NDArray = np.squeeze(np.exp(6) * Jv_s**-0.82 * UCS_s**0.17)
 
-        brokens = np.zeros(shape=(self.MAX_STROKES, self.n_c_tot))
+        brokens: NDArray = np.zeros(shape=(self.MAX_STROKES, self.n_c_tot))
 
         for stroke in range(self.MAX_STROKES):
             # based on FPI-blocky, cutters have different likelyhoods to break
@@ -504,7 +544,7 @@ class CustomEnv(gym.Env):
     def reset(self) -> NDArray:
         """reset an environment to its initial state"""
         self.state = np.full((self.n_c_tot), 1)  # start with new cutters
-        self.epoch = 0  # reset epoch counter
+        self.epoch = 0  # reset epoch counter (actually a step counter)
         # generate new TBM data for episode
         (
             self.Jv_s,

@@ -75,13 +75,14 @@ API from Open AI gym (more correct the package `gymnasium` which is a fork of gy
 
 The basic principles for training an agent follow these steps (functionality included in scripts):
 
-1. Instantiate the environment: `env = CustomEnv(...)`. This lays out the state of the
+1. Instantiate the reward function: `reward_fn = Reward(...)`
+2. Instantiate the environment: `env = CustomEnv(...)`. This lays out the state of the
 cutters defined in a state vector of cutter life for all cutters, initially assigned with a max life of 1. Another vector defines the penetration value for all steps in the episode.
-2. Instantiate the agent with: `agent = PPO(...)` (a number of different agents are defined)
-3. Instantiate callbacks with: `callback = CallbackList([eval_cb, custom_callback]`.
+3. Instantiate the agent with: `agent = PPO(...)` (a number of different agents are defined)
+4. Instantiate callbacks with: `callback = CallbackList([eval_cb, custom_callback]`.
 Callbacks are not a part of the actual training process but provides functionality for
 logging metrics, early stopping etc.
-4. Train the agent by looping over episodes, thereby making new actions and changin the state, each time with a new version of the
+5. Train the agent by looping over episodes, thereby making new actions and changing the state, each time with a new version of the
 environment. This functionality is wrapped into the learn function in Stable Baselines3.
 `agent.learn(total_timesteps=self.EPISODES * self.MAX_STROKES, callback=callback)`.
 
