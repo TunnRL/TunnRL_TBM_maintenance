@@ -373,6 +373,7 @@ if __name__ == "__main__":
     r3_s = []
     r4_s = []
     r5_s = []
+    r6_s = []
 
     for n_good_cutters in range(int(n_c_tot*BROKEN_CUTTERS_THRESH)-3,
                                 n_c_tot+1):
@@ -395,22 +396,27 @@ if __name__ == "__main__":
                                  moved_cutters=list(range(20, 30)),
                                  good_cutters=n_good_cutters,
                                  damaged_bearing=False))
+        r6_s.append(env.m.reward(replaced_cutters=list(range(10)),
+                                 moved_cutters=list(range(15, n_c_tot)),
+                                 good_cutters=n_good_cutters,
+                                 damaged_bearing=False))
 
     fig, ax = plt.subplots(figsize=(4, 4))
     ax.plot(x, r1_s)
-    ax.text(40, 1, '1')
     ax.plot(x, r2_s)
-    ax.text(40, 0.83, '2')
     ax.plot(x, r3_s)
-    ax.text(40, 0.67, '3')
     ax.plot(x, r4_s)
-    ax.text(40, 0.46, '4')
     ax.plot(x, r5_s)
-    ax.text(40, 0.02, '5')
+    ax.plot(x, r6_s)
+    ax.text(40, 1, '1')
+    ax.text(40, 0.83, '2')
+    ax.text(40, 0.67, '3')
+    ax.text(40, 0.47, '4')
+    ax.text(40, 0.27, '5')
+    ax.text(40, 0.02, '6')
     ax.axvline(n_c_tot*BROKEN_CUTTERS_THRESH, ls='--', color='black')
     ax.grid(alpha=0.5)
     ax.set_xlabel('number of functional cutters')
     ax.set_ylabel('reward per stroke')
     plt.tight_layout()
-    plt.savefig('results/paper_reward_examples.svg', dpi=600)
-
+    plt.savefig('results/paper_reward_examples.png', dpi=2400)
