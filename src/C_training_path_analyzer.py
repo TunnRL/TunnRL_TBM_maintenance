@@ -7,45 +7,12 @@ Created on Tue Jul 26 13:32:03 2022
 from pathlib import Path
 
 import hydra
-import pandas as pd
 from omegaconf import DictConfig
 from rich.console import Console
-from rich.progress import track
 from rich.traceback import install
 
-from utils.XX_general import parse_validate_hydra_config
+from utils.XX_general import make_max_reward_list, parse_validate_hydra_config
 from utils.XX_plotting import Plotter
-
-
-def make_max_reward_list(root_directory: str, experiments_dir: str = None) -> None:
-    """Find max reward value in each experiment and output a csv file with name of
-    experiment directory and max reward value"""
-    root_path = Path(root_directory, experiments_dir)
-    filename = root_path.name.split("_")[0]
-    output_path = Path(root_path.parent, f"{filename}_maxreward_experiment.csv")
-
-    results = []
-
-    print("This function take some time to run.")
-    print("First find number of experiments...")
-    count = sum(entry.is_dir() for entry in root_path.iterdir())
-
-    for directory in track(
-        root_path.iterdir(),
-        description=f"Finding max reward in each experiment for {experiments_dir}",
-        total=count,
-    ):
-        if directory.is_dir():
-            csv_path = directory / "progress.csv"
-
-            if csv_path.exists():
-                df = pd.read_csv(csv_path)
-                max_value = df["rollout/ep_rew_mean"].max()
-                # max_value = df["eval/mean_reward"].max()
-                results.append([directory.name, max_value])
-
-    result_df = pd.DataFrame(results, columns=["experiment_directory", "max_reward"])
-    result_df.to_csv(output_path, index=False)
 
 
 @hydra.main(config_path="config", config_name="main.yaml", version_base="1.3.2")
@@ -56,7 +23,6 @@ def main(cfg: DictConfig) -> None:
     sudo mount -t drvfs P: /mnt/P
 
     """
-
     console = Console()
 
     cfgs = parse_validate_hydra_config(cfg, console)

@@ -8,6 +8,7 @@ import pandas as pd
 import yaml
 from omegaconf import DictConfig, OmegaConf
 from rich.console import Console
+from rich.progress import track
 from sklearn.preprocessing import LabelEncoder
 
 from utils.XX_config_schemas import Config
@@ -21,6 +22,37 @@ def parse_validate_hydra_config(cfg: DictConfig, console: Console) -> Config:
     cfgs = Config(**cfg_dict)  # parse config general
     console.print(cfgs)
     return cfgs
+
+
+def make_max_reward_list(root_directory: str, experiments_dir: str = None) -> None:
+    """Find max reward value in each experiment and output a csv file with name of
+    experiment directory and max reward value"""
+    root_path = Path(root_directory, experiments_dir)
+    filename = root_path.name.split("_")[0]
+    output_path = Path(root_path.parent, f"{filename}_maxreward_experiment.csv")
+
+    results = []
+
+    print("This function take some time to run.")
+    print("First find number of experiments...")
+    count = sum(entry.is_dir() for entry in root_path.iterdir())
+
+    for directory in track(
+        root_path.iterdir(),
+        description=f"Finding max reward in each experiment for {experiments_dir}",
+        total=count,
+    ):
+        if directory.is_dir():
+            csv_path = directory / "progress.csv"
+
+            if csv_path.exists():
+                df = pd.read_csv(csv_path)
+                max_value = df["rollout/ep_rew_mean"].max()
+                # max_value = df["eval/mean_reward"].max()
+                results.append([directory.name, max_value])
+
+    result_df = pd.DataFrame(results, columns=["experiment_directory", "max_reward"])
+    result_df.to_csv(output_path, index=False)
 
 
 def process_optuna_data(study_name: str, agent: str, study_dirpath="results") -> tuple:
