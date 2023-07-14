@@ -70,6 +70,7 @@ def plot_text(
         s=text_string,
         horizontalalignment=horizontal_align,
         verticalalignment=vertical_align,
+        zorder=10,
     )
 
 
@@ -431,7 +432,7 @@ class Plotter:
             df_study["params_lr_schedule"] == "constant", 0, 1
         )
 
-        fig, ax = plt.subplots(figsize=(figure_width * 2.5, 0.6 * figure_width))
+        fig, ax = plt.subplots(figsize=(figure_width * 3, 0.7 * figure_width))
 
         mins = df_study[params].min().values
         f = df_study[params].values - mins
@@ -484,6 +485,9 @@ class Plotter:
         for param, x_val in zip(params, x):
             if param == "params_action_noise":
                 noise_cats = [noise.split("Action")[0] for noise in le_noise.classes_]
+                noise_cats = [
+                    "OU" if item == "OrnsteinUhlenbeck" else item for item in noise_cats
+                ]
                 plot_text(x_val, -0.01, noise_cats[0], "center", "top")
                 plot_text(x_val, 0.5, noise_cats[1], "center", "top")
                 plot_text(x_val, 1.01, noise_cats[2], "center", "bottom")
@@ -508,7 +512,7 @@ class Plotter:
 
         ax.set_xticks(x)
         ax.set_yticks([0, 1])
-        ax.set_xticklabels([p[7:] for p in params], rotation=45, ha="center")
+        ax.set_xticklabels([p[7:] for p in params], rotation=90, ha="center")
         ax.set_yticklabels([])
         ax.set_ylim(bottom=-0.1, top=1.1)
         ax.grid()
@@ -575,7 +579,7 @@ class Plotter:
         ax.grid(alpha=0.5)
         ax.set_xlabel("trial number")
         ax.set_ylabel("reward")
-        ax.legend()
+        # ax.legend()
 
         plt.title(savepath.split("/")[1].split("_")[0])
         plt.tight_layout()
@@ -822,6 +826,9 @@ class Plotter:
 
         ax.set_title(agent)
 
+        y_low = -1000
+        y_high = 1000
+
         ax.grid(alpha=0.5)
         ax.set_xlabel("episodes")
         ax.set_ylabel("reward")
@@ -835,23 +842,33 @@ class Plotter:
         df_log: pd.DataFrame,
         df_env_log: pd.DataFrame,
         savepath: str = None,
-        show: bool = True,
     ) -> None:
         fig, (ax1, ax2, ax3) = plt.subplots(nrows=3, ncols=1, figsize=(10, 12))
         ax1.plot(
-            df_log["episodes"],
+            df_log[r"time/episodes"],
             df_log[r"rollout/ep_rew_mean"],
             label=r"rollout/ep_rew_mean",
         )
         try:
+            selected_features = [r"time/episodes", r"eval/mean_reward"]
+
+            # Select the desired features and remove rows with NaN values
+            df_selected = df_log[selected_features]
+            df_selected[r"time/episodes"] = df_selected[r"time/episodes"].fillna(
+                method="ffill"
+            )
+            df_selected = df_selected.dropna()
+            # import ipdb
+            # ipdb.set_trace()
+
             ax1.scatter(
-                df_log["episodes"],
-                df_log["eval/mean_reward"],
+                df_selected[r"time/episodes"],
+                df_selected[r"eval/mean_reward"],
                 label=r"eval/mean_reward",
             )
         except KeyError:
             pass
-        ax1.legend()
+        ax1.legend(loc="upper right")
         ax1.grid(alpha=0.5)
         ax1.set_ylabel("reward")
 
@@ -860,30 +877,27 @@ class Plotter:
             "avg_replaced_cutters",
             "avg_moved_cutters",
             "avg_broken_cutters",
-            "var_cutter_locations",
+            # "var_cutter_locations",
             "avg_inwards_moved_cutters",
             "avg_wrong_moved_cutters",
         ]:
             ax2.plot(df_env_log["episodes"], df_env_log[logged_var], label=logged_var)
-        ax2.legend()
+
+        ax2.legend(loc="upper right")
         ax2.grid(alpha=0.5)
         ax2.set_ylabel("count")
 
         # model specific visualization of loss
         for column in df_log.columns:
             if "train" in column and "loss" in column:
-                ax3.plot(df_log["episodes"], df_log[column], label=column)
+                ax3.plot(df_log[r"time/episodes"], df_log[column], label=column)
 
-        ax3.legend()
+        ax3.legend(loc="upper right")
         ax3.grid(alpha=0.5)
         ax3.set_xlabel("episodes")
         ax3.set_ylabel("loss")
-
         plt.tight_layout()
-        if savepath is not None:
-            plt.savefig(savepath)
-        if show is False:
-            plt.close()
+        plt.savefig(savepath)
 
     @staticmethod
     def action_analysis_scatter_plotly(df: pd.DataFrame, savepath: str = None) -> None:

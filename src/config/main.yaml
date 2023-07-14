@@ -70,6 +70,19 @@ OPT:
   N_PARALLELL_PROCESSES: 1
   N_EVAL_EPISODES_OPTIMIZATION: 5 # n eval episodes in stop training cb. SB3 recommend 5-20
   N_EVAL_EPISODES_REWARD: 10 # n eval episodes for computing mean reward in end of training of one episode
+  STUDYS:
+  - PPO_2022_09_27_study
+  - DDPG_2022_10_03_study
+  - TD3_2022_09_27_study
+  - A2C_2022_11_30_study
+  - SAC_2022_10_05_study
+  AGENTS:
+  - PPO
+  - DDPG
+  - TD3
+  - A2C
+  - SAC
+  BEST_PERFORMING_ALGORITHM_PATH: "/mnt/P/2022/00/20220043/Calculations/TD3_2022_09_27_study/TD3_e86e3a34-64dc-4b61-84ca-46d504c7851a"
 
 # TRAINING SPECIAL SETUP
 ######################
@@ -92,16 +105,17 @@ EXECUTE:
 PLOT:
   FIGURE_WIDTH: 3.15
   DATA_DIR: "/mnt/P/2022/00/20220043/Calculations/"  # checkpoints, optimizations, or some other dir
-  AGENT_NAME: A2C  # "PPO", "DDPG", "A2C", "TD3", "SAC", "PPO-LSTM"
-  STUDY_NAME: A2C_2022_11_30_study
+  AGENT_NAME: TD3  # "PPO", "DDPG", "A2C", "TD3", "SAC", "PPO-LSTM"
+  STUDY_NAME: TD3_2022_09_27_study
   MAKE_MAX_REWARD_LIST: False  # make a list of max reward for all experiments for each algorithm
   VISUALIZATION_MODE: rollout  # rollout or eval
   PRINT_TRESH: null  # null or int. Only print curves with reward over this threshold
-  CHOOSE_NUM_BEST_REWARDS: 3 # null or int
+  CHOOSE_NUM_BEST_REWARDS: null # null or int
   PLOTS_TO_MAKE: [
-    "training_path_experiments_single_algorithm",
-    "training_path_experiments_algorithms",
-    "parallell_coordinate_plot",
+    # "training_path_experiments_single_algorithm",
+    # "training_path_experiments_algorithms",
+    "training_progress_status_plot",
+    # "parallell_coordinate_plot",
     # "slice_plot",
     # "optimization_history_plot",
   ]

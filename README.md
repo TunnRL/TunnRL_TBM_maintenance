@@ -26,7 +26,7 @@ in the src folder. Here are mainly two types of files:
 - An `utils` package with library files to be used by scripts
 
 
-```
+```bash
 TunnRL_TBM_maintenance
 ├── checkpoints                           - files from training models
 ├── experiments                           - logged metrics and config for each experiment using hydra and mlflow

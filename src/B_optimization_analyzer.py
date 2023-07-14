@@ -12,6 +12,7 @@ code contributors: Georg H. Erharter, Tom F. Hansen
 import hydra
 from omegaconf import DictConfig
 from rich.console import Console
+
 from utils.XX_general import parse_validate_hydra_config, process_optuna_data
 from utils.XX_plotting import Plotter
 
@@ -27,44 +28,46 @@ def main(cfg: DictConfig) -> None:
     console = Console()
     cfgs = parse_validate_hydra_config(cfg, console)
 
-    df_study, params, le_activation, le_noise = process_optuna_data(
-        cfgs.PLOT.STUDY_NAME, cfgs.PLOT.AGENT_NAME, cfgs.PLOT.DATA_DIR
-    )
+    for agent, study in zip(cfgs.OPT.AGENTS, cfgs.OPT.STUDYS):
+        df_study, params, le_activation, le_noise = process_optuna_data(
+            study, agent, cfgs.PLOT.DATA_DIR
+        )
 
-    ###############################################################################
-    # different visualizations of OPTUNA optimization
+        ###############################################################################
+        # different visualizations of OPTUNA optimization
 
-    for plot in cfgs.PLOT.PLOTS_TO_MAKE:
-        match plot:
-            case "parallell_coordinate_plot":
-                console.print("[green]Plotting parallell coordinate plot")
-                Plotter.custom_parallel_coordinate_plot(
-                    df_study,
-                    params,
-                    le_activation,
-                    le_noise,
-                    savepath=f"graphics/{cfgs.PLOT.STUDY_NAME}_parallel_plot",
-                )
+        for plot in cfgs.PLOT.PLOTS_TO_MAKE:
+            match plot:
+                case "parallell_coordinate_plot":
+                    console.print(f"[green]Plotting parallell coordinate plot: {study}")
+                    Plotter.custom_parallel_coordinate_plot(
+                        df_study,
+                        params,
+                        le_activation,
+                        le_noise,
+                        remove_negative_reward=False,
+                        savepath=f"graphics/{study}_parallel_plot",
+                    )
 
-            case "optimization_history_plot":
-                console.print("[green]Plotting optimization history plot")
-                # plot that shows the progress of the optimization over the individual
-                # trials
-                Plotter.custom_optimization_history_plot(
-                    df_study,
-                    savepath=f"graphics/{cfgs.PLOT.STUDY_NAME}_optimization_progress",
-                )
+                case "optimization_history_plot":
+                    console.print("[green]Plotting optimization history plot")
+                    # plot that shows the progress of the optimization over the
+                    # individual trials
+                    Plotter.custom_optimization_history_plot(
+                        df_study,
+                        savepath=f"graphics/{study}_optimization_progress",
+                    )
 
-            case "slice_plot":
-                console.print("[green]Plotting custom slice plot")
-                # scatterplot of indivdual hyperparameters vs. reward
-                Plotter.custom_slice_plot(
-                    df_study,
-                    params,
-                    le_activation=le_activation,
-                    le_noise=le_noise,
-                    savepath=f"graphics/{cfgs.PLOT.STUDY_NAME}_optimization_scatter",
-                )
+                case "slice_plot":
+                    console.print("[green]Plotting custom slice plot")
+                    # scatterplot of indivdual hyperparameters vs. reward
+                    Plotter.custom_slice_plot(
+                        df_study,
+                        params,
+                        le_activation=le_activation,
+                        le_noise=le_noise,
+                        savepath=f"graphics/{study}_optimization_scatter",
+                    )
 
 
 if __name__ == "__main__":

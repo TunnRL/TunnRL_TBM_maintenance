@@ -468,6 +468,7 @@ grid.alpha: 1.0     # transparency, between 0.0 and 1.0
 ## The default savefig parameters can be different from the display parameters
 ## e.g., you may want a higher resolution, or to make the figure
 ## background white
+# dpi does not matter for svg images
 savefig.dpi: 600      # figure dots per inch or 'figure'. If 'figure', the figure setting is used
 #savefig.facecolor: auto        # figure face color when saving
 #savefig.edgecolor: auto        # figure edge color when saving

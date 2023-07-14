@@ -29,18 +29,30 @@ def main(cfg: DictConfig) -> None:
 
     # only make this list occasionally
     if cfgs.PLOT.MAKE_MAX_REWARD_LIST:
-        experiments_dirs = [
-            "PPO_2022_09_27_study",
-            "DDPG_2022_10_03_study",
-            "TD3_2022_09_27_study",
-            "A2C_2022_11_30_study",
-            "SAC_2022_10_05_study",
-        ]
-        for algorithm in experiments_dirs:
+        for algorithm in cfgs.OPT.STUDYS:
             make_max_reward_list(cfgs.PLOT.DATA_DIR, algorithm)
 
     for plot in cfgs.PLOT.PLOTS_TO_MAKE:
         match plot:
+            case "training_progress_status_plot":
+                import pandas as pd
+
+                df_log = pd.read_csv(
+                    Path(cfgs.OPT.BEST_PERFORMING_ALGORITHM_PATH, "progress.csv")
+                )
+                df_log["episodes"] = (
+                    df_log[r"time/total_timesteps"] / cfgs.TBM.MAX_STROKES
+                )
+                df_env_log = pd.read_csv(
+                    Path(cfgs.OPT.BEST_PERFORMING_ALGORITHM_PATH, "progress_env.csv")
+                )
+
+                Plotter.training_progress_plot(
+                    df_log=df_log,
+                    df_env_log=df_env_log,
+                    savepath=f"graphics/{cfgs.PLOT.AGENT_NAME}_best_performing_progress",
+                )
+                console.print("[green]Plotted training progress status plot.")
             case "training_path_experiments_single_algorithm":
                 Plotter.custom_training_path_plot_algorithm(
                     agent=cfgs.PLOT.AGENT_NAME,

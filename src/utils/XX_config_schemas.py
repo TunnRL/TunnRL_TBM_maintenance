@@ -78,6 +78,9 @@ class OPT(BaseModel):
     N_PARALLELL_PROCESSES: int
     N_EVAL_EPISODES_OPTIMIZATION: int
     N_EVAL_EPISODES_REWARD: int
+    STUDYS: list[str]
+    AGENTS: list[str]
+    BEST_PERFORMING_ALGORITHM_PATH: Path
 
 
 class TRAIN(BaseModel):
