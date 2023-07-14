@@ -636,17 +636,33 @@ class Plotter:
     def custom_training_path_plot_algorithms(
         root_dir: Path,
         savepath: Path,
-        algorithms: list[tuple],
+        algorithms: dict[str, list[tuple]],
+        policy: str,
         figure_width=FIGURE_WIDTH,
         choose_num_best_rewards: int | None = None,
     ):
         """
+        Example root_dir:
+
         root_dir = /mnt/P/2022/00/20220043/Calculations/
+
+        Example algorithms:
+
+        algorithms = dict(
+            on=[  # on-policy
+                ("PPO", "PPO_2022_09_27_study", "red"),
+                ("A2C", "A2C_2022_11_30_study", "orange"),
+                ("SAC", "SAC_2022_10_05_study", "black"),
+            ],
+            off=[  # off-policy
+                ("DDPG", "DDPG_2022_10_03_study", "green"),
+                ("TD3", "TD3_2022_09_27_study", "blue"),
+            ])
         """
         fig, ax = plt.subplots(figsize=(1 * figure_width, 1 * figure_width))
 
         # read in dataframe for each algorihtm
-        for alg, alg_path, color in algorithms:
+        for alg, alg_path, color in algorithms[policy]:
             max_reward_list_path = Path(root_dir, f"{alg}_maxreward_experiment.csv")
             df_max_rewards = pd.read_csv(max_reward_list_path).sort_values(
                 "max_reward", ascending=False
@@ -678,12 +694,19 @@ class Plotter:
 
         ax.legend()
         ax.grid(alpha=0.5)
+
+        if policy == "off":
+            ax.set_ylim(top=1000, bottom=-1000)
+            ax.set_xlim(xmin=0, xmax=2000)
+        elif policy == "on":
+            ax.set_ylim(top=670, bottom=0)
+            ax.set_xlim(xmin=0, xmax=8500)
+        else:
+            ax.set_ylim(top=1000, bottom=-1000)
+            ax.set_xlim(xmin=0, xmax=8500)
+
         ax.set_xlabel("episodes")
         ax.set_ylabel("reward")
-        # ax.set_ylim(top=1000, bottom=-1000) # off-policy
-        ax.set_ylim(top=650, bottom=0)  # on-policy
-        # ax.set_xlim(xmin=0, xmax=2000) # off-policy
-        ax.set_xlim(xmin=0, xmax=8000)  # off-policy
 
         plt.tight_layout()
         plt.savefig(savepath)

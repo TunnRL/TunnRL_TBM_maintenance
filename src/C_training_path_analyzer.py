@@ -12,6 +12,7 @@ from omegaconf import DictConfig
 from rich.console import Console
 from rich.progress import track
 from rich.traceback import install
+
 from utils.XX_general import parse_validate_hydra_config
 from utils.XX_plotting import Plotter
 
@@ -25,12 +26,13 @@ def make_max_reward_list(root_directory: str, experiments_dir: str = None) -> No
 
     results = []
 
+    print("This function take some time to run.")
     print("First find number of experiments...")
     count = sum(entry.is_dir() for entry in root_path.iterdir())
 
     for directory in track(
         root_path.iterdir(),
-        description="Finding max reward in each experiment",
+        description=f"Finding max reward in each experiment for {experiments_dir}",
         total=count,
     ):
         if directory.is_dir():
@@ -39,6 +41,7 @@ def make_max_reward_list(root_directory: str, experiments_dir: str = None) -> No
             if csv_path.exists():
                 df = pd.read_csv(csv_path)
                 max_value = df["rollout/ep_rew_mean"].max()
+                # max_value = df["eval/mean_reward"].max()
                 results.append([directory.name, max_value])
 
     result_df = pd.DataFrame(results, columns=["experiment_directory", "max_reward"])
@@ -90,18 +93,30 @@ def main(cfg: DictConfig) -> None:
 
             case "training_path_experiments_algorithms":
                 # plot a chosen set of algorithms
-                algorithms = [
-                    ("PPO", "PPO_2022_09_27_study", "red"),
-                    # ("DDPG", "DDPG_2022_10_03_study", "green"),
-                    # ("TD3","TD3_2022_09_27_study", "blue"),
-                    ("A2C", "A2C_2022_11_30_study", "orange"),
-                    ("SAC", "SAC_2022_10_05_study", "black"),
-                ]
+                algorithms = dict(
+                    on=[  # on-policy
+                        ("PPO", "PPO_2022_09_27_study", "red"),
+                        ("A2C", "A2C_2022_11_30_study", "orange"),
+                        ("SAC", "SAC_2022_10_05_study", "black"),
+                    ],
+                    off=[  # off-policy
+                        ("DDPG", "DDPG_2022_10_03_study", "green"),
+                        ("TD3", "TD3_2022_09_27_study", "blue"),
+                    ],
+                    all=[
+                        ("PPO", "PPO_2022_09_27_study", "red"),
+                        ("A2C", "A2C_2022_11_30_study", "orange"),
+                        ("SAC", "SAC_2022_10_05_study", "black"),
+                        ("DDPG", "DDPG_2022_10_03_study", "green"),
+                        ("TD3", "TD3_2022_09_27_study", "blue"),
+                    ],
+                )
 
                 Plotter.custom_training_path_plot_algorithms(
                     root_dir=cfgs.PLOT.DATA_DIR,
-                    savepath=Path("graphics/learning_path_on_policy"),
+                    savepath=Path("graphics/learning_path_off_policy"),
                     algorithms=algorithms,
+                    policy="off",  # on or off or all
                     choose_num_best_rewards=cfgs.PLOT.CHOOSE_NUM_BEST_REWARDS,
                 )
                 console.print("[green]Plotted learning path for several algorithms")
