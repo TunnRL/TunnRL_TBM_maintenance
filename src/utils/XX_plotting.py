@@ -412,6 +412,7 @@ class Plotter:
         params: list,
         le_activation: LabelEncoder,
         le_noise: LabelEncoder,
+        remove_negative_reward: bool,
         savepath: str,
         figure_width=FIGURE_WIDTH,
     ) -> None:
@@ -419,19 +420,16 @@ class Plotter:
         optuna:
         https://optuna.readthedocs.io/en/stable/reference/visualization/generated/optuna.visualization.plot_parallel_coordinate.html#optuna.visualization.plot_parallel_coordinate
         """
-        # TODO consider le_noise
 
         # dropping runs with values below zero
-        print(f"Num row before removing negative values: {df_study.shape[0]}")
-        df_study = df_study[df_study.value > 0]
-        print(f"Num row after removing negative values: {df_study.shape[0]}")
+        if remove_negative_reward:
+            print(f"Num row before removing negative values: {df_study.shape[0]}")
+            df_study = df_study[df_study.value > 0]
+            print(f"Num row after removing negative values: {df_study.shape[0]}")
 
-        df_study.loc[
-            df_study["params_lr_schedule"] == "constant", "params_lr_schedule"
-        ] = 0
-        df_study.loc[
-            df_study["params_lr_schedule"] != "constant", "params_lr_schedule"
-        ] = 1
+        df_study["params_lr_schedule"] = np.where(
+            df_study["params_lr_schedule"] == "constant", 0, 1
+        )
 
         fig, ax = plt.subplots(figsize=(figure_width * 2.5, 0.6 * figure_width))
 
@@ -447,25 +445,29 @@ class Plotter:
 
         # plotting the lines
         for t in range(len(df_study)):
-            df_temp = df_study.sort_values(by="value").iloc[t]
-            y = df_temp[params].values
+            df_row = df_study.sort_values(by="value").iloc[t]
+            y = df_row[params].values
 
             y = y - mins
             try:
                 y = y / maxs
             except ZeroDivisionError:
-                print(f"maxs has value: {maxs}")
+                # print(f"maxs has value: {maxs}")
+                print(
+                    "ZeroDivisionError for one of the columns. Check values of maxs\
+                      .This will lead to no plotting of lines"
+                )
                 continue
 
-            if df_temp["state"] == "FAIL":
+            if df_row["state"] == "FAIL":
                 ax.plot(x, y, c="red", alpha=0.5)
-            elif df_temp["state"] == "RUNNING":
+            elif df_row["state"] == "RUNNING":
                 pass
             else:
-                if df_temp["value"] < 600:
-                    ax.plot(x, y, c=cmap(norm(df_temp["value"])), alpha=0.2)
+                if df_row["value"] < 600:
+                    ax.plot(x, y, c=cmap(norm(df_row["value"])), alpha=0.2)
                 else:
-                    ax.plot(x, y, c=cmap(norm(df_temp["value"])), alpha=1, zorder=10)
+                    ax.plot(x, y, c=cmap(norm(df_row["value"])), alpha=1, zorder=10)
 
         # plotting the black points at bottom and top in plot
         ax.scatter(x, np.zeros(x.shape), color="black")

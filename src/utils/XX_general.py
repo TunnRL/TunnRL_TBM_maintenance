@@ -56,7 +56,7 @@ def make_max_reward_list(root_directory: str, experiments_dir: str = None) -> No
 
 
 def process_optuna_data(study_name: str, agent: str, study_dirpath="results") -> tuple:
-    """Process optuna data from optimization process.
+    """Process optuna data from optimization process, the study object.
     - Returns a processed dataframe that can be utilized in plotting and analysis.
     - Saves a yaml file with best performing parameters
     - Print optimalization info
