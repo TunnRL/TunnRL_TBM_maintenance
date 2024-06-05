@@ -3,8 +3,8 @@
 This repository contains code for the ongoing project to use reinforcement learning for optimization of cutter maintenance in hardrock tunnel boring machine excavation.
 
 A first paper on this was published by Erharter and Hansen (2022) which was accompanied by [release v1.0.0](https://github.com/TunnRL/TunnRL_TBM_maintenance/releases/tag/v1.0.0) of the repository.
-The framework was then further developed to the current state and release v2.0.0 accompanies the submission of the paper _TunnRL-CC: A computational framework for smart TBM cutter changing_ to the journal __Computers and Geotechnics__.
-The code development was done by Georg. H. Erharter and Tom F. Hansen and further involved authors are Prof. Thomas Marcher (Graz University of Technology) and Prof. Amund Bruland (Norwegian University of Science and Technology).
+The framework was then further developed to the current state and release v2.0.0 accompanies the submission of the paper _Towards reinforcement learning - driven TBM cutter changing policies_ to the journal __Automation in Construction__.
+The code development was done by Georg. H. Erharter and Tom F. Hansen and further involved author is Prof. Thomas Marcher (Graz University of Technology).
 
 Erharter GH, Hansen TF. Towards optimized TBM cutter changing policies with reinforcement learning. Geomechanics and Tunnelling 2022;15(5):665–70.
 [DOI: 10.1002/geot.202200032](https://doi.org/10.1002/geot.202200032)
