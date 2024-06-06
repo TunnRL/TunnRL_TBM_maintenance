@@ -2,7 +2,8 @@
 
 [![codestyle](https://img.shields.io/badge/code%20style-black-000000.svg)](https://github.com/psf/black)
 [![python-version](https://img.shields.io/badge/python-3.10.5-blue.svg)](https://www.python.org/downloads/release/python-3105/)
-[![license](https://img.shields.io/badge/license-MIT-green.svg)]
+[![license](https://img.shields.io/badge/license-MIT-green.svg)](https://opensource.org/licenses/MIT)
+
 
 This repository contains code for the ongoing project to use RL for optimization of cutter maintenance in hardrock tunnel boring machines. As mentioned in the Readme for the main branch, this branch contains the __same RL-functionality__ and plots as the main_branch but has extended functionality and structure for reporting, reproducability, config and quality control, mainly with functionality from:
 
