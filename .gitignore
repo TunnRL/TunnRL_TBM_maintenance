@@ -29,3 +29,4 @@ install_scripts
 id_rsa
 id_rsa.pub
 Dockerfile_git
+makefile.private

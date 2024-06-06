@@ -40,21 +40,6 @@ delete_graphics: ## Delete all directories in the graphics directory
 	@echo deleting svg graphics
 	rm graphics/*.svg
 
-# Run from root in project locally
-move_results_from_odin: ##
-	@echo move studys, trained agents, graphics to common storage
-	scp -r tfh@odin.oslo.ngi.no:/home/tfh/data/projects/TunnRL_TBM_maintenance/results/*.db ./results
-	scp -r tfh@odin.oslo.ngi.no:/home/tfh/data/projects/TunnRL_TBM_maintenance/experiments/mlruns ./experiments
-
-# Run from root in project locally
-move_optimization_from_odin: ##
-	@echo move optimization directories from odin for "${algorithm}"
-	scp -r tfh@odin.oslo.ngi.no:/home/tfh/data/projects/TunnRL_TBM_maintenance/optimization/"${algorithm}"_* ./optimization
-
-# Run from root in project locally
-move_db_to_odin: ##
-	@echo move db for "${db_file}" to odin
-	scp results/"${db_file}" tfh@odin.oslo.ngi.no:/home/tfh/data/projects/TunnRL_TBM_maintenance/results
 
 delete_all: ##
 	@echo delete all experiments, checkpoints, graphics, optimization files
@@ -79,6 +64,3 @@ init:
 setup_dirs:
 	@echo setup directory structure
 	mkdir checkpoints optimization results graphics experiments
-
-# hydra:
-# 	eval "python src/A_main_hydra.py -sc install=bash"

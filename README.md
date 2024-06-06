@@ -1,18 +1,20 @@
 # Tunnel automation with Reinforcement Learning - TunnRL-TBM
 
-#TODO: legg til info om begge os + mer om installasjonsskript
-
 [![codestyle](https://img.shields.io/badge/code%20style-black-000000.svg)](https://github.com/psf/black)
+[![python-version](https://img.shields.io/badge/python-3.10.5-blue.svg)](https://www.python.org/downloads/release/python-3105/)
+[![license](https://img.shields.io/badge/license-MIT-green.svg)]
 
 This repository contains code for the ongoing project to use RL for optimization of cutter maintenance in hardrock tunnel boring machines. As mentioned in the Readme for the main branch, this branch contains the __same RL-functionality__ and plots as the main_branch but has extended functionality and structure for reporting, reproducability, config and quality control, mainly with functionality from:
 
-- Mlflow - for tracking and visualization of all parameters and metrics of all training experiments
-- Hydra - defines, structures and saves all configuration parameters for all experiments
-- Pydantic - defines schemas and validations for quality checking config-inputs
-- Rich - enhanced visualisation of terminal output
-- Pytest - unity testing of code
-- Docker - to run experiments in a reproducible way on a High Performance Computer (HPC) or just to run the experiments in an easy way 😀
-- Code formating, checking and linting with: Black and Ruff, Pre-commit
+* [mlflow](https://mlflow.org/) - for tracking and visualization of all parameters and metrics of all training experiments
+* [hydra](https://hydra.cc/) - defines, structures and saves all configuration parameters for all experiments
+* [pydantic](https://pydantic-docs.helpmanual.io/) - defines schemas and validations for quality checking config-inputs
+* [rich](https://github.com/Textualize/rich) - enhanced visualisation of terminal output
+* [pytest](https://towardsdatascience.com/pytest-for-data-scientists-2990319e55e6) - unity testing of code
+* [docker](https://www.docker.com/) - to run experiments in a reproducible way on a High Performance Computer (HPC) or just to run the experiments in an easy way 😀
+* [makefile](https://www.gnu.org/software/make/manual/make.html): Run automated shell processes, and to examplify the run of entry scripts.
+* [pre-commit plugins](https://pre-commit.com/): Automate code reviewing formatting
+* Linting with [ruff](https://github.com/astral-sh/ruff) and [nypy](https://mypy.readthedocs.io/en/stable/). Code formatting and checking with ruff (black-style) and Isort.
 
 Industry_advanced implements more advanced programming techniques, and includes software principles such as testing, input-checks and code-formatting, all by facilitating easy runs of code using the terminal.
 
@@ -63,8 +65,8 @@ TunnRL_TBM_maintenance
 
 You can run the functionality in this repo in two ways.
 
-1. Clone the repo, install the right Python version, set up the environment, and then finally run scripts the standard way. This way you can also change and inspect the code underway.
-2. A quicker way to run the functionality is to pull a built `docker image` from `docker hub`, start a container from the image and run the implemented functionality. A docker container has similiraties with an executable application file, and contain a filesystem, all dependencies, code and hardware settings. If you use this docker image to run the functionality you will be able to reproduce our results, also taking care of operation system and hardware drivers. The docker image has got its own DOI. This is a good way to run experiments on a HPC machine.
+1. Clone the repo, install the right Python version, set up the environment, and then finally run scripts the standard way. This way you can also change and inspect the code underway. Go to: [Setup - the standard way](#setup---the-standard-way)
+2. A quicker way to run the functionality is to pull a built `docker image` from `docker hub`, start a container from the image and run the implemented functionality. A docker container has similiraties with an executable application file, and contain a filesystem, all dependencies, code and hardware settings. If you use this docker image to run the functionality you will be able to reproduce our results, also taking care of operation system and hardware drivers. This is a good way to run experiments on a HPC machine. Go to: [Setup and run - the Docker way](#setup-and-run---the-docker-way)
 
 Below we describe how you can setup and run the functionality in these two ways, but first we give you a general overview of the principles of training this RL-agent.
 
@@ -98,9 +100,9 @@ Start the `Docker desktop` application.
 If you haven't installed `Docker desktop` install it from here: https://www.docker.com/products/docker-desktop/
 
 Start a terminal, ie. Powershell for Windows, Linux terminal etc.
-cd to where you want to save experiment data, eg. `P:/2022/00/2022043/Calculations/exp_results`
+Cd to where you want to save experiment data, e.g. `P:/2022/00/2022043/Calculations/exp_results`
 
-Run:
+Running the command below you will: a) pull the docker image from docker hub, b) start a container from the image, c) mount the experiment directory to the container, d) start a bash terminal in the container. The container will have all dependencies and code to run the experiments. The experiment data will be saved in the mounted experiment directory.:
 
 ```bash
 docker run -it --rm --ipc=host --gpus all --name running_tbm_rl -v "$(PWD)":/exp_results tomfh/rock_classify:09.01-base bash
@@ -108,14 +110,12 @@ docker run -it --rm --ipc=host --gpus all --name running_tbm_rl -v "$(PWD)":/exp
 
 You will now be able to run 4 different scripts from the terminal.
 
-- `python scripts/A_main_hydra.py`
-- `python scripts/B_optimization_analyzer.py`
-- `python scripts/C_training_path_analyzer.py`
-- `python scripts/D_recommender.py`
+* `python scripts/A_main_hydra.py`
+* `python scripts/B_optimization_analyzer.py`
+* `python scripts/C_training_path_analyzer.py`
+* `python scripts/D_recommender.py`
 
-For each of these scripts you can change configuration from the terminal setting using different flags. More info about this in a chapter below about the `Hydra configuration system`. If you start each run with the `--help` flag (eg. `python src/A_main_hydra.py --help`) you will see available config settings.
-
-The experiment data produced will now be saved in the mounted experiment directory.
+For each of these scripts you can change configuration settings in the terminal using different flags. More info about this in a chapter below about the `Hydra configuration system`. If you start each run with the `--help` flag (eg. `python src/A_main_hydra.py --help`) you will see available config settings.
 
 __A special note on running parameter optimization with Optuna.__ This normally involves running 100's of experiments. RL is computationally demanding, so this takes time. You can greatly speed up this process by spinning up several containers, for instance of different nodes and then run optimization. By binding the same experiment directory to the containers, all containers access the same optimization-study object.
 
@@ -123,18 +123,20 @@ If you access one node with several powerful CPU's you can spin up several conta
 
 ### Singularity version
 
-If you plan to run the RL-training on a HPC computer, the HPC machine will probably have Singularity (Apptainer) installed, not Docker. Here is how you can do the same in Singularity.
+If you plan to run the RL-training on a HPC computer, the HPC machine will often have Singularity (Apptainer) installed, not Docker. Here is how you can do the same in Singularity.
 
-Login to the HPC machine, normally something like: `ssh <user-name>@<url-to-machine>` e.g.
-`ssh tfh@odin.oslo.ngi.no`
+Login to the HPC machine, normally something like: `ssh <user-name>@<url-to-machine>`.
 
-Then make sure that you have mounted `P` into the HPC machine with: `ngi-mount P`.
+Then make sure that you have mounted `P` into the HPC machine, e.g. `ngi-mount P`.
 
 In the example below we mount a directory for saving experiment data in a project directory and a config directory, to be able to change config outside the container. This is a sustainable setup that avoid large experiment data directories to be stored locally. **NOTE**: we mount the subdirectories in the mount directory into the target directory.
 
 The `/projects/tbm-rl` could be any directory, but it is then also important to run the scripts from that directory, since that is the current working directory.
 
 ```bash
+singularity shell --writable-tmpfs --nv --pwd / -B <path to a saving directory>:/home/tfh/projects/tbm-rl/ -B <path to save the configuration data>:/scripts/config docker://tomfh/tbm-rl:26.11-train
+
+# example
 singularity shell --writable-tmpfs --nv --pwd / -B /home/tfh/NGI/P/2022/00/20220043/Calculations/exp_results:/home/tfh/projects/tbm-rl/ -B /home/tfh/NGI/P/2022/00/20220043/Calculations/config:/scripts/config docker://tomfh/tbm-rl:26.11-train
 
 cd ~/projects/tbml-rl
@@ -147,20 +149,19 @@ nohup python /scripts/A_main_hydra.py TRAIN.LOAD_PARAMS_FROM_STUDY=True EXP.STUD
 
 Then you run the scripts in the same way as described for Docker above.
 
-**A NOTE on potential errors**.
+__A NOTE on potential errors__
 
-- In running optuna studies placing the study.db object on a local NFS-system (like P:) you might encounter database locking problems using the default sqlite database engine. A countermeasure can be to start a mysql or postgres database for saving the study data.
-- Mounting a local directory for saving experimentation data might give you speed issues or errors.
+* In running optuna studies placing the study.db object on a local NFS-system (like P:) you might encounter database locking problems using the default sqlite database engine. A countermeasure can be to start a mysql or postgres database for saving the study data.
+* Mounting a local directory for saving experimentation data might give you speed issues or errors.
 
 Both errors might be fixed by saving the study object locally on the HPC (e.g. mount experimentation directories from a project directory into the container). After every completed run a python function that copy the experimentation data to a local storage (in Singularity P: is accessible)
 
-
 ## Setup - the standard way
 
-To clone the repository the code in the repository run:
+To clone the code in the repository run:
 
 ```bash
-git clone https://github.com/TunnRL/TunnRL_TBM_maintenance.git
+git clone https://github.com/TunnRL/TunnRL_TBM_maintenance/tree/industry_advanced
 ```
 
 ### Dependencies
@@ -170,7 +171,7 @@ We have organized 2 ways of setting up the environment, downloading and installi
 1. The recommended way is to use the `poetry` system to set up the environment and install all dependencies. Poetry is stricter on depedencies than conda and define all depedencies in a human readable way through the categorized `pyproject.toml` file. The
 `poetry.lock` defines exact version of all dependencies.
 
-   Before you start, make sure you have installed `pyenv` to control your python version and `poetry` for environment and package handling. Install the python version defined in `.python-version` and continue. **NOTE**: the code in this branch is made to run in Linux, but will most likely also run in Windows. If you haven't got linux you can run linux from windows by activating Window Subsystem for Linux:
+   Before you start, make sure you have installed `pyenv` to install and control your python version and `poetry` for environment and package handling. Install the python version defined in `.python-version` and continue. **NOTE**: the code in this branch is made to run in Linux, but will most likely also run in Windows. If you haven't got linux you can run linux from windows by activating Window Subsystem for Linux:
    https://learn.microsoft.com/en-us/windows/wsl/install
 
 
@@ -224,61 +225,60 @@ We have organized 2 ways of setting up the environment, downloading and installi
 ## How to use the functionality - in general terms
 
 1. **Optimization**. Choose an agent architecture (PPO, DDPG, TD3 etc.) and run an optimization process with Optuna to optimize hyperparameters to achieve the highest reward for that architecture. Run `A_main_hydra.py EXP.MODE=optimization`.
-   - Optimization data is saved in the `optimization` directory and a subdirectory for each model run. Data is updated in this subdirectory for every chosen episode interval (eg. every 100 episode in a 10 000 episode study).
-   - Each time one model-run is completed, common data-files for all experiments are saved into the `results` directory. Run `B_optimization_analyzer.py` to visualize this data.
+   * Optimization data is saved in the `optimization` directory and a subdirectory for each model run. Data is updated in this subdirectory for every chosen episode interval (eg. every 100 episode in a 10 000 episode study).
+   * Each time one model-run is completed, common data-files for all experiments are saved into the `results` directory. Run `B_optimization_analyzer.py` to visualize this data.
 2. **Training**. Train an agent for a number of episodes for a certain architecture and parameters given from an Optuna optimization for that architecture by running `A_main_hydra.py EXP.MODE=training`.
-   - Metrics and trained models are saved into the `checkpoints` directory.
-   - Visualize the training process with `C_training_path_analyzer.py`
+   * Metrics and trained models are saved into the `checkpoints` directory.
+   * Visualize the training process with `C_training_path_analyzer.py`
 3. **Execute**. To execute the actions for a trained agent.
-   - To recommend the actions (cutter maintenance) for the next step (stroke) use the policy from a trained agent and run `D_recommender.py`.
+   * To recommend the actions (cutter maintenance) for the next step (stroke) use the policy from a trained agent and run `D_recommender.py`.
 
 All scripts B.., C.., D.. have flags to set. Run the scripts with the `--help` flag to see them.
 
 ## Hydra functionality
 
-The hydra system logs and organize all config values, without touching the code itself. A hierarchical system of yaml files makes configuration easy. Config values can be altered in the yaml-files directly in the config-dir, or overridden in the terminal as described below. In this project, hydra functionality can be controlled in standard CLI in `A_main_hydra.py`.
+The hydra system logs and organize all config values, without touching the code itself. A hierarchical system of yaml files makes configuration easy. Config values can be altered in the yaml-files directly in the config-dir, or overridden in the terminal as described below. In this project, hydra configuration can be controlled in a standard CLI running `A_main_hydra.py`.
 
 Benefits of hydra logging
 
-- Make experiments reproducible by saving exact config values for each experiment in an organized way.
-- Change values in user friendly terminal setup (tab completion) without touching the code
-- One organized place to change all config values, without the need to traverse the code
+* Make experiments reproducible by saving exact config values for each experiment in an organized way.
+* Change values in user friendly terminal setup (tab completion) without touching the code
+* One organized place to change all config values, without the need to traverse the code
    for hard coded values. This makes code use easier for team
-- Change a config value one place and not in a number of scripts (where you hopefully find all)
-- Remove several lines of comments in the code.
-- A hierachical configuration make it possible to easy change different parameters for different agents and reward-experiments
+* Change a config value one place and not in a number of scripts (where you hopefully find all)
+* Remove several lines of comments in the code.
+* A hierachical configuration make it possible to easy change different parameters for different agents and reward-experiments
 
 You can now run different reinforcement learning functions by defining different
 inputs to `A_main_hydra.py` in the terminal. Eg.
 
 ```bash
-python src/A_main_hydra.py EXP.MODE=optimization EXP.DEBUG=True
+python scripts/A_main_hydra.py EXP.MODE=optimization EXP.DEBUG=True
 ```
 
 or
 
 ```bash
-python src/A_main_hydra.py agent=ppo EXP.MODE=training EXP.EPISODES=5000
+python scripts/A_main_hydra.py agent=ppo EXP.MODE=training EXP.EPISODES=5000
 ```
 
 To see all options, run:
 
 ```bash
-python src/A_main_hydra.py --help
+python scripts/A_main_hydra.py --help
 ```
 
 With hydra you can also kick of multiruns with different configs. Eg.
 using  `--multirun` or shorter `-m` to run models with different cutterheads of 4 and 2 meters.
 
 ```bash
-python src/A_main_hydra.py -m agent=ppo TBM.CUTTERHEAD_RADIUS=4,2
+python scripts/A_main_hydra.py -m agent=ppo TBM.CUTTERHEAD_RADIUS=4,2
 ```
-
 
 Invoke tab completion with hydra for a certain script by running:
 
 ```bash
-eval "$(python src/C_training_path_analyzer.py -sc install=bash)"
+eval "$(python scripts/C_training_path_analyzer.py -sc install=bash)"
 ```
 
 ## MLflow
