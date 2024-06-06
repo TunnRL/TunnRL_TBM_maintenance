@@ -2,8 +2,10 @@
 documents/
 
 # different folders that contain results from experiments
-experiments/*
-!experiments/.gitkeep
+experiments/hydra_outputs/*
+experiments/mlruns/*
+!experiments/hydra_outputs/.gitkeep
+!experiments/mlruns/.gitkeep
 checkpoints/*
 !checkpoints/.gitkeep
 graphics/*
@@ -21,7 +23,6 @@ tmp/
 .pytest_cache
 .vscode
 test.csv
-src/X_test.py
 
 # some dev tools
 #.flake8
