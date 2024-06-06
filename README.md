@@ -22,45 +22,43 @@ Industry_advanced implements more advanced programming techniques, and includes 
 
 ## Directory structure
 
-The code framework depends on a certain folder structure. The main functionality is
-in the src folder. Here are mainly two types of files:
-
-- "<A, B, C, D>"_description - scripts to be run
-- An `utils` package with library files to be used by scripts
-
+The code framework depends on a certain directory structure. The main functionality is
+in the package `tunnrl_tbm_maintenance` in the `src` directory. Entry points scripts for running functionality are in the `scripts` directory.
 
 ```bash
 TunnRL_TBM_maintenance
 ├── checkpoints                           - files from training models
 ├── experiments                           - logged metrics and config for each experiment using hydra and mlflow
 ├── graphics                              - saved graphics from running scripts in src
-├── install                               - shell scripts to set up environment and Python version with Pyenv and Poetry
 ├── optimization                          - files from optimization of hyperparameters
 ├── results                               - study-db files and parameters
 │   ├── algorithm_parameters              - optimized hyperparameters for agents
-├── src
+├── scripts                               - entry point scripts for running functionality
+│   ├── config                            - hierarchical system of config-files utilizing the hydra system
+│        ├── main.yaml                    - main configuration file for the hydra system
+│        ├── agent                        - config files for different agents
+│        ├── reward                       - config files for different reward functions
 │   ├── A_main_hydra.py                   - main script to call for optimization, training, execution
 │   ├── B_optimization_analyzer.py        - analysing the optuna optimization study
 │   ├── C_training_path_analyzer.py
 │   ├── D_recommender.py                  - recommend the next action from a policy (based on a trained agent)
-│   ├── utils                             - utility package
+├── src
+│   ├── tunnrl_tbm_maintenance            - main package for the project
 │        ├── XX_config_schemas.py         - schemas for pydantic check of config
 │        ├── XX_experiment_factory.py
 │        ├── XX_hyperparams.py
 │        ├── XX_plotting.py
 │        ├── XX_TBM_environment.py        - defining the RL environment and reward function
-│   ├── config                            - hierarchical system of config-files utilizing the hydra system
 ├── .gitignore
 ├── Dockerfile                            - Instructions to make a Docker image >>> run the training process using a docker container.
 ├── .pre-commit-config.yaml               - autoformatting and checks upon commit
 ├── .python-versions                      - Python version used in development
-├── makefile                              - covenience functionality for file logistics
+├── makefile                              - covenience functionality for file logistics and running scripts
 ├── poetry.lock                           - exact version of all dependencies
 ├── pyproject.toml                        - rules for dependencies and div. settings
 ├── requirements.txt                      - dependency requirements for use by pip or conda
 ├── README.md
 ```
-
 
 ## Run
 
