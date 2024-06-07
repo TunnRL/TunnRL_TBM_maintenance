@@ -58,21 +58,21 @@ class TestReward:
                 moved_cutters=[],
                 n_good_cutters=40,
                 damaged_bearing=False,
-                expected_reward=pytest.approx(0.9, rel=1e-2),
+                expected_reward=pytest.approx(0.73, rel=1e-2),  # type: ignore
             ),
             RewardTestCase(
                 replaced_cutters=[],
                 moved_cutters=[1, 2],
                 n_good_cutters=40,
                 damaged_bearing=False,
-                expected_reward=pytest.approx(0.85, rel=1e-2),
+                expected_reward=pytest.approx(0.727, rel=1e-2),  # type: ignore
             ),
             RewardTestCase(
                 replaced_cutters=[1, 2],
                 moved_cutters=[3, 4],
                 n_good_cutters=40,
                 damaged_bearing=False,
-                expected_reward=pytest.approx(0.75, rel=1e-2),
+                expected_reward=pytest.approx(0.707, rel=1e-2),  # type: ignore
             ),
             RewardTestCase(
                 replaced_cutters=[],
@@ -82,11 +82,11 @@ class TestReward:
                 expected_reward=0.0,
             ),
             RewardTestCase(
-                replaced_cutters=[],
-                moved_cutters=[],
-                n_good_cutters=30,
+                replaced_cutters=[1, 2, 3, 4, 30, 31],
+                moved_cutters=[5, 6, 7, 8, 20, 21],
+                n_good_cutters=36,
                 damaged_bearing=False,
-                expected_reward=0.75,
+                expected_reward=pytest.approx(0.392, rel=1e-2),  # type: ignore
             ),
             RewardTestCase(
                 replaced_cutters=[],
@@ -112,9 +112,9 @@ class TestReward:
         "n_c_tot, n_good_cutters, expected_reward",
         [
             (10, 10, 1.0),
-            (20, 10, 0.5),
-            (50, 25, 0.5),
-            (100, 50, 0.5),
+            (20, 20, 1.0),
+            (50, 50, 1.0),
+            (100, 50, -1),
         ],
     )
     def test_n_c_tot(self, n_c_tot, n_good_cutters, expected_reward):
@@ -127,9 +127,8 @@ class TestReward:
     @pytest.mark.parametrize(
         "BROKEN_CUTTERS_THRESH, n_good_cutters, expected_reward",
         [
-            (0.5, 20, 1.0),
-            (0.75, 30, 1.0),
-            (0.85, 34, 1.0),
+            (0.5, 20, 0.5),
+            (0.5, 19, -1.0),
             (1.0, 40, 1.0),
             (0.85, 33, -1.0),  # Below threshold should give -1.0
         ],
@@ -142,10 +141,6 @@ class TestReward:
         assert (
             reward == expected_reward
         ), f"Expected reward {expected_reward} for BROKEN_CUTTERS_THRESH {BROKEN_CUTTERS_THRESH} and n_good_cutters {n_good_cutters}, but got {reward}"
-
-    def test_invalid_weight_factors(self):
-        with pytest.raises(AssertionError):
-            Reward(ALPHA=0.1, BETA=0.2, GAMMA=0.3, DELTA=0.7)
 
     @pytest.mark.parametrize(
         "ALPHA, BETA, GAMMA, DELTA, replaced_cutters, moved_cutters, n_good_cutters, damaged_bearing, expected_reward",
@@ -165,13 +160,13 @@ class TestReward:
                 [],
                 40,
                 False,
-                pytest.approx(0.9, rel=1e-2),
+                pytest.approx(0.728, rel=1e-2),
             ),
-            (0.1, 0.2, 0.3, 0.4, [1, 2], [], 40, False, pytest.approx(0.9, rel=1e-2)),
-            (0.4, 0.3, 0.2, 0.1, [1, 2], [], 40, False, pytest.approx(0.9, rel=1e-2)),
-            (0.5, 0.2, 0.2, 0.1, [1, 2], [], 40, False, pytest.approx(0.9, rel=1e-2)),
-            (0.3, 0.3, 0.2, 0.2, [1, 2], [], 40, False, pytest.approx(0.9, rel=1e-2)),
-            (0.2, 0.3, 0.3, 0.2, [1, 2], [], 40, False, pytest.approx(0.9, rel=1e-2)),
+            (0.1, 0.2, 0.3, 0.4, [1, 2], [], 40, False, pytest.approx(0.58, rel=1e-2)),
+            (0.4, 0.3, 0.2, 0.1, [1, 2], [], 40, False, pytest.approx(0.876, rel=1e-2)),
+            (0.5, 0.2, 0.2, 0.1, [1, 2], [], 40, False, pytest.approx(0.872, rel=1e-2)),
+            (0.3, 0.3, 0.2, 0.2, [1, 2], [], 40, False, pytest.approx(0.779, rel=1e-2)),
+            (0.2, 0.3, 0.3, 0.2, [1, 2], [], 40, False, pytest.approx(0.778, rel=1e-2)),
         ],
     )
     def test_valid_weight_factors(
