@@ -35,13 +35,17 @@ from stable_baselines3 import A2C, DDPG, PPO, SAC, TD3
 from stable_baselines3.common import logger
 from stable_baselines3.common.base_class import BaseAlgorithm
 from stable_baselines3.common.callbacks import (
-    BaseCallback, CallbackList, CheckpointCallback, EvalCallback,
-    StopTrainingOnNoModelImprovement)
+    BaseCallback,
+    CallbackList,
+    CheckpointCallback,
+    EvalCallback,
+    StopTrainingOnNoModelImprovement,
+)
 from stable_baselines3.common.evaluation import evaluate_policy
 from stable_baselines3.common.utils import set_random_seed
-
 from utils.XX_hyperparams import Hyperparameters
 from utils.XX_plotting import Plotter
+
 
 warnings.filterwarnings("ignore", category=optuna.exceptions.ExperimentalWarning)
 

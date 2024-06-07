@@ -6,4 +6,3 @@ EPISODES: 12_000
 agent_params:
   policy: MlpPolicy
   batch_size: 100
-  

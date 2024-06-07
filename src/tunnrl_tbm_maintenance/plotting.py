@@ -13,7 +13,6 @@ from itertools import chain
 from pathlib import Path
 
 import gymnasium as gym
-import matplotlib
 import matplotlib as mpl
 import matplotlib.cm as mplcm
 import matplotlib.gridspec as gridspec
@@ -27,6 +26,7 @@ from pandas.errors import EmptyDataError
 from rich.console import Console
 from rich.progress import track
 from sklearn.preprocessing import LabelEncoder
+
 
 # HELPER FUNCTIONS
 #######################################################

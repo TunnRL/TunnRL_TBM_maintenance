@@ -1,13 +1,8 @@
 """
-Towards optimized TBM cutter changing policies with reinforcement learning
-G.H. Erharter, T.F. Hansen
-DOI: XXXXXXXXXXXXXXXXXXXXXXXXXX
-
-Code that predict and action from a given state
+Code that predict an action from a given state
 TODO: make a streamlit version
-
-code contributors: Tom F. Hansen
 """
+
 import uuid
 
 import click
@@ -16,7 +11,7 @@ import numpy as np
 import pandas as pd
 from numpy.typing import NDArray
 
-from utils.XX_experiment_factory import load_best_model
+from tunnrl_tbm_maintenance.experiment_factory import load_best_model
 
 
 @click.command()

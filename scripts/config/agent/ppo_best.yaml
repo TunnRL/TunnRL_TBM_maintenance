@@ -22,5 +22,3 @@ agent_params:
   n_not_shared_layers: 3
   n_shared_layers: 0
   vf_coef: 0.2999970669317938
-
-

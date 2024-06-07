@@ -1,18 +1,16 @@
-"""
-Created on Tue Jul 26 13:32:03 2022
-
-@author: Georg Erharter, Tom F. Hansen
-"""
+"""Analysis of training paths for experiments."""
 
 from pathlib import Path
 
 import hydra
 from omegaconf import DictConfig
-from rich.console import Console
 from rich.traceback import install
 
-from utils.XX_general import make_max_reward_list, parse_validate_hydra_config
-from utils.XX_plotting import Plotter
+from tunnrl_tbm_maintenance.plotting import Plotter
+from tunnrl_tbm_maintenance.utility import (
+    make_max_reward_list,
+    parse_validate_hydra_config,
+)
 
 
 @hydra.main(config_path="config", config_name="main.yaml", version_base="1.3.2")
@@ -23,50 +21,48 @@ def main(cfg: DictConfig) -> None:
     sudo mount -t drvfs P: /mnt/P
 
     """
-    console = Console()
-
-    cfgs = parse_validate_hydra_config(cfg, console)
+    p_cfg, console = parse_validate_hydra_config(cfg, print_config=True)
 
     # only make this list occasionally
-    if cfgs.PLOT.MAKE_MAX_REWARD_LIST:
-        for algorithm in cfgs.OPT.STUDYS:
-            make_max_reward_list(cfgs.PLOT.DATA_DIR, algorithm)
+    if p_cfg.PLOT.MAKE_MAX_REWARD_LIST:
+        for algorithm in p_cfg.OPT.STUDYS:
+            make_max_reward_list(p_cfg.PLOT.DATA_DIR, algorithm)
 
-    for plot in cfgs.PLOT.PLOTS_TO_MAKE:
+    for plot in p_cfg.PLOT.PLOTS_TO_MAKE:
         match plot:
             case "training_progress_status_plot":
                 import pandas as pd
 
                 df_log = pd.read_csv(
-                    Path(cfgs.OPT.BEST_PERFORMING_ALGORITHM_PATH, "progress.csv")
+                    Path(p_cfg.OPT.BEST_PERFORMING_ALGORITHM_PATH, "progress.csv")
                 )
                 df_log["episodes"] = (
-                    df_log[r"time/total_timesteps"] / cfgs.TBM.MAX_STROKES
+                    df_log[r"time/total_timesteps"] / p_cfg.TBM.MAX_STROKES
                 )
                 df_env_log = pd.read_csv(
-                    Path(cfgs.OPT.BEST_PERFORMING_ALGORITHM_PATH, "progress_env.csv")
+                    Path(p_cfg.OPT.BEST_PERFORMING_ALGORITHM_PATH, "progress_env.csv")
                 )
 
                 Plotter.training_progress_plot(
                     df_log=df_log,
                     df_env_log=df_env_log,
-                    savepath=f"graphics/{cfgs.PLOT.AGENT_NAME}_best_performing_progress",
+                    savepath=f"graphics/{p_cfg.PLOT.AGENT_NAME}_best_performing_progress",
                 )
                 console.print("[green]Plotted training progress status plot.")
             case "training_path_experiments_single_algorithm":
                 Plotter.custom_training_path_plot_algorithm(
-                    agent=cfgs.PLOT.AGENT_NAME,
-                    root_directory=cfgs.PLOT.DATA_DIR,
-                    study_name=cfgs.PLOT.STUDY_NAME,
-                    mode=cfgs.PLOT.VISUALIZATION_MODE,
-                    print_thresh=cfgs.PLOT.PRINT_TRESH,
-                    savepath=f"graphics/{cfgs.PLOT.AGENT_NAME}_learning_path_{cfgs.PLOT.VISUALIZATION_MODE}",
-                    choose_num_best_rewards=cfgs.PLOT.CHOOSE_NUM_BEST_REWARDS,
-                    filename_reward_list=f"{cfgs.PLOT.AGENT_NAME}_maxreward_experiment.csv",
+                    agent=p_cfg.PLOT.AGENT_NAME,
+                    root_directory=p_cfg.PLOT.DATA_DIR,
+                    study_name=p_cfg.PLOT.STUDY_NAME,
+                    mode=p_cfg.PLOT.VISUALIZATION_MODE,
+                    print_thresh=p_cfg.PLOT.PRINT_TRESH,
+                    savepath=f"graphics/{p_cfg.PLOT.AGENT_NAME}_learning_path_{p_cfg.PLOT.VISUALIZATION_MODE}",
+                    choose_num_best_rewards=p_cfg.PLOT.CHOOSE_NUM_BEST_REWARDS,
+                    filename_reward_list=f"{p_cfg.PLOT.AGENT_NAME}_maxreward_experiment.csv",
                 )
                 console.print(
-                    f"[green]Plotted learning path for {cfgs.PLOT.AGENT_NAME} \
-                        using mode: {cfgs.PLOT.VISUALIZATION_MODE}"
+                    f"[green]Plotted learning path for {p_cfg.PLOT.AGENT_NAME} \
+                        using mode: {p_cfg.PLOT.VISUALIZATION_MODE}"
                 )
 
             case "training_path_experiments_algorithms":
@@ -91,11 +87,11 @@ def main(cfg: DictConfig) -> None:
                 )
 
                 Plotter.custom_training_path_plot_algorithms(
-                    root_dir=cfgs.PLOT.DATA_DIR,
+                    root_dir=p_cfg.PLOT.DATA_DIR,
                     savepath=Path("graphics/learning_path_off_policy"),
                     algorithms=algorithms,
                     policy="off",  # on or off or all
-                    choose_num_best_rewards=cfgs.PLOT.CHOOSE_NUM_BEST_REWARDS,
+                    choose_num_best_rewards=p_cfg.PLOT.CHOOSE_NUM_BEST_REWARDS,
                 )
                 console.print("[green]Plotted learning path for several algorithms")
 

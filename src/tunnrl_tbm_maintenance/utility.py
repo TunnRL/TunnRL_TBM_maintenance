@@ -1,4 +1,4 @@
-"""Functionality for general use"""
+"""Functionality for general use."""
 
 from pathlib import Path
 from typing import Any
@@ -11,25 +11,32 @@ from rich.console import Console
 from rich.progress import track
 from sklearn.preprocessing import LabelEncoder
 
-from utils.XX_config_schemas import Config
+from tunnrl_tbm_maintenance.config_schemas import Config
 
 
-def parse_validate_hydra_config(cfg: DictConfig, console: Console) -> Config:
+def parse_validate_hydra_config(
+    cfg: DictConfig, print_config: bool = True
+) -> tuple[Config, Console]:
     """Parses and validates a hydra dictconfig with Pydantic.
     Prints evaluated config to terminal upon run."""
+    console = Console()  # instantiate rich console
     OmegaConf.resolve(cfg)  # resolves hydra interpolation in place
     cfg_dict: dict[str, Any] = OmegaConf.to_object(cfg)  # type:ignore
     cfgs = Config(**cfg_dict)  # parse config general
-    console.print(cfgs)
-    return cfgs
+    if print_config:
+        console.print(OmegaConf.to_yaml(cfg))
+    return cfgs, console
 
 
-def make_max_reward_list(root_directory: str, experiments_dir: str = None) -> None:
+def make_max_reward_list(
+    root_directory: str, experiments_dir: str | None = None
+) -> None:
     """Find max reward value in each experiment and output a csv file with name of
     experiment directory and max reward value"""
-    root_path = Path(root_directory, experiments_dir)
-    filename = root_path.name.split("_")[0]
-    output_path = Path(root_path.parent, f"{filename}_maxreward_experiment.csv")
+    if experiments_dir is not None:
+        root_path = Path(root_directory, experiments_dir)
+        filename = root_path.name.split("_")[0]
+        output_path = Path(root_path.parent, f"{filename}_maxreward_experiment.csv")
 
     results = []
 

@@ -1,17 +1,10 @@
 """
-Towards optimized TBM cutter changing policies with reinforcement learning
-G.H. Erharter, T.F. Hansen
-DOI: XXXXXXXXXXXXXXXXXXXXXXXXXX
-
 Custom library that contains different classes for the reinforcement learning
-based cutter changing environment
-
-Created on Sat Oct 30 12:57:51 2021
-code contributors: Georg H. Erharter, Tom F. Hansen
+based cutter changing environment.
 """
 
 from dataclasses import dataclass
-from typing import Callable
+from typing import Any, Callable
 
 import gymnasium as gym
 import matplotlib.pyplot as plt
@@ -20,157 +13,8 @@ from gymnasium import spaces
 from numpy.typing import NDArray
 
 
-# ALTERNATIVE REWARD TO ADJUST AND TRY OUT. Made in companion with GPT
-class Reward2:
-    def __init__(
-        self,
-        operating_weight: float = 1.0,
-        broken_weight: float = 1.0,
-        replacement_weight: float = 0.5,
-        move_weight: float = 0.2,
-        bearing_weight: float = 2.0,
-        threshold_weight: float = 10.0,
-        broken_threshold: float = 0.15,
-    ) -> None:
-        self.operating_weight = operating_weight
-        self.broken_weight = broken_weight
-        self.replacement_weight = replacement_weight
-        self.move_weight = move_weight
-        self.bearing_weight = bearing_weight
-        self.threshold_weight = threshold_weight
-        self.broken_threshold = broken_threshold
-
-    def __call__(
-        self,
-        prev_operating_disks: int,
-        curr_operating_disks: int,
-        prev_broken_disks: int,
-        curr_broken_disks: int,
-        num_replacements: int,
-        num_moves: int,
-        bearing_failures: int,
-    ) -> float:
-        # Reward for maintaining or increasing the number of operating disks
-        operating_reward = (
-            max(curr_operating_disks - prev_operating_disks, 0) * self.operating_weight
-        )
-
-        # Penalty for increasing the number of broken disks
-        broken_penalty = (
-            max(curr_broken_disks - prev_broken_disks, 0) * -self.broken_weight
-        )
-
-        # Penalty for unnecessary replacements
-        replacement_penalty = num_replacements * -self.replacement_weight
-
-        # Reward for moving cutter disks towards the center
-        move_reward = num_moves * self.move_weight
-
-        # Penalty for bearing failures
-        bearing_penalty = bearing_failures * -self.bearing_weight
-
-        # Penalty for exceeding the threshold of broken cutter disks
-        threshold_penalty = 0
-        if curr_broken_disks > self.broken_threshold:
-            threshold_penalty = -self.threshold_weight
-
-        total_reward = (
-            operating_reward
-            + broken_penalty
-            + replacement_penalty
-            + move_reward
-            + bearing_penalty
-            + threshold_penalty
-        )
-        return total_reward
-
-
 @dataclass
 class Reward:
-    """class that contains functions that describe the maintenance effort of
-    changing cutters on a TBM's cutterhead. Based on this the reward is
-    computed
-    Args:
-        n_c_tot (int): total number of cutters
-        broken_cutters_thresh (float): minimum required percentage of functional cutters
-        CHECK_BEARING_FAILURE (bool): if True should check cutter bearing failures
-        T_I (int): cost of entering the cutterhead for maintenance
-        ALPHA (float): weighting factor for replacing cutters
-        BETA (float): weighting factor for moving cutters
-        GAMMA (float): weighting factor for cutter distance
-        DELTA (float): weighting factor for entering cutterhead
-    """
-
-    n_c_tot: int
-    BROKEN_CUTTERS_THRESH: float
-    CHECK_BEARING_FAILURE: bool
-    BEARING_FAILURE_PENALTY: bool
-    T_I: float = 1
-    ALPHA: float = 0.2
-    BETA: float = 0.3
-    GAMMA: float = 0.25
-    DELTA: float = 0.25
-
-    assert (
-        ALPHA + BETA + GAMMA + DELTA == 1
-    ), "reward weighting factors do not sum up to 1!"
-
-    def __call__(
-        self,
-        replaced_cutters: list,
-        moved_cutters: list,
-        n_good_cutters: int,
-        damaged_bearing: bool,
-    ) -> float | int:
-        """Setup
-
-        Args:
-            replaced_cutters (list): list of replaced cutters
-            moved_cutters (list): list of moved cutters
-            n_good_cutters (int): number of good cutters, ie. cutters with life
-                greater than 0
-            damaged_bearing (bool): if at least one cutter bearing fails due to
-                blockyness damage to the cutter and no subsequent repair. Only
-                effective if check_bearing_failure == True
-        """
-        acted_on_cutters = sorted(replaced_cutters + moved_cutters)
-        dist_cutters = np.sum(np.diff(acted_on_cutters))
-
-        if n_good_cutters < self.n_c_tot * self.BROKEN_CUTTERS_THRESH:
-            # if more than threshhold number of cutters are broken
-            reward = -1
-        elif self.CHECK_BEARING_FAILURE is True and damaged_bearing is True:
-            # if check for bearing failures is set and bearing failure occurs
-            reward = self.BEARING_FAILURE_PENALTY
-
-        elif len(acted_on_cutters) == 0:
-            # if no cutters are acted on
-            reward = n_good_cutters / self.n_c_tot
-        else:
-            # weighted representation of cutters to penalize changing of outer
-            # cutters more than inner cutters
-            weighted_cutters = np.linspace(1, 2, num=self.n_c_tot)
-
-            ratio1 = n_good_cutters / self.n_c_tot
-            ratio2 = (
-                np.sum(np.take(weighted_cutters, replaced_cutters))
-                / np.sum(weighted_cutters)
-            ) * self.ALPHA
-            ratio3 = (
-                np.sum(np.take(weighted_cutters, moved_cutters))
-                / np.sum(weighted_cutters)
-            ) * self.BETA
-            ratio4 = ((dist_cutters + 1) / self.n_c_tot) * self.GAMMA
-            change_penalty = self.T_I * self.DELTA
-            reward = ratio1 - ratio2 - ratio3 - ratio4 - change_penalty
-
-        return reward
-
-
-# TODO:use this instead if this works similar as the original one. Is coded in a better
-# way than the original
-@dataclass
-class Reward3:
     """
     Class that computes the reward based on maintenance effort for changing cutters on a
     TBM's cutterhead.
@@ -185,7 +29,7 @@ class Reward3:
         BROKEN_CUTTERS_THRESH (float): Minimum required percentage of functional
         cutters.
         CHECK_BEARING_FAILURE (bool): Whether to check for cutter bearing failures.
-        BEARING_FAILURE_PENALTY (bool): Penalty value for cutter bearing failure.
+        BEARING_FAILURE_PENALTY (float): Penalty value for cutter bearing failure.
         T_I (float, optional): Cost of entering the cutterhead for maintenance. Defaults
         to 1.
         ALPHA (float, optional): Weighting factor for cutter replacement. Defaults to
@@ -199,19 +43,15 @@ class Reward3:
         AssertionError: If the reward weighting factors do not sum up to 1.
     """
 
-    n_c_tot: int
-    BROKEN_CUTTERS_THRESH: float
-    CHECK_BEARING_FAILURE: bool
-    BEARING_FAILURE_PENALTY: bool
+    n_c_tot: int = 40
+    BROKEN_CUTTERS_THRESH: float = 0.85
+    CHECK_BEARING_FAILURE: bool = True
+    BEARING_FAILURE_PENALTY: float = 0.0
     T_I: float = 1
     ALPHA: float = 0.2
     BETA: float = 0.3
     GAMMA: float = 0.25
     DELTA: float = 0.25
-
-    assert (
-        ALPHA + BETA + GAMMA + DELTA == 1
-    ), "Reward weighting factors do not sum up to 1!"
 
     def __call__(
         self,
@@ -222,6 +62,7 @@ class Reward3:
     ) -> float | int:
         """
         Compute the reward based on maintenance effort for changing cutters.
+        Reward range is from -1 to 1.
 
         Args:
             replaced_cutters (list): List of replaced cutters.
@@ -236,40 +77,51 @@ class Reward3:
         Raises:
             ValueError: If invalid input is provided.
         """
-
+        reward: float | int = 0  # initialize reward
         acted_on_cutters = sorted(replaced_cutters + moved_cutters)
-        dist_cutters = np.sum(np.diff(acted_on_cutters))
+        distance_between_cutters = np.sum(np.diff(acted_on_cutters))
 
         # If more than the threshold number of cutters are broken we cannot operate
         if n_good_cutters < self.n_c_tot * self.BROKEN_CUTTERS_THRESH:
-            reward = -1
+            reward = -1.0
         # If check for bearing failures is enabled and a bearing failure occurs
-        elif self.CHECK_BEARING_FAILURE and damaged_bearing:
+        elif self.CHECK_BEARING_FAILURE is True and damaged_bearing is True:
             reward = self.BEARING_FAILURE_PENALTY
-        # If no cutters are acted on. This will give the highest reward. We want to
-        # promote that behaviour since the agent is a bit over-active
-        # TODO: consider adding a weight factor on this term to let the agent behave
-        # more the way we want. Then we also can tune it
+        # If no cutters are acted on. This will give the highest reward.
         elif len(acted_on_cutters) == 0:
-            reward = n_good_cutters / self.n_c_tot
-        # Standard.Compute reward based on various factors related to maintenance effort
+            reward = self._compute_max_reward(n_good_cutters)
+        # Standard. Computes reward based on various factors related to maintenance effort
         else:
-            ratio1 = n_good_cutters / self.n_c_tot
+            ratio1 = self._compute_max_reward(n_good_cutters)
             ratio2 = self._compute_replacement_penalty(replaced_cutters)
             ratio3 = self._compute_movement_penalty(moved_cutters)
-            ratio4 = self._compute_distance_penalty(dist_cutters)
-            change_penalty = self.T_I * self.DELTA  # enter face penalty
-            reward = ratio1 - ratio2 - ratio3 - ratio4 - change_penalty
+            ratio4 = self._compute_distance_penalty(distance_between_cutters)
+            enter_face_penalty = self._enter_face_penalty()
+            reward = ratio1 - ratio2 - ratio3 - ratio4 - enter_face_penalty
 
         return reward
+
+    def _compute_max_reward(self, n_good_cutters: int) -> float:
+        """Computes the maximum possible reward for the environment. This is the
+        reward when no cutters are acted. We want to promote that behaviour since the
+        agent is a bit over-active without.
+        TODO: consider adding a weight factor on this term to let the agent behave
+        more the way we want. Then we also can tune it."""
+        return n_good_cutters / self.n_c_tot
+
+    def _enter_face_penalty(self) -> float:
+        """Computes the penalty for entering the face of the cutterhead. This is a
+        fixed penalty for each time the agent enters the face."""
+        return self.T_I * self.DELTA
 
     def _compute_replacement_penalty(self, replaced_cutters: list) -> float:
         """The values returned by this function will fall within the range of 0 to 1.
         It represents the relative weight or penalty associated with the replacement of
-        cutters."""
+        cutters.
 
-        # weighted representation of cutters to penalize changing of outer
-        # cutters more than inner cutters. Outer cutters are more demanding.
+        Weighted representation of cutters to penalize changing of outer
+        cutters more than inner cutters. Outer cutters are more demanding.
+        """
         weighted_cutters = np.linspace(1, 2, num=self.n_c_tot)
         return (
             np.sum(np.take(weighted_cutters, replaced_cutters))
@@ -363,7 +215,7 @@ class CustomEnv(gym.Env):
         self.Jv_s: NDArray
         self.UCS_s: NDArray
 
-    def step(self, actions: NDArray) -> tuple[NDArray, float, bool, dict]:
+    def step(self, actions: NDArray) -> tuple[NDArray, float, bool, dict[str, Any]]:  # type: ignore
         """Main function that moves the environment one step further.
         - Updates the state and reward.
         - Checks if the terminal state is reached.
@@ -604,39 +456,125 @@ if __name__ == "__main__":
     ax3.scatter(n_good_cutters, r_s)
     plt.tight_layout()
 
-    # rewards = []
-    # for i in range(len(combined)):
-    #     rewards.append(m.reward(replaced_cutters=replaced_cutters[i],
-    #                             moved_cutters=moved_cutters[i],
-    #                             good_cutters=good_cutters[i],
-    #                             dist_cutters=dist_cutters[i]))
-    # rewards = np.array(rewards)
 
-    # low_r_id = np.argmin(rewards)
-    # high_r_id = np.argmax(rewards)
-    # len_low_r = len(np.where(rewards == rewards.min())[0])
-    # len_high_r = len(np.where(rewards == rewards.max())[0])
+# LEGACY CODE
+######################################################################
 
-    # print(f'there are {len_low_r} combinations with {rewards.min()} reward')
-    # print(f'lowest reward of {rewards.min()} with combination:')
-    # print(f'\t{replaced_cutters[low_r_id]} replaced cutters')
-    # print(f'\t{moved_cutters[low_r_id]} moved cutters')
-    # print(f'\t{good_cutters[low_r_id]} good cutters\n')
+# rewards = []
+# for i in range(len(combined)):
+#     rewards.append(m.reward(replaced_cutters=replaced_cutters[i],
+#                             moved_cutters=moved_cutters[i],
+#                             good_cutters=good_cutters[i],
+#                             dist_cutters=dist_cutters[i]))
+# rewards = np.array(rewards)
 
-    # print(f'there are {len_high_r} combinations with {rewards.max()} reward')
-    # print(f'highest reward of {rewards.max()} with combination:')
-    # print(f'\t{replaced_cutters[high_r_id]} replaced cutters')
-    # print(f'\t{moved_cutters[high_r_id]} moved cutters')
-    # print(f'\t{good_cutters[high_r_id]} good cutters')
+# low_r_id = np.argmin(rewards)
+# high_r_id = np.argmax(rewards)
+# len_low_r = len(np.where(rewards == rewards.min())[0])
+# len_high_r = len(np.where(rewards == rewards.max())[0])
 
-    # fig = plt.figure(figsize=(10, 7))
-    # ax = fig.add_subplot(projection='3d')
-    # scatter_plot= ax.scatter(replaced_cutters, moved_cutters, good_cutters,
-    #                          c=rewards, edgecolor='black', s=40)
-    # ax.set_xlabel('n replaced cutters')
-    # ax.set_ylabel('n moved cutters')
-    # ax.set_zlabel('n good cutters')
+# print(f'there are {len_low_r} combinations with {rewards.min()} reward')
+# print(f'lowest reward of {rewards.min()} with combination:')
+# print(f'\t{replaced_cutters[low_r_id]} replaced cutters')
+# print(f'\t{moved_cutters[low_r_id]} moved cutters')
+# print(f'\t{good_cutters[low_r_id]} good cutters\n')
 
-    # plt.colorbar(scatter_plot, label='reward')
-    # plt.tight_layout()
-    # plt.tight_layout()
+# print(f'there are {len_high_r} combinations with {rewards.max()} reward')
+# print(f'highest reward of {rewards.max()} with combination:')
+# print(f'\t{replaced_cutters[high_r_id]} replaced cutters')
+# print(f'\t{moved_cutters[high_r_id]} moved cutters')
+# print(f'\t{good_cutters[high_r_id]} good cutters')
+
+# fig = plt.figure(figsize=(10, 7))
+# ax = fig.add_subplot(projection='3d')
+# scatter_plot= ax.scatter(replaced_cutters, moved_cutters, good_cutters,
+#                          c=rewards, edgecolor='black', s=40)
+# ax.set_xlabel('n replaced cutters')
+# ax.set_ylabel('n moved cutters')
+# ax.set_zlabel('n good cutters')
+
+# plt.colorbar(scatter_plot, label='reward')
+# plt.tight_layout()
+# plt.tight_layout()
+
+
+# @dataclass
+# class Reward:
+#     """class that contains functions that describe the maintenance effort of
+#     changing cutters on a TBM's cutterhead. Based on this the reward is
+#     computed
+#     Args:
+#         n_c_tot (int): total number of cutters
+#         broken_cutters_thresh (float): minimum required percentage of functional cutters
+#         CHECK_BEARING_FAILURE (bool): if True should check cutter bearing failures
+#         T_I (int): cost of entering the cutterhead for maintenance
+#         ALPHA (float): weighting factor for replacing cutters
+#         BETA (float): weighting factor for moving cutters
+#         GAMMA (float): weighting factor for cutter distance
+#         DELTA (float): weighting factor for entering cutterhead
+#     """
+
+#     n_c_tot: int
+#     BROKEN_CUTTERS_THRESH: float
+#     CHECK_BEARING_FAILURE: bool
+#     BEARING_FAILURE_PENALTY: bool
+#     T_I: float = 1
+#     ALPHA: float = 0.2
+#     BETA: float = 0.3
+#     GAMMA: float = 0.25
+#     DELTA: float = 0.25
+
+#     assert (
+#         ALPHA + BETA + GAMMA + DELTA == 1
+#     ), "reward weighting factors do not sum up to 1!"
+
+#     def __call__(
+#         self,
+#         replaced_cutters: list,
+#         moved_cutters: list,
+#         n_good_cutters: int,
+#         damaged_bearing: bool,
+#     ) -> float | int:
+#         """Setup
+
+#         Args:
+#             replaced_cutters (list): list of replaced cutters
+#             moved_cutters (list): list of moved cutters
+#             n_good_cutters (int): number of good cutters, ie. cutters with life
+#                 greater than 0
+#             damaged_bearing (bool): if at least one cutter bearing fails due to
+#                 blockyness damage to the cutter and no subsequent repair. Only
+#                 effective if check_bearing_failure == True
+#         """
+#         acted_on_cutters = sorted(replaced_cutters + moved_cutters)
+#         dist_cutters = np.sum(np.diff(acted_on_cutters))
+
+#         if n_good_cutters < self.n_c_tot * self.BROKEN_CUTTERS_THRESH:
+#             # if more than threshhold number of cutters are broken
+#             reward: float = -1.0
+#         elif self.CHECK_BEARING_FAILURE is True and damaged_bearing is True:
+#             # if check for bearing failures is set and bearing failure occurs
+#             reward = self.BEARING_FAILURE_PENALTY
+
+#         elif len(acted_on_cutters) == 0:
+#             # if no cutters are acted on
+#             reward = n_good_cutters / self.n_c_tot
+#         else:
+#             # weighted representation of cutters to penalize changing of outer
+#             # cutters more than inner cutters
+#             weighted_cutters = np.linspace(1, 2, num=self.n_c_tot)
+
+#             ratio1 = n_good_cutters / self.n_c_tot
+#             ratio2 = (
+#                 np.sum(np.take(weighted_cutters, replaced_cutters))
+#                 / np.sum(weighted_cutters)
+#             ) * self.ALPHA
+#             ratio3 = (
+#                 np.sum(np.take(weighted_cutters, moved_cutters))
+#                 / np.sum(weighted_cutters)
+#             ) * self.BETA
+#             ratio4 = ((dist_cutters + 1) / self.n_c_tot) * self.GAMMA
+#             change_penalty = self.T_I * self.DELTA
+#             reward = ratio1 - ratio2 - ratio3 - ratio4 - change_penalty
+
+#         return reward

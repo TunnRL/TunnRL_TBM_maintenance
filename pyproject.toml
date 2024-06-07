@@ -1,11 +1,11 @@
 [tool.poetry]
 name = "tunnrl-tbm-maintenance"
-version = "0.1.0"
+version = "2.0.0"
 description = "Decision making in cutter changing on TBM excavation using reinforcement learning"
 authors = ["Tom F. Hansen <tom.frode.hansen@gmail.com>", "Georg H. Erharter <erharter@tugraz.at>"]
 license = "MIT"
 readme = "README.md"
-packages = [{include = "utils", from = "src"}]
+packages = [{include = "tunnrl_tbm_maintenance", from = "src"}]
 
 [tool.poetry.dependencies]
 python = "^3.10"
@@ -33,6 +33,8 @@ pytest = "^7.3.1"
 coverage = "^7.2.5"
 pre-commit = "^3.3.2"
 isort = "^5.12.0"
+types-pyyaml = "^6.0.12.20240311"
+pandas-stubs = "^2.2.2.240603"
 
 [build-system]
 requires = ["poetry-core"]
@@ -43,6 +45,7 @@ context = 10
 
 [tool.black]
 line-length = 88
+preview = true  # run nightly changes. Now mainly string splitting on long strings
 exclude = '''
 /(
 	\.git
@@ -56,11 +59,17 @@ exclude = '''
 )/
 '''
 
+[tool.isort]
+profile = "black"
+force_single_line = false
+lines_after_imports = 2
+
 [tool.ruff]
 line-length = 88
 
 [tool.mypy]
 strict = false
+ignore_missing_imports = true
 
 [tool.coverage.report]
 show_missing = true

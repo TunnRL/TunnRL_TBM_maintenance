@@ -44,11 +44,13 @@ TunnRL_TBM_maintenance
 │   ├── D_recommender.py                  - recommend the next action from a policy (based on a trained agent)
 ├── src
 │   ├── tunnrl_tbm_maintenance            - main package for the project
-│        ├── XX_config_schemas.py         - schemas for pydantic check of config
-│        ├── XX_experiment_factory.py
-│        ├── XX_hyperparams.py
-│        ├── XX_plotting.py
-│        ├── XX_TBM_environment.py        - defining the RL environment and reward function
+│        ├── config_schemas.py            - schemas for pydantic check of config
+│        ├── experiment_factory.py
+│        ├── hyperparameters.py
+│        ├── plotting.py
+│        ├── TBM_environment.py           - defining the RL environment and reward function
+│        ├── train_optimize_execute.py    - main functionality for training, optimization and execution
+│        ├── utility.py                   - utility functions
 ├── .gitignore
 ├── Dockerfile                            - Instructions to make a Docker image >>> run the training process using a docker container.
 ├── .pre-commit-config.yaml               - autoformatting and checks upon commit
@@ -265,6 +267,12 @@ To see all options, run:
 
 ```bash
 python scripts/A_main_hydra.py --help
+```
+
+To get colour coding of errors and traceback messages, run the script with the a flag:
+
+```bash
+HYDRA_FULL_ERROR=1 python scripts/A_main_hydra.py
 ```
 
 With hydra you can also kick of multiruns with different configs. Eg.

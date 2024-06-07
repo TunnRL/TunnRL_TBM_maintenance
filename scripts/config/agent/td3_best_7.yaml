@@ -18,4 +18,3 @@ agent_params:
   target_noise_clip: 0.34013887158747463
   target_policy_noise: 0.12332043263104113
   tau: 0.0017700526604820428
-

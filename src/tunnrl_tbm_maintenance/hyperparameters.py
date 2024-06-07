@@ -12,8 +12,10 @@ import numpy as np
 import optuna
 import torch.nn as nn
 from numpy.typing import NDArray
-from stable_baselines3.common.noise import (NormalActionNoise,
-                                            OrnsteinUhlenbeckActionNoise)
+from stable_baselines3.common.noise import (
+    NormalActionNoise,
+    OrnsteinUhlenbeckActionNoise,
+)
 
 
 class Hyperparameters:
