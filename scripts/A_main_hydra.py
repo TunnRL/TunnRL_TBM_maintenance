@@ -1,5 +1,6 @@
-"""
-Main code that runs one of:
+"""Main script that runs the optimization, training, or execution of the RL model.
+
+Runs:
 - hyperparameter optimization study with OPTUNA
 - training a model with optimized parameters
 - execute a trained model
@@ -63,33 +64,16 @@ def main(cfg: DictConfig) -> None:
     if p_cfg.OPT.DEFAULT_TRIAL:
         warnings.warn("Optimization runs are started with default parameter values")
 
-    assert (
-        p_cfg.OPT.N_CORES_PARALLELL >= p_cfg.OPT.N_PARALLELL_PROCESSES
-        or p_cfg.OPT.N_CORES_PARALLELL == -1
-    ), "Num cores must be >= num parallell processes."
     if p_cfg.OPT.N_PARALLELL_PROCESSES > 1 and (
         p_cfg.EXP.MODE == "training" or p_cfg.EXP.MODE == "execution"
     ):
         warnings.warn("No parallellization in training and execution mode")
-
-    if p_cfg.TRAIN.LOAD_PARAMS_FROM_STUDY is True and p_cfg.EXP.MODE == "training":
-        assert Path(
-            f"./results/{p_cfg.EXP.STUDY}.db"
-        ).exists(), "The study object does not exist"
 
         assert (
             p_cfg.agent.NAME == (p_cfg.EXP.STUDY).split("_")[0]
         ), "Agent name and study name must be similar"
 
     agent_name = p_cfg.EXP.STUDY.split("_")[0]
-    assert agent_name in [
-        "PPO",
-        "A2C",
-        "DDPG",
-        "SAC",
-        "TD3",
-        "PPO-LSTM",
-    ], f"{agent_name} is not a valid agent."
 
     if (
         p_cfg.EXP.MODE == "execute"

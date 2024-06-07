@@ -1,5 +1,5 @@
-"""
-Code that predict an action from a given state
+"""Code that predict an action from a given state.
+
 TODO: make a streamlit version
 """
 

@@ -83,13 +83,7 @@ class TBM(BaseModel):
 
 
 class EXP(BaseModel):
-    @validator("MODE")
-    def check_mode(cls, MODE: str) -> str:
-        if MODE not in ["optimization", "training", "execution"]:
-            raise ValueError(f"{MODE} is not a valid mode")
-        return MODE
-
-    MODE: str
+    MODE: Literal["optimization", "training", "execution"]
     CHECK_ENV: bool
     DEBUG: bool
     STUDY: str
@@ -100,24 +94,51 @@ class EXP(BaseModel):
     SEED_ALGORITHM: int | None
     SEED_ALL: int | None
 
-
-class OPT(BaseModel):
-    DEFAULT_TRIAL: bool
-    MAX_NO_IMPROVEMENT_EVALS: int
-    N_SINGLE_RUN_OPTUNA_TRIALS: int
-    N_CORES_PARALLELL: int
-    N_PARALLELL_PROCESSES: int
-    N_EVAL_EPISODES_OPTIMIZATION: int
-    N_EVAL_EPISODES_REWARD: int
-    STUDYS: list[str]
-    AGENTS: list[str]
-    BEST_PERFORMING_ALGORITHM_PATH: Path
+    @validator("STUDY")
+    def check_agent(cls, STUDY: str):
+        agent_name = STUDY.split("_")[0]
+        valid_agents = [
+            "PPO",
+            "A2C",
+            "DDPG",
+            "SAC",
+            "TD3",
+            "PPO-LSTM",
+        ]
+        if agent_name not in valid_agents:
+            raise ValueError(
+                f"The study object with {agent_name} has not a valid agent."
+            )
+        return agent_name
 
 
 class TRAIN(BaseModel):
     LOAD_PARAMS_FROM_STUDY: bool
     N_EVAL_EPISODES_TRAINING: int
     N_DUPLICATES: int
+
+
+class OPT(BaseModel):
+    DEFAULT_TRIAL: bool
+    MAX_NO_IMPROVEMENT_EVALS: int = Field(..., gt=0)
+    N_SINGLE_RUN_OPTUNA_TRIALS: int
+    N_CORES_PARALLELL: int = Field(..., ge=-1, description="Number of cores to use")
+    N_PARALLELL_PROCESSES: int = Field(
+        ..., gt=0, description="Number of parallel processes"
+    )
+    N_EVAL_EPISODES_OPTIMIZATION: int
+    N_EVAL_EPISODES_REWARD: int
+    STUDYS: list[str]
+    AGENTS: list[str]
+    BEST_PERFORMING_ALGORITHM_PATH: Path
+
+    @root_validator
+    def check_cores_and_processes(cls, values: dict[str, Any]):
+        n_cores_parallell = values.get("N_CORES_PARALLELL")
+        n_parallell_processes = values.get("N_PARALLELL_PROCESSES")
+        if not (n_cores_parallell >= n_parallell_processes or n_cores_parallell == -1):
+            raise ValueError("Num cores must be >= num parallel processes.")
+        return values
 
 
 class EXECUTE(BaseModel):
@@ -147,3 +168,17 @@ class Config(BaseModel):
     TRAIN: TRAIN
     EXECUTE: EXECUTE
     PLOT: PLOT
+
+    @root_validator
+    def check_study_exists(cls, values: dict):
+        exp = values.get("EXP")
+        train = values.get("TRAIN")
+        if (
+            train is not None
+            and exp is not None
+            and train.LOAD_PARAMS_FROM_STUDY
+            and exp.MODE == "training"
+        ):
+            if not Path(f"./results/{exp.STUDY}.db").exists():
+                raise ValueError("The study object does not exist")
+        return values
