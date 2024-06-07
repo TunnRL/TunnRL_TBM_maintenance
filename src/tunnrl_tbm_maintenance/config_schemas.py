@@ -34,7 +34,7 @@ class Agent(BaseModel):
 class REWARD(BaseModel):
     CHECK_BEARING_FAILURE: bool
     BEARING_FAILURE_PENALTY: int = Field(
-        ..., gt=0, description="Penalty for bearing failure"
+        ..., ge=0, description="Penalty for bearing failure"
     )
     BROKEN_CUTTERS_THRESH: float = Field(
         ...,

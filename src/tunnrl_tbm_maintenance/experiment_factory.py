@@ -43,8 +43,9 @@ from stable_baselines3.common.callbacks import (
 )
 from stable_baselines3.common.evaluation import evaluate_policy
 from stable_baselines3.common.utils import set_random_seed
-from utils.XX_hyperparams import Hyperparameters
-from utils.XX_plotting import Plotter
+
+from tunnrl_tbm_maintenance.hyperparameters import Hyperparameters
+from tunnrl_tbm_maintenance.plotting import Plotter
 
 
 warnings.filterwarnings("ignore", category=optuna.exceptions.ExperimentalWarning)
@@ -237,17 +238,17 @@ class Optimization:
         """
         match agent_name:
             case "PPO":
-                agent = PPO(**parameters)
+                agent: BaseAlgorithm = PPO(**parameters)
             case "SAC":
-                agent = SAC(**parameters)
+                agent: BaseAlgorithm = SAC(**parameters)
             case "A2C":
-                agent = A2C(**parameters)
+                agent: BaseAlgorithm = A2C(**parameters)
             case "DDPG":
-                agent = DDPG(**parameters)
+                agent: BaseAlgorithm = DDPG(**parameters)
             case "TD3":
-                agent = TD3(**parameters)
+                agent: BaseAlgorithm = TD3(**parameters)
             case "PPO-LSTM":
-                agent = RecurrentPPO(**parameters)
+                agent: BaseAlgorithm = RecurrentPPO(**parameters)
             case _:
                 raise NotImplementedError(f"{self.AGENT_NAME} not implemented")
         return agent

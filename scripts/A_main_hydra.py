@@ -28,7 +28,6 @@ from tunnrl_tbm_maintenance.utility import parse_validate_hydra_config
 
 @hydra.main(config_path="config", config_name="main.yaml", version_base="1.3.2")
 def main(cfg: DictConfig) -> None:
-    install()  # better traceback messages
     ###############################################################################
     # SETUP DIRECTORY STRUCTURE
     ###############################################################################
@@ -186,4 +185,5 @@ def main(cfg: DictConfig) -> None:
 
 
 if __name__ == "__main__":
+    install()
     main()

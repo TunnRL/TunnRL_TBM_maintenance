@@ -10,9 +10,85 @@ To enable coverage reporting, invoke pytest with the --cov option: "pytest --cov
 
 from dataclasses import dataclass
 
+import numpy as np
 import pytest
 
-from tunnrl_tbm_maintenance.TBM_environment import Reward
+from tunnrl_tbm_maintenance.TBM_environment import CustomEnv, Reward
+
+
+class TestCustomEnv:
+    @pytest.fixture
+    def custom_env_instance(self):
+        reward_fn = Reward()
+        cutter_pathlenghts = np.array(
+            [
+                0.31415927,
+                0.9424778,
+                1.57079633,
+                2.19911486,
+                2.82743339,
+                3.45575192,
+                4.08407045,
+                4.71238898,
+                5.34070751,
+                5.96902604,
+                6.59734457,
+                7.2256631,
+                7.85398163,
+                8.48230016,
+                9.1106187,
+                9.73893723,
+                10.36725576,
+                10.99557429,
+                11.62389282,
+                12.25221135,
+                12.88052988,
+                13.50884841,
+                14.13716694,
+                14.76548547,
+                15.393804,
+                16.02212253,
+                16.65044106,
+                17.27875959,
+                17.90707813,
+                18.53539666,
+                19.16371519,
+                19.79203372,
+                20.42035225,
+                21.04867078,
+                21.67698931,
+                22.30530784,
+                22.93362637,
+                23.5619449,
+                24.19026343,
+                24.81858196,
+                25.44690049,
+            ]
+        )
+        env = CustomEnv(
+            n_c_tot=40,
+            LIFE=400000,
+            MAX_STROKES=1000,
+            STROKE_LENGTH=1.8,
+            cutter_pathlenghts=cutter_pathlenghts,
+            CUTTERHEAD_RADIUS=4,
+            reward_fn=reward_fn,
+        )
+        return env  # default values
+
+    def test_rand_walk_with_bounds(self, custom_env_instance):
+        env = custom_env_instance
+        n_dp = 100
+        x = env._rand_walk_with_bounds(n_dp)
+
+        # Check if the length of the generated array is correct
+        assert len(x) == n_dp
+
+        # Check if the values are within the bounds
+        assert np.all(x >= 0) and np.all(x <= 1)
+
+        # Check if the values are within the specified bounds
+        assert np.all(x >= 0.05) and np.all(x <= 0.95)
 
 
 @dataclass

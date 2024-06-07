@@ -90,7 +90,7 @@ class Plotter:
 
     """
 
-    plt.style.use("./src/config/figures_styles.mplstyle")
+    plt.style.use("./scripts/config/figures_styles.mplstyle")
     FIGURE_WIDTH = 3.15
 
     @staticmethod
