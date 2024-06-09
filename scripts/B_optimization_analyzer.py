@@ -29,7 +29,7 @@ def main(cfg: DictConfig) -> None:
         ###############################################################################
         # different visualizations of OPTUNA optimization
 
-        for plot in p_cfg.PLOT.PLOTS_TO_MAKE:
+        for plot in p_cfg.PLOT.OPTIMIZATION_PLOTS:
             match plot:
                 case "parallell_coordinate_plot":
                     console.print(f"[green]Plotting parallell coordinate plot: {study}")

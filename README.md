@@ -225,12 +225,28 @@ We have organized 2 ways of setting up the environment, downloading and installi
 
 ## How to use the functionality - in general terms
 
+In general the logfiles for each experiment is structured and saved similarly for `optimization` and `training`. Each experiment directory has the name of the agent and a unique id, e.g. `PPO_0ce28d43-982e-400e-8bf6-f29829d12ea1`. In these directories you will find the following files:
+
+* best_model.zip: The best model from the training process
+* tensorboard logfiles
+* progress.csv: A csv file with a log of the training process
+* progress_env.csv: A csv file with a log of the environment
+
+When you kick off an optimization session (including the training of an agent) you will train several experiments with different hyperparameters. The results from these experiments are saved in the `optimization` directory. The `results` directory contains the best hyperparameters and a `study object` for an agent for that certain optimization run. Comparatively, when you train an agent, the single experiment directory are saved in the `checkpoints` directory.
+
 1. **Optimization**. Choose an agent architecture (PPO, DDPG, TD3 etc.) and run an optimization process with Optuna to optimize hyperparameters to achieve the highest reward for that architecture. Run `A_main_hydra.py EXP.MODE=optimization`.
    * Optimization data is saved in the `optimization` directory and a subdirectory for each model run. Data is updated in this subdirectory for every chosen episode interval (eg. every 100 episode in a 10 000 episode study).
    * Each time one model-run is completed, common data-files for all experiments are saved into the `results` directory. Run `B_optimization_analyzer.py` to visualize this data.
 2. **Training**. Train an agent for a number of episodes for a certain architecture and parameters given from an Optuna optimization for that architecture by running `A_main_hydra.py EXP.MODE=training`.
    * Metrics and trained models are saved into the `checkpoints` directory.
-   * Visualize the training process with `C_training_path_analyzer.py`
+   * Visualize the training process with `C_training_path_analyzer.py`. Since the experiment directories have similar structures for optimization and training, this script can be used for both. E.g. you can plot the analysis plots with:
+
+      ```bash
+      python scripts/C_training_path_analyzer.py EXP.MAIN_DIR=checkpoints EXP.ID= PPO_0ce28d43-982e-400e-8bf6-f29829d12ea1
+
+      # set EXP.ID to False if you want to analyze the latest experiment
+      ```
+
 3. **Execute**. To execute the actions for a trained agent.
    * To recommend the actions (cutter maintenance) for the next step (stroke) use the policy from a trained agent and run `D_recommender.py`.
 
@@ -308,9 +324,10 @@ Tensorboard is utilized to inspect the development of details in loss, learning_
 ```bash
 # cd to directory above subdirectories with tensorboard files
 tensorboard --logdir <directory with tensorboard event files>
-# eg.
-cd /mnt/P/2022/00/20220043/Calculations/
+# e.g. example with several experiments collected in one directory
 tensorboard --logdir SAC_2022_10_05_study
+# e.g. example with one experiment
+tensorboard --logdir PPO_0ce28d43-982e-400e-8bf6-f29829d12ea1
 ```
 
 

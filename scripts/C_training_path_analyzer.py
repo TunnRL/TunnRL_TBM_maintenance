@@ -3,11 +3,13 @@
 from pathlib import Path
 
 import hydra
+import pandas as pd
 from omegaconf import DictConfig
 from rich.traceback import install
 
 from tunnrl_tbm_maintenance.plotting import Plotter
 from tunnrl_tbm_maintenance.utility import (
+    latest_subdirectory,
     make_max_reward_list,
     parse_validate_hydra_config,
 )
@@ -22,37 +24,54 @@ def main(cfg: DictConfig) -> None:
 
     """
     p_cfg, console = parse_validate_hydra_config(cfg, print_config=True)
+    experiment_dir = p_cfg.EXP.ID
 
-    # only make this list occasionally
-    if p_cfg.PLOT.MAKE_MAX_REWARD_LIST:
-        for algorithm in p_cfg.OPT.STUDYS:
-            make_max_reward_list(p_cfg.PLOT.DATA_DIR, algorithm)
+    # # only make this list occasionally
+    # if p_cfg.PLOT.MAKE_MAX_REWARD_LIST:
+    #     for algorithm in p_cfg.OPT.STUDYS:
+    #         make_max_reward_list(p_cfg.EXP.MAIN_DIR, algorithm)
 
-    for plot in p_cfg.PLOT.PLOTS_TO_MAKE:
+    for plot in p_cfg.PLOT.TRAINING_PLOTS:
         match plot:
             case "training_progress_status_plot":
-                import pandas as pd
-
-                df_log = pd.read_csv(
-                    Path(p_cfg.OPT.BEST_PERFORMING_ALGORITHM_PATH, "progress.csv")
+                if p_cfg.EXP.ID is not None:
+                    df_log = pd.read_csv(
+                        Path(p_cfg.EXP.MAIN_DIR, experiment_dir, "progress.csv")
+                    )
+                else:
+                    experiment_dir = latest_subdirectory(p_cfg.EXP.MAIN_DIR)
+                    df_log = pd.read_csv(
+                        Path(p_cfg.EXP.MAIN_DIR, experiment_dir, "progress.csv")
+                    )
+                console.print(
+                    f"Plotting training progress status plot for: {experiment_dir}.",
+                    style="info",
                 )
+
                 df_log["episodes"] = (
                     df_log[r"time/total_timesteps"] / p_cfg.TBM.MAX_STROKES
-                )
+                )  # TODO: check if this is accessed in the plot correctly
                 df_env_log = pd.read_csv(
-                    Path(p_cfg.OPT.BEST_PERFORMING_ALGORITHM_PATH, "progress_env.csv")
+                    Path(p_cfg.EXP.MAIN_DIR, experiment_dir, "progress_env.csv")
                 )
 
                 Plotter.training_progress_plot(
                     df_log=df_log,
                     df_env_log=df_env_log,
-                    savepath=f"graphics/{p_cfg.PLOT.AGENT_NAME}_best_performing_progress",
+                    savepath=f"graphics/{experiment_dir}_training_progress",
                 )
-                console.print("[green]Plotted training progress status plot.")
+                console.print("Plotted training progress status plot.", style="success")
             case "training_path_experiments_single_algorithm":
+                if p_cfg.PLOT.MAKE_MAX_REWARD_LIST:
+                    make_max_reward_list(
+                        p_cfg.EXP.MAIN_DIR,
+                        algorithm=p_cfg.PLOT.AGENT_NAME,
+                        study_name=p_cfg.PLOT.STUDY_NAME,
+                    )
+
                 Plotter.custom_training_path_plot_algorithm(
                     agent=p_cfg.PLOT.AGENT_NAME,
-                    root_directory=p_cfg.PLOT.DATA_DIR,
+                    root_directory=p_cfg.EXP.MAIN_DIR,
                     study_name=p_cfg.PLOT.STUDY_NAME,
                     mode=p_cfg.PLOT.VISUALIZATION_MODE,
                     print_thresh=p_cfg.PLOT.PRINT_TRESH,
@@ -61,8 +80,9 @@ def main(cfg: DictConfig) -> None:
                     filename_reward_list=f"{p_cfg.PLOT.AGENT_NAME}_maxreward_experiment.csv",
                 )
                 console.print(
-                    f"[green]Plotted learning path for {p_cfg.PLOT.AGENT_NAME} \
-                        using mode: {p_cfg.PLOT.VISUALIZATION_MODE}"
+                    f"Plotted learning path for {p_cfg.PLOT.AGENT_NAME} \
+                        using mode: {p_cfg.PLOT.VISUALIZATION_MODE}",
+                    style="success",
                 )
 
             case "training_path_experiments_algorithms":

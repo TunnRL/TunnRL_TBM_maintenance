@@ -9,6 +9,7 @@ import yaml
 from omegaconf import DictConfig, OmegaConf
 from rich.console import Console
 from rich.progress import track
+from rich.theme import Theme
 from sklearn.preprocessing import LabelEncoder
 
 from tunnrl_tbm_maintenance.config_schemas import Config
@@ -19,7 +20,17 @@ def parse_validate_hydra_config(
 ) -> tuple[Config, Console]:
     """Parses and validates a hydra dictconfig with Pydantic.
     Prints evaluated config to terminal upon run."""
-    console = Console()  # instantiate rich console
+    styles_dict = Theme(
+        {
+            "info": "bold blue",
+            "warning": "bold yellow",
+            "error": "bold red",
+            "critical": "bold red",
+            "debug": "bold green",
+            "success": "bold green",
+        }
+    )
+    console = Console(theme=styles_dict)  # instantiate rich console
     OmegaConf.resolve(cfg)  # resolves hydra interpolation in place
     cfg_dict: dict[str, Any] = OmegaConf.to_object(cfg)  # type:ignore
     cfgs = Config(**cfg_dict)  # parse config general
@@ -28,25 +39,61 @@ def parse_validate_hydra_config(
     return cfgs, console
 
 
+def latest_subdirectory(directory: Path) -> str | None:
+    """
+    Find the latest made subdirectory in a directory.
+
+    Args:
+        directory (Path): The path to the directory to search.
+
+    Returns:
+        Optional[str]: The name of the latest made subdirectory, or None if no
+        subdirectory exists.
+    """
+    if not directory.is_dir():
+        return None
+
+    subdirs = [d for d in directory.iterdir() if d.is_dir()]
+    if not subdirs:
+        return None
+
+    latest_subdir = max(subdirs, key=lambda d: d.stat().st_mtime)
+    return latest_subdir.name
+
+
 def make_max_reward_list(
-    root_directory: str, experiments_dir: str | None = None
-) -> None:
-    """Find max reward value in each experiment and output a csv file with name of
-    experiment directory and max reward value"""
-    if experiments_dir is not None:
-        root_path = Path(root_directory, experiments_dir)
-        filename = root_path.name.split("_")[0]
-        output_path = Path(root_path.parent, f"{filename}_maxreward_experiment.csv")
+    root_directory: Path, algorithm: str, study_name: str | None = None
+) -> pd.DataFrame:
+    """Find max reward value in each experiment for an algorithm and output a csv file
+    with name of experiment directory and max reward value.
+
+    If experiments are grouped under a study name, only these experiments are considered.
+
+    """
+    if study_name is not None:
+        root_directory = Path(root_directory, study_name)
+        output_path = Path(
+            root_directory, study_name, f"{study_name}_maxreward_experiment.csv"
+        )
+        experiment_directories = [d for d in root_directory.iterdir() if d.is_dir()]
+    else:  # search for directories starting with the algorithm name
+        root_directory = Path(root_directory)
+        output_path = Path(root_directory, f"{algorithm}_maxreward_experiment.csv")
+        experiment_directories = [
+            d
+            for d in root_directory.iterdir()
+            if d.is_dir() and d.name.startswith(algorithm)
+        ]
 
     results = []
 
     print("This function take some time to run.")
     print("First find number of experiments...")
-    count = sum(entry.is_dir() for entry in root_path.iterdir())
+    count = len(experiment_directories)
 
     for directory in track(
-        root_path.iterdir(),
-        description=f"Finding max reward in each experiment for {experiments_dir}",
+        experiment_directories,
+        description=f"Finding max reward in each experiment for {algorithm}",
         total=count,
     ):
         if directory.is_dir():
@@ -60,6 +107,7 @@ def make_max_reward_list(
 
     result_df = pd.DataFrame(results, columns=["experiment_directory", "max_reward"])
     result_df.to_csv(output_path, index=False)
+    return result_df
 
 
 def process_optuna_data(study_name: str, agent: str, study_dirpath="results") -> tuple:

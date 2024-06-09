@@ -45,13 +45,13 @@ class Reward:
 
     n_c_tot: int = 40
     BROKEN_CUTTERS_THRESH: float = 0.85
-    CHECK_BEARING_FAILURE: bool = True
-    BEARING_FAILURE_PENALTY: float = 0.0
     T_I: float = 1
     ALPHA: float = 0.2
     BETA: float = 0.3
     GAMMA: float = 0.25
     DELTA: float = 0.25
+    CHECK_BEARING_FAILURE: bool = True
+    BEARING_FAILURE_PENALTY: float = 0.0
 
     def __call__(
         self,
@@ -189,8 +189,12 @@ class CustomEnv(gym.Env):
             CUTTERHEAD_RADIUS (float): radius of cutterhead
         """
         super(CustomEnv, self).__init__()
-        self.action_space = spaces.Box(low=-1, high=1, shape=(n_c_tot * n_c_tot,))
-        self.observation_space = spaces.Box(low=0, high=1, shape=(n_c_tot,))
+        self.action_space = spaces.Box(
+            low=-1, high=1, shape=(n_c_tot * n_c_tot,), dtype=np.float32
+        )
+        self.observation_space = spaces.Box(
+            low=0, high=1, shape=(n_c_tot,), dtype=np.float32
+        )
 
         self.n_c_tot = n_c_tot
         self.LIFE = LIFE
@@ -215,7 +219,9 @@ class CustomEnv(gym.Env):
         self.Jv_s: NDArray
         self.UCS_s: NDArray
 
-    def step(self, actions: NDArray) -> tuple[NDArray, float, bool, dict[str, Any]]:  # type: ignore
+    def step(
+        self, actions: NDArray
+    ) -> tuple[NDArray, float, bool, bool, dict[str, Any]]:  # type: ignore
         """Main function that moves the environment one step further.
         - Updates the state and reward.
         - Checks if the terminal state is reached.
@@ -253,17 +259,19 @@ class CustomEnv(gym.Env):
         rot_per_stroke = self.STROKE_LENGTH / p
         self.state = self.state - rot_per_stroke * (self.cutter_pathlenghts / self.LIFE)
         self.state = np.where(self.state <= 0, 0, self.state)
+        # sets dtype of self.state to float32
 
         # set cutter lifes to 0 based on blockyness
         self.state[np.where(self.brokens[self.epoch, :] == 1)[0]] = 0
+        self.state = self.state.astype(np.float32)
 
         self.epoch += 1
         if self.epoch >= self.MAX_STROKES:
-            terminal = True
+            terminated = True
         else:
-            terminal = False
+            terminated = False
 
-        return self.state, reward, terminal, {}
+        return self.state, reward, terminated, False, {}
 
     def _implement_action(
         self,
@@ -398,9 +406,14 @@ class CustomEnv(gym.Env):
 
         return Jv_s, UCS_s, FPIblocky_s, brokens, TF_s, penetration
 
-    def reset(self) -> NDArray:  # type: ignore
+    def reset(self, seed: int | None = None) -> tuple[np.ndarray, dict[str, Any]]:  # type: ignore
         """reset an environment to its initial state"""
-        self.state = np.full((self.n_c_tot), 1)  # start with new cutters
+        super().reset(seed=seed)
+        if seed is not None:
+            np.random.seed(seed)
+        self.state = np.full(
+            (self.n_c_tot), 1, dtype=np.float32
+        )  # start with new cutters
         self.epoch = 0  # reset epoch counter (actually a step counter)
         # generate new TBM data for episode
         (
@@ -411,7 +424,8 @@ class CustomEnv(gym.Env):
             self.TF_s,
             self.penetration,
         ) = self.generate()
-        return self.state
+
+        return self.state, {}
 
     def render(self) -> None:
         pass

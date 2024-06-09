@@ -1,8 +1,12 @@
 """Functionality to train, optimize, and execute an RL model."""
 
+from pathlib import Path
+
 import gymnasium as gym
 import numpy as np
 import optuna
+from alembic import command
+from alembic.config import Config
 from joblib import Parallel, delayed
 from numpy.typing import NDArray
 from rich.console import Console
@@ -50,7 +54,7 @@ def run_execution(
     # test agent throughout multiple episodes
     for test_ep_num in range(NUM_TEST_EPISODES):
         rcon.print(f"Episode num: {test_ep_num}")
-        state = env.reset()  # reset new environment
+        state, info = env.reset(seed=42)  # reset new environment
         terminal = False  # reset terminal flag
 
         actions: list[NDArray] = []  # collect actions per episode
@@ -71,7 +75,7 @@ def run_execution(
             # agent takes an action -> tells which cutters to replace
             action = agent.predict(state, deterministic=DETERMINISTIC)[0]
             # environment gives new state signal, terminal flag and reward
-            state, reward, terminal, info = env.step(action)
+            state, reward, terminal, _, _ = env.step(action)
             # collect actions, states and rewards for later analyses
             actions.append(action)
             states.append(state)
@@ -199,6 +203,41 @@ def run_training(
     optim.train_agent(best_params_dict, reporting_parameters=best_agent_params)
 
 
+# def initialize_database(storage_url: str):
+#     """
+#     Initialize the Optuna database schema using Alembic.
+
+#     Args:
+#         storage_url (str): The storage URL for the Optuna database.
+#     """
+#     engine = create_engine(storage_url)
+#     alembic_cfg = Config()
+#     alembic_cfg.set_main_option("script_location", str(Path(optuna.__file__).parent / "storages" / "_rdb" / "alembic"))
+#     alembic_cfg.set_main_option("sqlalchemy.url", storage_url)
+
+#     with engine.connect() as connection:
+#         alembic_cfg.attributes["connection"] = connection
+#         command.upgrade(alembic_cfg, "head")
+
+
+def stamp_database(storage_url: str):
+    """
+    Stamp the Optuna database schema using Alembic.
+
+    Args:
+        storage_url (str): The storage URL for the Optuna database.
+    """
+    alembic_cfg = Config()
+    alembic_cfg.set_main_option(
+        "script_location",
+        str(Path(optuna.__file__).parent / "storages" / "_rdb" / "alembic"),
+    )
+    alembic_cfg.set_main_option("sqlalchemy.url", storage_url)
+
+    # Stamp the current database schema to the latest version
+    command.stamp(alembic_cfg, "head")
+
+
 def run_optimization(
     STUDY: str,
     N_SINGLE_RUN_OPTUNA_TRIALS: int,
@@ -218,6 +257,9 @@ def run_optimization(
 
     db_path = f"results/{STUDY}.db"
     db_file = f"sqlite:///{db_path}"
+
+    stamp_database(db_file)
+
     sampler = optuna.samplers.TPESampler()
     study = optuna.create_study(
         direction="maximize",

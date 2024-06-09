@@ -83,6 +83,8 @@ class TBM(BaseModel):
 
 
 class EXP(BaseModel):
+    ID: str | None
+    MAIN_DIR: Path
     MODE: Literal["optimization", "training", "execution"]
     CHECK_ENV: bool
     DEBUG: bool
@@ -151,8 +153,9 @@ class PLOT(BaseModel):
     FIGURE_WIDTH: float
     DATA_DIR: Path
     AGENT_NAME: str
-    STUDY_NAME: str
-    PLOTS_TO_MAKE: list[str]
+    STUDY_NAME: str | None
+    OPTIMIZATION_PLOTS: list[str]
+    TRAINING_PLOTS: list[str]
     VISUALIZATION_MODE: str
     PRINT_TRESH: None | int
     CHOOSE_NUM_BEST_REWARDS: None | int

@@ -1,16 +1,10 @@
 """
-Towards optimized TBM cutter changing policies with reinforcement learning
-G.H. Erharter, T.F. Hansen
-DOI: XXXXXXXXXXXXXXXXXXXXXXXXXX
-
 Custom library that contains functionality for:
 - Parameter optimization
 - Training an agent
 - Callbacks used in training process
 - some utility functionality (loading trained agents etc.)
 - logging to mlflow
-
-code contributors: Georg H. Erharter, Tom F. Hansen
 """
 
 import uuid
@@ -390,7 +384,7 @@ def load_best_model(agent_name: str, main_dir: str, agent_dir: str) -> BaseAlgor
         Instantiated RL-object
     """
     path = f"{main_dir}/{agent_dir}/best_model"
-    agent = None
+    agent: BaseAlgorithm
 
     try:
         if agent_name == "PPO":
@@ -468,7 +462,7 @@ def mlflow_log_experiment(
     main_dir: str,
     agent_dir: str,
     parameters: dict,
-    sub_parameters: dict = None,
+    sub_parameters: dict | None = None,
 ) -> None:
     """Logs parameter values, metrics and setupdata for one experiment to mlflow.
 
@@ -634,7 +628,6 @@ class TrainingProgressCallback(BaseCallback):
                     df_log,
                     df_env_log,
                     savepath=f"{self.save_path}/{self.name_prefix}_training.svg",
-                    show=False,
                 )
         return True
 

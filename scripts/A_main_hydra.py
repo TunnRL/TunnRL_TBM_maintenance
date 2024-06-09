@@ -102,7 +102,7 @@ def main(cfg: DictConfig) -> None:
     )
     cutter_pathlenghts = cutter_positions * 2 * np.pi  # [m]
 
-    reward_fn = Reward(n_c_tot, **p_cfg.REWARD)
+    reward_fn = Reward(n_c_tot, **p_cfg.REWARD.dict())
 
     env = CustomEnv(
         n_c_tot,
@@ -115,6 +115,7 @@ def main(cfg: DictConfig) -> None:
     )
     if p_cfg.EXP.CHECK_ENV:
         check_env(env)
+        rich_console.print("Environment checked successfully", style="blue")
 
     callbacks_cfg = dict(
         MAX_STROKES=p_cfg.TBM.MAX_STROKES,

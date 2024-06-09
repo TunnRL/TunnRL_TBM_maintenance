@@ -15,7 +15,7 @@
 #   for different agents and reward-experiments
 
 defaults: # sub-configs
-  - agent: ppo_best.yaml # ppo_best.yaml, ppo_default.yaml
+  - agent: td3_best_2.yaml # ppo_best.yaml, ppo_default.yaml
   - REWARD: experiment_1.yaml # different setups for different sites and experiments
   - _self_ # main overrides sub-cfg in case of duplicates
 
@@ -44,13 +44,15 @@ EXP:
   MODE: "training" # 'optimization', 'training', 'execution'
   # set to run SB3 environment check function
   # Checks if env is a suitable gym environment
-  CHECK_ENV: False
+  CHECK_ENV: True
   DEBUG: False
-  STUDY: ${agent.NAME}_${now:%Y-%m-%d}_study # name of optuna study object.
+  STUDY: "${agent.NAME}_${now:%Y-%m-%d}_study # name of optuna study object."
   # evaluations in optimization and checkpoints in training every X episodes
   CHECKPOINT_INTERVAL: ${agent.CHECKPOINT_INTERVAL} # different for each agent
   EPISODES: ${agent.EPISODES} # max episodes to train for
   PLOT_PROGRESS: True # wether to make progress plots during training or not. Plotting takes time
+  MAIN_DIR: checkpoints # checkpoints, optimization
+  ID: null # if null, evaluates the latest experiment in the study. Alternatively an id to a specific experiment, e.g. "PPO_0ce28d43-982e-400e-8bf6-f29829d12ea1"
   # deterministic or stocastic actions in evaluate_policy. SB3 tutorials use True
   # deterministic is also used to set this in execute for PPO and A2C. Ref: https://stable-baselines3.readthedocs.io/en/master/guide/rl_tips.html
   DETERMINISTIC: True
@@ -104,20 +106,22 @@ EXECUTE:
 ######################
 PLOT:
   FIGURE_WIDTH: 3.15
-  DATA_DIR: "/mnt/P/2022/00/20220043/Calculations/"  # checkpoints, optimizations, or some other dir
-  AGENT_NAME: TD3  # "PPO", "DDPG", "A2C", "TD3", "SAC", "PPO-LSTM"
-  STUDY_NAME: TD3_2022_09_27_study
+  DATA_DIR: "checkpoints"  # checkpoints, "/mnt/P/2022/00/20220043/Calculations/", optimizations, or some other dir
+  AGENT_NAME: PPO  # "PPO", "DDPG", "A2C", "TD3", "SAC", "PPO-LSTM"
+  STUDY_NAME: null  # TD3_2022_09_27_study
   MAKE_MAX_REWARD_LIST: False  # make a list of max reward for all experiments for each algorithm
   VISUALIZATION_MODE: rollout  # rollout or eval
   PRINT_TRESH: null  # null or int. Only print curves with reward over this threshold
   CHOOSE_NUM_BEST_REWARDS: null # null or int
-  PLOTS_TO_MAKE: [
+  OPTIMIZATION_PLOTS: [
+    # "optimization_history_plot",
+    # "parallel_coordinate_plot",
+    # "slice_plot",
+  ]
+  TRAINING_PLOTS: [
     # "training_path_experiments_single_algorithm",
     # "training_path_experiments_algorithms",
     "training_progress_status_plot",
-    # "parallell_coordinate_plot",
-    # "slice_plot",
-    # "optimization_history_plot",
   ]
 
 rich_console:
